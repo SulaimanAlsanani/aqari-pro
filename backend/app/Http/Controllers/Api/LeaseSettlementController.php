@@ -27,6 +27,7 @@ class LeaseSettlementController extends Controller {
   $expired=$lease->ends_on->toDateString()<=today()->toDateString();
   $flags=[];
   if(!$expired)$flags[]='LEASE_NOT_EXPIRED';
+  if(!in_array($lease->status,['active','completed'],true))$flags[]='LEASE_NOT_ACTIVE';
   if(bccomp($rentOutstanding,'0.00',2)>0)$flags[]='RENT_OUTSTANDING';
   if(bccomp($held,'0.00',2)>0)$flags[]='DEPOSIT_HELD';
   if(!$rentBalanced)$flags[]='RENT_LEDGER_MISMATCH';
@@ -40,7 +41,7 @@ class LeaseSettlementController extends Controller {
     'received'=>$depositReceived,'refunded'=>$depositRefunded,
     'deducted'=>$depositDeducted,'held'=>$held,'balanced'=>$depositBalanced],
    'review_flags'=>$flags,
-   'ready_for_financial_closure'=>$expired&&$rentBalanced&&$depositBalanced
+   'ready_for_financial_closure'=>$expired&&in_array($lease->status,['active','completed'],true)&&$rentBalanced&&$depositBalanced
     &&bccomp($rentOutstanding,'0.00',2)===0&&bccomp($held,'0.00',2)===0
   ]);
  }
