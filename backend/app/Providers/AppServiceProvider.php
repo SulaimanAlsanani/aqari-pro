@@ -3,10 +3,14 @@ namespace App\Providers;
 use App\Models\{AuditEvent,Property,Unit,Tenant,Lease,Due,Payment,PaymentAllocation,Expense,MaintenanceTicket,Vendor,Document};
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Auth\Notifications\ResetPassword;
 
 class AppServiceProvider extends ServiceProvider {
  public function register():void {}
  public function boot():void {
+  ResetPassword::createUrlUsing(function($user,string $token):string {
+   return rtrim(config('app.url'),'/').'/app/index.html?reset_token='.rawurlencode($token).'&email='.rawurlencode($user->getEmailForPasswordReset());
+  });
   $tracked=[Property::class,Unit::class,Tenant::class,Lease::class,Due::class,
    Payment::class,PaymentAllocation::class,Expense::class,MaintenanceTicket::class,Vendor::class,Document::class];
   foreach($tracked as $modelClass){
