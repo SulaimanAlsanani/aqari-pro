@@ -1,57 +1,13 @@
 <?php
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\AuthController;
-use App\Http\Controllers\Api\PortfolioController;
-use App\Http\Controllers\Api\DocumentController;
-use App\Http\Controllers\Api\OperationsController;
-use App\Http\Controllers\Api\RecordsController;
-use App\Http\Controllers\Api\RecordMutationsController;
-use App\Http\Controllers\Api\AuditController;
-use App\Http\Controllers\Api\FinancialReportController;
-use App\Http\Controllers\Api\LeaseLifecycleController;
-use App\Http\Controllers\Api\VendorController;
-use App\Http\Controllers\Api\ReceiptReversalController;
-use App\Http\Controllers\Api\LeaseRenewalController;
-
-Route::post('/login',[AuthController::class,'login'])->middleware('throttle:5,1');
-
-Route::middleware('auth:sanctum')->group(function () {
- Route::get('/me',[AuthController::class,'me']);
- Route::post('/logout',[AuthController::class,'logout']);
- Route::post('/account/change-password',[AuthController::class,'changePassword'])->middleware('throttle:3,1');
- Route::get('/portfolio',[PortfolioController::class,'index']);
- Route::get('/overview',[OperationsController::class,'overview']);
- Route::get('/audit',[AuditController::class,'index']);
- Route::get('/reports/cashflow',[FinancialReportController::class,'cashflow']);
- Route::get('/units',[RecordsController::class,'units']);
- Route::get('/tenants',[RecordsController::class,'tenants']);
- Route::get('/leases',[RecordsController::class,'leases']);
- Route::get('/payments',[RecordsController::class,'payments']);
- Route::get('/expenses',[RecordsController::class,'expenses']);
- Route::get('/tickets',[RecordsController::class,'tickets']);
- Route::get('/vendors',[VendorController::class,'index']);
- Route::post('/vendors',[VendorController::class,'store']);
- Route::patch('/vendors/{vendor}',[VendorController::class,'update']);
- Route::get('/documents',[RecordsController::class,'documents']);
- Route::get('/dues',[OperationsController::class,'dues']);
- Route::post('/properties',[PortfolioController::class,'storeProperty']);
- Route::patch('/properties/{property}',[RecordMutationsController::class,'updateProperty']);
- Route::patch('/units/{unit}',[RecordMutationsController::class,'updateUnit']);
- Route::patch('/tenants/{tenant}',[RecordMutationsController::class,'updateTenant']);
- Route::get('/properties/{property}',[PortfolioController::class,'showProperty']);
- Route::post('/properties/{property}/units',[PortfolioController::class,'storeUnit']);
- Route::post('/tenants',[PortfolioController::class,'storeTenant']);
- Route::post('/properties/{property}/expenses',[OperationsController::class,'storeExpense']);
- Route::post('/properties/{property}/tickets',[OperationsController::class,'storeTicket']);
- Route::patch('/tickets/{ticket}',[OperationsController::class,'updateTicket']);
- Route::post('/leases',[PortfolioController::class,'storeLease']);
- Route::post('/leases/{lease}/renew',[LeaseRenewalController::class,'store']);
- Route::post('/leases/{lease}/activate',[LeaseLifecycleController::class,'activate']);
- Route::post('/leases/{lease}/cancel',[LeaseLifecycleController::class,'cancel']);
- Route::post('/leases/{lease}/complete',[LeaseLifecycleController::class,'complete']);
- Route::post('/leases/{lease}/payments',[PortfolioController::class,'storePayment']);
- Route::post('/payments/{payment}/void',[ReceiptReversalController::class,'void']);
- Route::post('/documents',[DocumentController::class,'store']);
- Route::get('/documents/{document}',[DocumentController::class,'download']);
- Route::delete('/documents/{document}',[DocumentController::class,'destroy']);
-});
+namespace App\Models;
+use Illuminate\Database\Eloquent\Model;
+class Lease extends Model {
+ protected $fillable=['unit_id','tenant_id','renewed_from_id','starts_on','ends_on','total_amount','deposit','status'];
+ protected function casts():array{return ['starts_on'=>'date:Y-m-d','ends_on'=>'date:Y-m-d','total_amount'=>'decimal:2','deposit'=>'decimal:2'];}
+ public function unit(){return $this->belongsTo(Unit::class);}
+ public function tenant(){return $this->belongsTo(Tenant::class);}
+ public function payments(){return $this->hasMany(Payment::class);}
+ public function dues(){return $this->hasMany(Due::class);}
+ public function previousLease(){return $this->belongsTo(Lease::class,'renewed_from_id');}
+ public function renewedLease(){return $this->hasOne(Lease::class,'renewed_from_id');}
+}
