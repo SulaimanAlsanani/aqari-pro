@@ -23,6 +23,7 @@ use App\Http\Controllers\Api\DepositController;
 use App\Http\Controllers\Api\DepositReportController;
 use App\Http\Controllers\Api\LeaseSettlementController;
 use App\Http\Controllers\Api\UnitHandoverController;
+use App\Http\Controllers\Api\HandoverDamageController;
 
 Route::post('/login',[AuthController::class,'login'])->middleware('throttle:5,1');
 Route::post('/password/forgot',[PasswordResetController::class,'requestLink'])->middleware('throttle:3,1');
@@ -41,6 +42,8 @@ Route::middleware('auth:sanctum')->group(function () {
  Route::get('/leases/{lease}/settlement',[LeaseSettlementController::class,'show']);
  Route::get('/leases/{lease}/handovers',[UnitHandoverController::class,'index']);
  Route::post('/leases/{lease}/handovers',[UnitHandoverController::class,'store']);
+ Route::get('/leases/{lease}/damages',[HandoverDamageController::class,'index']);
+ Route::post('/leases/{lease}/damages',[HandoverDamageController::class,'store']);
  Route::post('/leases/{lease}/deposit',[DepositController::class,'store']);
  Route::get('/reports/cashflow',[FinancialReportController::class,'cashflow']);
  Route::get('/reports/deposits',[DepositReportController::class,'index']);
