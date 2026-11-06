@@ -85,6 +85,7 @@ Route::middleware('auth:sanctum')->group(function () {
  Route::post('/leases/{lease}/payments',[PortfolioController::class,'storePayment']);
  Route::post('/payments/{payment}/void',[ReceiptReversalController::class,'void']);
  Route::post('/documents',[DocumentController::class,'store']);
+ Route::get('/documents/{document}/preview',[DocumentController::class,'preview']);
  Route::get('/documents/{document}',[DocumentController::class,'download']);
  Route::delete('/documents/{document}',[DocumentController::class,'destroy']);
 });
