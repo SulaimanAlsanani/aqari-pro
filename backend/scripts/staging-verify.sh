@@ -41,7 +41,7 @@ if [[ "$(docker compose ps --status running --services | grep -c '^app$' || true
 fi
 
 # Apache cannot replace a real external HTTPS reverse-proxy test.
-curl --fail --silent --show-error --max-time 15 "$url/up" >/dev/null
+curl --fail --silent --show-error --max-time 15 "${url%/}/up" >/dev/null
 AQARI_SECURITY_BASE_URL="${url%/}" bash scripts/check-http-security.sh
 docker compose exec -T app bash scripts/check-clamav-readiness.sh
 docker compose exec -T app php artisan migrate:status --no-ansi >/dev/null
