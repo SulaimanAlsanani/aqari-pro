@@ -96,6 +96,7 @@ async function refresh(){
    const buttons=document.createElement('div');buttons.className='actions';
    const down=document.createElement('button');down.type='button';down.className='btn alt';down.textContent='تنزيل';down.dataset.attachmentDownload=file.id;
    const del=document.createElement('button');del.type='button';del.className='btn danger';del.textContent='حذف';del.dataset.attachmentDelete=file.id;
+   if(/\.(pdf|png|jpg|jpeg|webp)$/i.test(file.name)){const preview=document.createElement('button');preview.type='button';preview.className='btn alt';preview.textContent='عرض';preview.dataset.attachmentPreview=file.id;buttons.appendChild(preview)}
    buttons.append(down,del);r.append(info,buttons);list.appendChild(r);
   });
  }catch(err){list.textContent='تعذر قراءة المرفقات: '+err.message}
@@ -124,6 +125,14 @@ async function downloadFile(id){
  link.href=url;link.download=file.name;document.body.appendChild(link);link.click();link.remove();
  setTimeout(()=>URL.revokeObjectURL(url),3000);
 }
+async function previewFile(id){
+ const file=await getFile(id);if(!file||!file.blob)throw Error('الملف غير موجود');
+ if(!/\.(pdf|png|jpg|jpeg|webp)$/i.test(file.name))throw Error('نوع الملف لا يدعم العرض المباشر');
+ const url=URL.createObjectURL(file.blob);
+ const link=document.createElement('a');link.href=url;link.target='_blank';link.rel='noopener noreferrer';
+ document.body.appendChild(link);link.click();link.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),60000);
+}
 async function deleteFile(id){
  const file=await getFile(id);if(!file)return;
  if(!confirm('حذف المرفق «'+file.name+'» نهائيًا من هذا المتصفح؟'))return;
@@ -131,11 +140,12 @@ async function deleteFile(id){
  status('تم حذف المرفق.');await refresh();
 }
 document.addEventListener('click',event=>{
- const btn=event.target.closest('[data-attachment-open],[data-attachment-close],[data-attachment-download],[data-attachment-delete]');
+ const btn=event.target.closest('[data-attachment-open],[data-attachment-close],[data-attachment-download],[data-attachment-delete],[data-attachment-preview]');
  if(!btn)return;
  event.preventDefault();event.stopPropagation();
  if(btn.hasAttribute('data-attachment-close')){close();return}
  if(btn.hasAttribute('data-attachment-open')){show(btn.dataset.entity,btn.dataset.recordId).catch(e=>status(e.message));return}
+ if(btn.dataset.attachmentPreview){previewFile(btn.dataset.attachmentPreview).catch(e=>status(e.message));return}
  if(btn.dataset.attachmentDownload){downloadFile(btn.dataset.attachmentDownload).catch(e=>status(e.message));return}
  if(btn.dataset.attachmentDelete)deleteFile(btn.dataset.attachmentDelete).catch(e=>status(e.message));
 },true);
