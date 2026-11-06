@@ -468,6 +468,7 @@ async function showDepositReport(){
  view.replaceChildren();
  const info=el('section',null,'panel');
  info.append(el('h3','أرصدة تأمينات المستأجرين'),el('p','هذه الأرصدة أمانات محتفظ بها، وليست إيرادات إيجارية. التقرير تراكمي حتى '+report.as_of+'.','muted'));
+ const download=el('button','تصدير حركات التأمين CSV','secondary');download.type='button';download.addEventListener('click',()=>exportCsv('deposit_movements',download));info.append(download);
  const cards=el('div',null,'metrics');
  for(const [title,value] of [['إجمالي التأمين المستلم',report.totals.received],['التأمينات المرتجعة',report.totals.refunded],['الخصومات الموثقة',report.totals.deducted],['رصيد التأمين المحتفظ به',report.totals.held]]){
   const card=el('div',null,'metric');card.append(el('span',title+' (ر.س)','muted'),el('strong',value));cards.append(card);
