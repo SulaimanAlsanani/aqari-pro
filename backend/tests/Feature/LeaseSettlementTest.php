@@ -62,6 +62,21 @@ class LeaseSettlementTest extends TestCase {
    ->assertJsonPath('rent.outstanding','12000.00')
    ->assertJsonPath('ready_for_financial_closure',false);
  }
+ public function test_cancelled_draft_is_not_ready_for_financial_closure():void {
+  [$owner,$lease]=$this->sample();
+  // The test fixture creates an active lease; a cancelled draft is a separate contract.
+  $property=$owner->properties()->firstOrFail();
+  $unit=$property->units()->create(['code'=>'202','type'=>'apartment']);
+  $tenant=$owner->tenants()->firstOrFail();
+  $draft=$this->actingAs($owner)->postJson('/api/leases',[
+   'unit_id'=>$unit->id,'tenant_id'=>$tenant->id,
+   'starts_on'=>'2025-01-01','ends_on'=>'2025-12-31',
+   'total_amount'=>1200,'installments'=>12
+  ])->assertCreated()->json('id');
+  $this->actingAs($owner)->postJson('/api/leases/'.$draft.'/cancel')->assertOk();
+  $this->actingAs($owner)->getJson('/api/leases/'.$draft.'/settlement')
+   ->assertOk()->assertJsonPath('ready_for_financial_closure',false);
+ }
  public function test_another_owner_cannot_view_settlement():void {
   [$owner,$lease]=$this->sample();
   $other=User::create(['name'=>'Other','email'=>'other@example.test','password'=>'password']);
