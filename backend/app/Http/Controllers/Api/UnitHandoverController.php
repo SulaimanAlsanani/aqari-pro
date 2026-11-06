@@ -29,8 +29,8 @@ class UnitHandoverController extends Controller {
   ]);
   return DB::transaction(function()use($lease,$data){
    $locked=Lease::whereKey($lease->id)->lockForUpdate()->firstOrFail();
-   if(in_array($locked->status,['draft','cancelled'],true))
-    throw ValidationException::withMessages(['kind'=>'لا يمكن تسجيل التسليم على عقد مسودة أو ملغى']);
+   if($locked->status!=='active')
+    throw ValidationException::withMessages(['kind'=>'يجب أن يكون العقد نشطًا لتسجيل محاضر التسليم']);
    if($locked->handovers()->where('kind',$data['kind'])->exists())
     throw ValidationException::withMessages(['kind'=>'محضر التسليم من هذا النوع مسجل مسبقًا']);
    if($data['kind']==='check_out'){
