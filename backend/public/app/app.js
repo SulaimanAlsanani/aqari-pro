@@ -91,7 +91,7 @@ function drawList(data,key){
    const value=item[field]??'—';
    r.appendChild(el('td',typeof value==='object'?'—':value));
   }
-  if(['properties','units','tenants','vendors'].includes(key)){
+  if(['properties','units','tenants','vendors','expenses'].includes(key)){
    const action=el('td'),edit=el('button','تعديل','secondary');
    edit.type='button';edit.addEventListener('click',()=>drawForm(key,item));action.appendChild(edit);
    if(key==='tenants'){
@@ -168,7 +168,7 @@ function drawList(data,key){
    const currentAction=r.lastElementChild;
    // Reuse the action cell when one exists; otherwise create it.
    let target;
-   if(['properties','units','tenants','vendors','leases','payments','tickets'].includes(key))target=currentAction;
+   if(['properties','units','tenants','vendors','leases','payments','tickets','expenses'].includes(key))target=currentAction;
    else {target=el('td');r.append(target)}
    const attach=el('button','📎 المرفقات','secondary');attach.type='button';
    attach.addEventListener('click',()=>showRecordDocuments(entityKinds[key],item.id));
