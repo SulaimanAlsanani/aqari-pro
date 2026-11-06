@@ -78,7 +78,8 @@ function drawList(data,key){
  if(templates[key]){const add=el('button','+ إضافة سجل','primary');add.addEventListener('click',()=>drawForm(key));row.append(add)}
  parent.append(row);
  const wrap=el('div',null,'table-wrap'),table=el('table'),thead=el('thead'),tr=el('tr');
- for(const [,label] of fields[key])tr.appendChild(el('th',label));if(key==='documents'){tr.appendChild(el('th','الحالة'));tr.appendChild(el('th','الملف'))}
+ for(const [,label] of fields[key])tr.appendChild(el('th',label));if(['properties','units','tenants'].includes(key))tr.appendChild(el('th','الإجراءات'));
+ if(key==='documents'){tr.appendChild(el('th','الحالة'));tr.appendChild(el('th','الملف'))}
  thead.appendChild(tr);table.appendChild(thead);
  const body=el('tbody');
  for(const item of data.data||[]){
@@ -86,6 +87,10 @@ function drawList(data,key){
   for(const [field] of fields[key]){
    const value=item[field]??'—';
    r.appendChild(el('td',typeof value==='object'?'—':value));
+  }
+  if(['properties','units','tenants'].includes(key)){
+   const action=el('td'),edit=el('button','تعديل','secondary');
+   edit.type='button';edit.addEventListener('click',()=>drawForm(key,item));action.appendChild(edit);r.appendChild(action);
   }
   if(key==='documents'){
    const state=el('td','✓ تم الإرفاق','tag');r.appendChild(state);
@@ -104,9 +109,9 @@ function drawList(data,key){
   controls.append(prev,el('span','صفحة '+data.current_page+' من '+data.last_page,'muted'),next);parent.appendChild(controls);
  }
 }
-function drawForm(key){
+function drawForm(key,record=null){
  const parent=$('view');parent.replaceChildren();
- const config=templates[key],section=el('section',null,'panel'),heading=el('h3','إضافة '+sections.find(x=>x[0]===key)?.[1]);
+ const config=templates[key],section=el('section',null,'panel'),heading=el('h3',(record?'تعديل ':'إضافة ')+sections.find(x=>x[0]===key)?.[1]);
  const form=el('form');form.enctype='multipart/form-data';
  for(const [name,label,type,values] of config.fields){
   const div=el('div',null,'field');const lab=el('label',label);lab.htmlFor='field-'+name;
@@ -116,6 +121,7 @@ function drawForm(key){
    for(const str of values.split('|')){const [v,t]=str.split(':');const opt=el('option',t);opt.value=v;input.appendChild(opt)}
   }else{input=el('input');input.type=type==='file'?'file':type; if(type==='number'){input.min='0';input.step='any'}}
   input.name=name;input.id='field-'+name;
+  if(record&&record[name]!==undefined&&record[name]!==null)input.value=record[name];
   if(!['district','address','email','deposit','floor','area','reference','description','unit_id','estimated_cost'].includes(name))input.required=true;
   if(type==='file')input.accept='.pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx,.txt,.csv';
   div.append(lab,input);form.appendChild(div);
@@ -131,7 +137,7 @@ function drawForm(key){
     if(value===''||value instanceof File&&value.size===0)return;
     payload[key]=value;
    });
-   let url=config.endpoint;
+   let url=record?'/'+key+'/'+encodeURIComponent(record.id):config.endpoint;
    for(const place of ['property_id','lease_id'])if(url.includes('{'+place+'}')){url=url.replace('{'+place+'}',encodeURIComponent(payload[place]));delete payload[place]}
    if(key==='documents'){
     const upload=new FormData();
@@ -140,9 +146,9 @@ function drawForm(key){
    }else{
     for(const numeric of ['unit_id','tenant_id','entity_id','total_amount','deposit','amount','installments','area','estimated_cost'])
      if(numeric in payload)payload[numeric]=Number(payload[numeric]);
-    await api(url,{method:'POST',body:payload});
+    await api(url,{method:record?'PATCH':'POST',body:payload});
    }
-   notify(key==='documents'?'✓ تم إرفاق الملف بنجاح':'تم حفظ السجل بنجاح');await refresh();
+   notify(key==='documents'?'✓ تم إرفاق الملف بنجاح':record?'تم حفظ التعديلات بنجاح':'تم حفظ السجل بنجاح');await refresh();
   }catch(err){notify(err.message,true)}finally{save.disabled=false}
  });
  section.append(heading,form);parent.appendChild(section);
