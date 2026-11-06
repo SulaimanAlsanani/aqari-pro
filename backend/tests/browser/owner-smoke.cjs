@@ -38,7 +38,7 @@ async function main() {
       // Continue the owner's actual workflow using the same visible forms.
       const propertyRow = page.locator('#view tbody tr').filter({ hasText: 'عقار اختبار المتصفح ' + viewport.width });
       const propertyId = (await propertyRow.locator('td').first().innerText()).trim();
-      assert.match(propertyId, /^\\d+$/);
+      assert.match(propertyId, /^[0-9]+$/);
 
       await page.locator('#nav button').filter({ hasText: 'الوحدات' }).click();
       await page.locator('#sectionTitle').getByText('الوحدات').waitFor();
@@ -50,7 +50,7 @@ async function main() {
       const unitRow = page.locator('#view tbody tr').filter({ hasText: 'U-' + viewport.width });
       await unitRow.waitFor({ timeout: 15000 });
       const unitId = (await unitRow.locator('td').first().innerText()).trim();
-      assert.match(unitId, /^\\d+$/);
+      assert.match(unitId, /^[0-9]+$/);
 
       await page.locator('#nav button').filter({ hasText: 'المستأجرون' }).click();
       await page.locator('#sectionTitle').getByText('المستأجرون').waitFor();
@@ -61,7 +61,7 @@ async function main() {
       const tenantRow = page.locator('#view tbody tr').filter({ hasText: 'مستأجر اختبار المتصفح ' + viewport.width });
       await tenantRow.waitFor({ timeout: 15000 });
       const tenantId = (await tenantRow.locator('td').first().innerText()).trim();
-      assert.match(tenantId, /^\\d+$/);
+      assert.match(tenantId, /^[0-9]+$/);
 
       await page.locator('#nav button').filter({ hasText: 'العقود' }).click();
       await page.locator('#sectionTitle').getByText('العقود').waitFor();
@@ -76,7 +76,7 @@ async function main() {
       const leaseRow = page.locator('#view tbody tr').filter({ hasText: unitId }).filter({ hasText: tenantId });
       await leaseRow.waitFor({ timeout: 15000 });
       const leaseId = (await leaseRow.locator('td').first().innerText()).trim();
-      assert.match(leaseId, /^\\d+$/);
+      assert.match(leaseId, /^[0-9]+$/);
       page.once('dialog', dialog => dialog.accept());
       await leaseRow.getByRole('button', { name: 'تفعيل', exact: true }).click();
       await page.locator('#view tbody tr').filter({ hasText: leaseId }).getByText('active', { exact: true }).waitFor({ timeout: 15000 });
