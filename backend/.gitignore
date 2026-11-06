@@ -7,3 +7,4 @@
 /storage/app/private/*
 /bootstrap/cache/*.php
 /.phpunit.cache
+/backups/
