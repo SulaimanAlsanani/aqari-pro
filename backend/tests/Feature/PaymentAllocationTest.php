@@ -26,6 +26,16 @@ class PaymentAllocationTest extends TestCase {
   $this->assertEqualsWithDelta(1000,(float)$lease->dues()->first()->allocations()->sum('amount'),0.001);
   $this->assertEqualsWithDelta(500,(float)$lease->dues()->orderBy('sequence')->skip(1)->first()->allocations()->sum('amount'),0.001);
  }
+ public function test_dues_api_exposes_payment_balance_and_status():void{
+  [$owner,$lease]=$this->setupLease();
+  $this->actingAs($owner)->postJson('/api/leases/'.$lease->id.'/payments',[
+   'amount'=>500,'paid_on'=>'2026-02-01','method'=>'bank_transfer'
+  ])->assertCreated();
+  $data=$this->actingAs($owner)->getJson('/api/dues')->assertOk()->json('data');
+  $this->assertSame('500.00',$data[0]['paid_amount']);
+  $this->assertSame('500.00',$data[0]['balance_amount']);
+  $this->assertSame('overdue',$data[0]['payment_status']);
+ }
  public function test_overpayment_fails_without_creating_partial_ledger():void{
   [$owner,$lease]=$this->setupLease();
   $this->actingAs($owner)->postJson('/api/leases/'.$lease->id.'/payments',[
