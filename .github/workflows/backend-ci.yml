@@ -34,3 +34,21 @@ jobs:
         run: find app routes config database tests bootstrap public -name '*.php' -print0 | xargs -0 -n1 php -l
       - name: Run owner isolation and document security tests
         run: php artisan test
+      - name: Boot Laravel and smoke-test HTTP endpoints
+        run: |
+          touch database/database.sqlite
+          sed -i "s|^DB_DATABASE=.*|DB_DATABASE=$PWD/database/database.sqlite|" .env
+          php artisan key:generate --force
+          php artisan migrate --force
+          php artisan serve --host=127.0.0.1 --port=8081 > /tmp/aqari-http.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          ready=0
+          for i in $(seq 1 25); do
+            if curl --fail --silent --show-error http://127.0.0.1:8081/up >/dev/null 2>&1; then ready=1; break; fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then cat /tmp/aqari-http.log; exit 1; fi
+          curl --fail --silent --show-error http://127.0.0.1:8081/app/index.html | grep -q 'عقاري برو'
+          status=$(curl --silent --output /dev/null --write-out '%{http_code}' -H 'Accept: application/json' http://127.0.0.1:8081/api/portfolio)
+          test "$status" = "401"
