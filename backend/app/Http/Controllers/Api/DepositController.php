@@ -67,6 +67,8 @@ class DepositController extends Controller {
       ->whereKey($data['handover_damage_id'])->first();
     if(!$damage)
      throw ValidationException::withMessages(['handover_damage_id'=>'التلفيات لا تتبع محضر خروج هذا العقد']);
+    if($damage->waived_at)
+     throw ValidationException::withMessages(['handover_damage_id'=>'تم إعفاء التلفيات سابقًا ولا يجوز خصمها']);
     if($damage->deduction()->exists())
      throw ValidationException::withMessages(['handover_damage_id'=>'سبق تسجيل خصم لهذه التلفيات']);
     if(bccomp((string)$data['amount'],(string)$damage->estimated_cost,2)>0)
