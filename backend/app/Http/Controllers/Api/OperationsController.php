@@ -40,6 +40,7 @@ class OperationsController extends Controller{
  public function dues(Request $request){
   $uid=$request->user()->id;
   $page=Due::whereHas('lease.unit.property',fn($q)=>$q->where('user_id',$uid))
+   ->whereHas('lease',fn($q)=>$q->where('status','!=','cancelled'))
    ->with(['lease:id,unit_id,tenant_id','lease.tenant:id,name'])
    ->withSum(['allocations'=>fn($q)=>$q->whereHas('payment',fn($p)=>$p->whereNull('voided_at'))],'amount')
    ->orderBy('due_on')->orderBy('id')->paginate(30);
