@@ -44,6 +44,31 @@ class UnitHandoverTest extends TestCase {
   ])->assertCreated();
   $this->actingAs($owner)->getJson($url)->assertOk()->assertJsonCount(2,'handovers');
  }
+ public function test_completed_lease_requires_exit_handover_if_check_in_exists():void {
+  [$owner,$lease]=$this->fixture();
+  $this->actingAs($owner)->postJson('/api/leases/'.$lease.'/payments',[
+   'amount'=>12000,'paid_on'=>'2025-12-31','method'=>'bank_transfer'
+  ])->assertCreated();
+  $this->actingAs($owner)->postJson('/api/leases/'.$lease.'/handovers',[
+   'kind'=>'check_in','handed_over_on'=>'2025-01-01','condition'=>'good'
+  ])->assertCreated();
+  $this->actingAs($owner)->getJson('/api/leases/'.$lease.'/settlement')
+   ->assertOk()->assertJsonPath('handover.complete',false)
+   ->assertJsonPath('ready_for_financial_closure',false);
+  $this->actingAs($owner)->postJson('/api/leases/'.$lease.'/complete')
+   ->assertUnprocessable()->assertJsonValidationErrors('status');
+  $this->actingAs($owner)->postJson('/api/leases/'.$lease.'/handovers',[
+   'kind'=>'check_out','handed_over_on'=>'2026-11-05','condition'=>'good'
+  ])->assertCreated();
+  $this->actingAs($owner)->getJson('/api/leases/'.$lease.'/settlement')
+   ->assertOk()->assertJsonPath('handover.complete',true)
+   ->assertJsonPath('ready_for_financial_closure',true);
+  $this->actingAs($owner)->postJson('/api/leases/'.$lease.'/complete')
+   ->assertOk()->assertJsonPath('status','completed');
+  $this->actingAs($owner)->postJson('/api/leases/'.$lease.'/handovers',[
+   'kind'=>'check_in','handed_over_on'=>'2025-01-01','condition'=>'good'
+  ])->assertUnprocessable();
+ }
  public function test_other_owner_cannot_view_or_create_handovers():void {
   [$owner,$lease]=$this->fixture();
   $other=User::create(['name'=>'Other','email'=>'other@example.test','password'=>'password']);
