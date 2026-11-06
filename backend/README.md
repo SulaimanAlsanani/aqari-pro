@@ -11,6 +11,13 @@ This is a **development-stage Laravel 12 API**, intended to replace browser-only
 6. `php artisan serve`
 7. `php artisan test`.
 
+## واجهة المالك المتصلة فعليًا
+- بعد تشغيل Laravel وتهيئة حساب مالك، افتح `http://localhost:8000/app/index.html`.
+- الواجهة تستخدم `/api` على نفس الأصل لتجنب مشاركة الرموز عبر جهات أخرى، وتحتفظ برمز الدخول في ذاكرة الصفحة فقط.
+- تشمل لوحة المؤشرات، والقوائم المحمية، والنماذج الأساسية، ورفع المرفقات وتنزيلها.
+- ما تزال قيد التطوير: عمليات التعديل والحذف والتصديرات والإشعارات والحسابات التفصيلية.
+- موقع GitHub Pages العام **لا يستخدم هذه الواجهة الجديدة بعد**؛ لا ترفع عليه مستندات حقيقية.
+
 ## API
 - `POST /api/login` issues a short-lived Sanctum Bearer token.
 - Protected: `GET /api/me`, `POST /api/logout`.
