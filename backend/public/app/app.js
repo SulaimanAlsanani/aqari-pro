@@ -162,6 +162,10 @@ function drawList(data,key){
     const deposit=el('button','التأمين','secondary');deposit.type='button';
     deposit.addEventListener('click',()=>showDepositLedger(item));bar.appendChild(deposit);
    }
+   if(item.status!=='cancelled'){
+    const settlement=el('button','تسوية العقد','secondary');settlement.type='button';
+    settlement.addEventListener('click',()=>showLeaseSettlement(item));bar.appendChild(settlement);
+   }
    td.appendChild(bar);r.appendChild(td);
   }
   if(key==='documents'){
@@ -276,6 +280,42 @@ async function showDepositLedger(lease){
   table.append(body);wrap.append(table);history.append(wrap);
   if(data.movements.last_page>1)history.append(el('p','يعرض أول 30 حركة. بقية الحركات متاحة عبر واجهة API.','muted'));
   view.append(section,history);
+ }catch(error){view.replaceChildren(el('p',error.message,'muted'));notify(error.message,true)}
+}
+async function showLeaseSettlement(lease){
+ const view=$('view');view.replaceChildren(el('p','جاري مراجعة تسوية العقد...','muted'));
+ try{
+  const report=await api('/leases/'+lease.id+'/settlement');
+  view.replaceChildren();
+  const panel=el('section',null,'panel');
+  panel.append(el('h3','تسوية نهاية العقد #'+lease.id),
+   el('p','كشف مراجعة يميّز مستحقات الإيجار عن أمانات التأمين، ولا يغلق العقد أو يجري تحويلات مالية تلقائيًا.','muted'));
+  const status=el('p',report.ready_for_financial_closure?
+   '✓ جميع الأرصدة متطابقة وتمت تسوية التأمين والمستحقات.':
+   'توجد بنود تحتاج مراجعة قبل إغلاق ملف العقد.');
+  panel.append(status);
+  const groups=[
+   ['الإيجار',report.rent,[['المستحق','billed'],['المحصّل','received'],['الموزّع','allocated'],['المتبقي','outstanding']]],
+   ['التأمين',report.deposit,[['المتفق عليه','contractual'],['المستلم','received'],['المرتجع','refunded'],['المخصوم','deducted'],['المحتفظ به','held']]]
+  ];
+  for(const [title,data,fields] of groups){
+   panel.appendChild(el('h3',title));
+   const cards=el('div',null,'metrics');
+   for(const [label,key] of fields){
+    const card=el('div',null,'metric');card.append(el('span',label+' (ر.س)','muted'),el('strong',data[key]));cards.append(card);
+   }
+   panel.append(cards);
+  }
+  if(report.review_flags.length){
+   panel.appendChild(el('h3','بنود المراجعة'));
+   const labels={LEASE_NOT_EXPIRED:'العقد لم ينتهِ بعد',
+    RENT_OUTSTANDING:'يوجد إيجار لم يُحصّل',DEPOSIT_HELD:'يوجد تأمين ما زال محتفظًا به',
+    RENT_LEDGER_MISMATCH:'توجد فروقات في توزيع الإيجار',
+    DEPOSIT_LEDGER_MISMATCH:'توجد فروقات في التأمين'};
+   for(const flag of report.review_flags)panel.appendChild(el('p','• '+(labels[flag]||flag),'muted'));
+  }
+  const back=el('button','رجوع للعقود','secondary');back.type='button';back.addEventListener('click',()=>refresh());
+  panel.append(back);view.append(panel);
  }catch(error){view.replaceChildren(el('p',error.message,'muted'));notify(error.message,true)}
 }
 function showRenewal(lease){
