@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\PortfolioController;
 use App\Http\Controllers\Api\DocumentController;
 use App\Http\Controllers\Api\OperationsController;
+use App\Http\Controllers\Api\RecordsController;
 
 Route::post('/login',[AuthController::class,'login'])->middleware('throttle:5,1');
 
@@ -12,6 +13,13 @@ Route::middleware('auth:sanctum')->group(function () {
  Route::post('/logout',[AuthController::class,'logout']);
  Route::get('/portfolio',[PortfolioController::class,'index']);
  Route::get('/overview',[OperationsController::class,'overview']);
+ Route::get('/units',[RecordsController::class,'units']);
+ Route::get('/tenants',[RecordsController::class,'tenants']);
+ Route::get('/leases',[RecordsController::class,'leases']);
+ Route::get('/payments',[RecordsController::class,'payments']);
+ Route::get('/expenses',[RecordsController::class,'expenses']);
+ Route::get('/tickets',[RecordsController::class,'tickets']);
+ Route::get('/documents',[RecordsController::class,'documents']);
  Route::get('/dues',[OperationsController::class,'dues']);
  Route::post('/properties',[PortfolioController::class,'storeProperty']);
  Route::get('/properties/{property}',[PortfolioController::class,'showProperty']);
