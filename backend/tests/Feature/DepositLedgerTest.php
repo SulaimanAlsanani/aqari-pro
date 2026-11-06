@@ -57,6 +57,18 @@ class DepositLedgerTest extends TestCase {
    'kind'=>'deduction','amount'=>300,'occurred_on'=>'2026-11-05','reason'=>'إصلاح التلفيات المسجلة في محضر التسليم'
   ])->assertCreated()->assertJsonPath('totals.held','700.00');
  }
+ public function test_duplicate_deposit_request_does_not_duplicate_movements():void {
+  [$owner,$lease]=$this->fixture();
+  $url='/api/leases/'.$lease.'/deposit';
+  $body=['kind'=>'receipt','amount'=>750,'occurred_on'=>'2025-02-01','reference'=>'TRANSFER-1'];
+  $this->withHeader('Idempotency-Key','unique-deposit-001')->postJson($url,$body)->assertCreated();
+  $this->withHeader('Idempotency-Key','unique-deposit-001')->postJson($url,$body)
+   ->assertOk()->assertJsonPath('totals.held','750.00');
+  $this->withHeader('Idempotency-Key','unique-deposit-001')->postJson($url,[
+   ...$body,'amount'=>200
+  ])->assertUnprocessable()->assertJsonValidationErrors('idempotency_key');
+  $this->assertDatabaseCount('deposit_movements',1);
+ }
  public function test_other_owner_cannot_read_or_change_deposit_ledger():void {
   [$owner,$lease]=$this->fixture();
   $other=User::create(['name'=>'Other','email'=>'other@example.test','password'=>'password']);
