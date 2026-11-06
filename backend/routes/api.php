@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\RecordMutationsController;
 use App\Http\Controllers\Api\AuditController;
 use App\Http\Controllers\Api\FinancialReportController;
 use App\Http\Controllers\Api\LeaseLifecycleController;
+use App\Http\Controllers\Api\VendorController;
 
 Route::post('/login',[AuthController::class,'login'])->middleware('throttle:5,1');
 
@@ -25,6 +26,9 @@ Route::middleware('auth:sanctum')->group(function () {
  Route::get('/payments',[RecordsController::class,'payments']);
  Route::get('/expenses',[RecordsController::class,'expenses']);
  Route::get('/tickets',[RecordsController::class,'tickets']);
+ Route::get('/vendors',[VendorController::class,'index']);
+ Route::post('/vendors',[VendorController::class,'store']);
+ Route::patch('/vendors/{vendor}',[VendorController::class,'update']);
  Route::get('/documents',[RecordsController::class,'documents']);
  Route::get('/dues',[OperationsController::class,'dues']);
  Route::post('/properties',[PortfolioController::class,'storeProperty']);
