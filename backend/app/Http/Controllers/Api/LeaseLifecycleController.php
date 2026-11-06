@@ -60,6 +60,8 @@ class LeaseLifecycleController extends Controller {
      ->whereNull('waived_at')->whereDoesntHave('deduction')->count()??0;
    if($openDamages>0)
     throw ValidationException::withMessages(['status'=>'يجب معالجة التلفيات المسجلة بخصم موثق أو إعفاء مسبب قبل إكمال العقد']);
+   if(\App\Models\DamageDispute::whereHas('damage.handover',fn($q)=>$q->where('lease_id',$locked->id))->where('status','open')->exists())
+    throw ValidationException::withMessages(['status'=>'لا يمكن إكمال العقد وهناك اعتراضات على التلفيات لم تُحسم']);
    $locked->update(['status'=>'completed']);
    return response()->json($locked->refresh());
   });
