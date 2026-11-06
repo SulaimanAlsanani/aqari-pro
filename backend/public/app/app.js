@@ -84,6 +84,10 @@ function drawList(data,key){
  const row=el('div',null,'toolbar');
  const note=el('p','عدد السجلات: '+(data.total??data.data?.length??0),'muted');row.append(note);
  if(templates[key]){const add=el('button','+ إضافة سجل','primary');add.addEventListener('click',()=>drawForm(key));row.append(add)}
+ if(['properties','units','tenants','leases','dues','payments','expenses','tickets','vendors'].includes(key)){
+  const exportButton=el('button','تصدير CSV','secondary');exportButton.type='button';
+  exportButton.addEventListener('click',()=>exportCsv(key,exportButton));row.append(exportButton);
+ }
  parent.append(row);
  const wrap=el('div',null,'table-wrap'),table=el('table'),thead=el('thead'),tr=el('tr');
  for(const [,label] of fields[key])tr.appendChild(el('th',label));if(['properties','units','tenants','vendors','leases','payments','tickets','dues','expenses'].includes(key))tr.appendChild(el('th','الإجراءات'));
@@ -374,6 +378,20 @@ async function showRecordDocuments(entity,id){
   if(files.last_page>1)pane.append(el('p','يعرض أول 25 مرفقًا؛ تظهر بقية المرفقات في قسم المرفقات العام.','muted'));
   view.append(pane);
  }catch(error){view.replaceChildren(el('p',error.message,'muted'));notify(error.message,true)}
+}
+async function exportCsv(resource,button){
+ button.disabled=true;
+ try{
+  const response=await fetch('/api/exports/'+encodeURIComponent(resource),{
+   headers:{Authorization:'Bearer '+accessToken,Accept:'text/csv'},credentials:'omit'
+  });
+  if(!response.ok)throw Error('تعذر تصدير سجلات هذا القسم');
+  const blob=await response.blob(),url=URL.createObjectURL(blob),link=el('a');
+  link.href=url;link.download='aqari-'+resource+'-'+new Date().toISOString().slice(0,10)+'.csv';
+  document.body.append(link);link.click();link.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),3000);
+  notify('تم إعداد تصدير السجلات');
+ }catch(error){notify(error.message,true)}finally{button.disabled=false}
 }
 async function download(id,name){
  try{
