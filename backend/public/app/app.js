@@ -30,7 +30,7 @@ const templates={
  expenses:{endpoint:'/properties/{property_id}/expenses',fields:[['property_id','رقم العقار','number'],['category','التصنيف','text'],['description','الوصف','text'],['amount','المبلغ','number'],['incurred_on','التاريخ','date']]},
  tickets:{endpoint:'/properties/{property_id}/tickets',fields:[['property_id','رقم العقار','number'],['unit_id','رقم الوحدة (اختياري)','number'],['vendor_id','رقم المورد (اختياري)','number'],['title','وصف البلاغ','text'],['description','التفاصيل','text'],['priority','الأولوية','choice','low:منخفض|normal:عادي|high:عالٍ|urgent:عاجل'],['estimated_cost','التكلفة المتوقعة','number']]},
  vendors:{endpoint:'/vendors',fields:[['name','اسم المورد','text'],['service','نوع الخدمة','text'],['phone','الجوال','text'],['email','البريد','email'],['notes','ملاحظات','text']]},
- documents:{endpoint:'/documents',fields:[['entity_type','نوع السجل','choice','owner:المالك|property:عقار|unit:وحدة|tenant:مستأجر|lease:عقد|payment:سند قبض|due:استحقاق|expense:مصروف|ticket:صيانة|vendor:مورد'],['entity_id','رقم السجل','number'],['file','اختيار الملف','file']]}
+ documents:{endpoint:'/documents',fields:[['entity_type','نوع السجل','choice','owner:المالك|property:عقار|unit:وحدة|tenant:مستأجر|lease:عقد|payment:سند قبض|due:استحقاق|expense:مصروف|ticket:صيانة|vendor:مورد|deposit_movement:حركة تأمين'],['entity_id','رقم السجل','number'],['file','اختيار الملف','file']]}
 };
 function el(tag,text,className){
  const e=document.createElement(tag);if(text!==undefined&&text!==null)e.textContent=String(text);if(className)e.className=className;return e;
@@ -261,12 +261,15 @@ async function showDepositLedger(lease){
   section.appendChild(form);
   const history=el('section',null,'panel');history.appendChild(el('h3','حركات التأمين المسجلة'));
   const wrap=el('div',null,'table-wrap'),table=el('table'),head=el('tr');
-  for(const label of ['الرقم','الحركة','المبلغ','التاريخ','السبب','المرجع'])head.appendChild(el('th',label));
+  for(const label of ['الرقم','الحركة','المبلغ','التاريخ','السبب','المرجع','المرفقات'])head.appendChild(el('th',label));
   const thead=el('thead');thead.appendChild(head);table.appendChild(thead);
   const body=el('tbody');
   for(const item of data.movements.data){
    const row=el('tr');
    for(const value of [item.id,item.kind,item.amount,item.occurred_on,item.reason??'—',item.reference??'—'])row.append(el('td',value));
+   const attachmentCell=el('td'),attach=el('button','📎 إثبات الحركة','secondary');
+   attach.type='button';attach.addEventListener('click',()=>showRecordDocuments('deposit_movement',item.id));
+   attachmentCell.append(attach);row.append(attachmentCell);
    body.append(row);
   }
   table.append(body);wrap.append(table);history.append(wrap);
