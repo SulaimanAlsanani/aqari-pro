@@ -61,14 +61,14 @@ done
 
 # migrate:status exits successfully even if there are migrations still pending.
 migration_status="$(docker compose exec -T app php artisan migrate:status --no-ansi)"
-if printf '%s\\n' "$migration_status" | grep -qiE '(^|[[:space:]|])Pending([[:space:]|]|$)'; then
+if printf '%s\n' "$migration_status" | grep -qiE '(^|[[:space:]|])Pending([[:space:]|]|$)'; then
   echo "FAIL: Database migrations are pending on staging" >&2
   exit 1
 fi
-if ! printf '%s\\n' "$migration_status" | grep -q 'Ran'; then
+if ! printf '%s\n' "$migration_status" | grep -q 'Ran'; then
   echo "FAIL: Could not verify applied migrations" >&2
   exit 1
 fi
 
-printf 'PASS: release SHA %s, running image fingerprints, staging HTTPS, HTTP isolation, ClamAV and migrations\\n' "$current"
+printf 'PASS: release SHA %s, running image fingerprints, staging HTTPS, HTTP isolation, ClamAV and migrations\n' "$current"
 printf 'PENDING: SMTP receipt test, independent backup restore, cross-owner UAT and operator approval\n'
