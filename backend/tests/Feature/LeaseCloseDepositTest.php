@@ -34,5 +34,8 @@ class LeaseCloseDepositTest extends TestCase {
    'kind'=>'refund','amount'=>1,'occurred_on'=>'2026-11-05'
   ])->assertUnprocessable()->assertJsonValidationErrors('kind');
   $this->assertDatabaseCount('deposit_movements',2);
+  $this->getJson('/api/leases/'.$id.'/settlement')->assertOk()
+   ->assertJsonPath('deposit.held','0.00')
+   ->assertJsonPath('ready_for_financial_closure',true);
  }
 }
