@@ -35,7 +35,7 @@ class PortfolioController extends Controller {
   return response()->json($request->user()->tenants()->create($data),201);
  }
  public function storeLease(Request $request){
-  $data=$request->validate(['unit_id'=>'required|integer','tenant_id'=>'required|integer','starts_on'=>'required|date','ends_on'=>'required|date|after:starts_on','total_amount'=>'required|numeric|gt:0','deposit'=>'nullable|numeric|min:0','installments'=>'required|integer|min:1|max:36']);
+  $data=$request->validate(['unit_id'=>'required|integer','tenant_id'=>'required|integer','starts_on'=>'required|date','ends_on'=>'required|date|after:starts_on','total_amount'=>'required|numeric|gt:0','deposit'=>'nullable|numeric|min:0','installments'=>'required|integer|in:1,2,4,12']);
   $uid=$request->user()->id;
   $unit=Unit::whereHas('property',fn($q)=>$q->where('user_id',$uid))->findOrFail($data['unit_id']);
   $tenant=Tenant::where('user_id',$uid)->findOrFail($data['tenant_id']);
@@ -51,7 +51,7 @@ class PortfolioController extends Controller {
    $start=CarbonImmutable::parse($data['starts_on']);
    $last=CarbonImmutable::parse($data['ends_on']);
    for($i=0;$i<$n;$i++){
-    $dueOn=$start->addMonthsNoOverflow((int)floor($i*12/$n));
+    $dueOn=$start->addMonthsNoOverflow($i*(12/$n));
     if($dueOn->greaterThan($last))$dueOn=$last;
     $pennies=$base+($i<$remainder?1:0);
     $lease->dues()->create(['sequence'=>$i+1,'due_on'=>$dueOn->toDateString(),'amount'=>number_format($pennies/100,2,'.','')]);
