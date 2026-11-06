@@ -1,6 +1,7 @@
 (()=>{
 'use strict';
 let accessToken=null,active='overview',user=null;
+let resetToken=null,resetEmail=null;
 const $=id=>document.getElementById(id);
 const sections=[
  ['overview','لوحة أملاكي'],['alerts','التنبيهات'],['properties','العقارات'],['units','الوحدات'],['tenants','المستأجرون'],
@@ -35,11 +36,15 @@ function el(tag,text,className){
  const e=document.createElement(tag);if(text!==undefined&&text!==null)e.textContent=String(text);if(className)e.className=className;return e;
 }
 function notify(msg,error=false){const n=$('notice');n.textContent=msg;n.classList.toggle('error',error)}
+function showAuthPanel(mode='login'){
+ for(const id of ['loginPanel','forgotPanel','resetPanel'])$(id).classList.add('hidden');
+ $(mode==='forgot'?'forgotPanel':mode==='reset'?'resetPanel':'loginPanel').classList.remove('hidden');
+}
 function resetAuth(){
- accessToken=null;user=null;$('loginPanel').classList.remove('hidden');$('workspace').classList.add('hidden');$('logout').classList.add('hidden');$('password').value='';
+ accessToken=null;user=null;showAuthPanel('login');$('workspace').classList.add('hidden');$('logout').classList.add('hidden');$('password').value='';
 }
 async function api(path,options={}){
- if(!accessToken&&path!=='/login')throw Error('انتهت الجلسة؛ سجل الدخول مرة أخرى');
+ if(!accessToken&&!['/login','/password/forgot','/password/reset'].includes(path))throw Error('انتهت الجلسة؛ سجل الدخول مرة أخرى');
  const headers={'Accept':'application/json',...options.headers};
  if(accessToken)headers.Authorization='Bearer '+accessToken;
  let body=options.body;
@@ -483,6 +488,41 @@ async function refresh(page=1){
   drawList(active==='properties'?data.properties:data,active);
  }catch(err){view.replaceChildren(el('p',err.message,'muted'));notify(err.message,true)}
 }
+// Consume reset credentials without retaining the one-time token in the browser URL.
+const resetQuery=new URLSearchParams(window.location.search);
+if(resetQuery.has('reset_token')&&resetQuery.has('email')){
+ resetToken=resetQuery.get('reset_token');
+ resetEmail=resetQuery.get('email');
+ window.history.replaceState(null,'',window.location.pathname);
+ showAuthPanel('reset');
+}
+$('forgotOpen').addEventListener('click',()=>{
+ $('forgotEmail').value=$('email').value;
+ showAuthPanel('forgot');
+});
+for(const button of document.querySelectorAll('.authBack')){
+ button.addEventListener('click',()=>{resetToken=null;resetEmail=null;showAuthPanel('login')});
+}
+$('forgotForm').addEventListener('submit',async e=>{
+ e.preventDefault();const submit=e.target.querySelector('button[type=submit]');submit.disabled=true;
+ try{
+  await api('/password/forgot',{method:'POST',body:{email:$('forgotEmail').value}});
+  notify('إذا كان البريد مسجلًا ستصلك رسالة استعادة الحساب');showAuthPanel('login');
+ }catch(error){notify(error.message,true)}finally{submit.disabled=false}
+});
+$('resetForm').addEventListener('submit',async e=>{
+ e.preventDefault();const submit=e.target.querySelector('button[type=submit]');submit.disabled=true;
+ try{
+  if(!resetToken||!resetEmail)throw Error('رابط الاستعادة غير صالح');
+  await api('/password/reset',{method:'POST',body:{
+   email:resetEmail,token:resetToken,password:$('resetPassword').value,
+   password_confirmation:$('resetPasswordConfirmation').value
+  }});
+  resetToken=null;resetEmail=null;
+  $('resetPassword').value='';$('resetPasswordConfirmation').value='';
+  showAuthPanel('login');notify('تم تغيير كلمة المرور. سجّل الدخول بالكلمة الجديدة.');
+ }catch(error){notify(error.message,true)}finally{submit.disabled=false}
+});
 $('loginForm').addEventListener('submit',async e=>{
  e.preventDefault();const button=e.target.querySelector('button[type=submit]');button.disabled=true;
  try{
