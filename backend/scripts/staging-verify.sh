@@ -44,7 +44,31 @@ fi
 curl --fail --silent --show-error --max-time 15 "${url%/}/up" >/dev/null
 AQARI_SECURITY_BASE_URL="${url%/}" bash scripts/check-http-security.sh
 docker compose exec -T app bash scripts/check-clamav-readiness.sh
-docker compose exec -T app php artisan migrate:status --no-ansi >/dev/null
+# A Git checkout match alone does not prove that the *running image* contains
+# that release. Compare source files against those packaged in the live app.
+for path in artisan composer.lock routes/api.php scripts/staging-verify.sh; do
+  if [[ ! -f "$path" ]]; then
+    echo "FAIL: Release artifact missing from checkout: $path" >&2
+    exit 1
+  fi
+  local_sha="$(sha256sum "$path" | awk '{print $1}')"
+  image_sha="$(docker compose exec -T app sha256sum "/var/www/html/$path" | awk '{print $1}')"
+  if [[ "$local_sha" != "$image_sha" ]]; then
+    echo "FAIL: Running app container does not match checkout file: $path" >&2
+    exit 1
+  fi
+done
 
-printf 'PASS: release SHA %s, staging HTTPS, HTTP isolation, ClamAV and migrations\n' "$current"
+# migrate:status exits successfully even if there are migrations still pending.
+migration_status="$(docker compose exec -T app php artisan migrate:status --no-ansi)"
+if printf '%s\\n' "$migration_status" | grep -qiE '(^|[[:space:]|])Pending([[:space:]|]|$)'; then
+  echo "FAIL: Database migrations are pending on staging" >&2
+  exit 1
+fi
+if ! printf '%s\\n' "$migration_status" | grep -q 'Ran'; then
+  echo "FAIL: Could not verify applied migrations" >&2
+  exit 1
+fi
+
+printf 'PASS: release SHA %s, running image fingerprints, staging HTTPS, HTTP isolation, ClamAV and migrations\\n' "$current"
 printf 'PENDING: SMTP receipt test, independent backup restore, cross-owner UAT and operator approval\n'
