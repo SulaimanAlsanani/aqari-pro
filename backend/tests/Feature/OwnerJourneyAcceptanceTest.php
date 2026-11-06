@@ -55,7 +55,7 @@ class OwnerJourneyAcceptanceTest extends TestCase {
   $this->assertDatabaseCount('payments',1);
 
   $deposit='/api/leases/'.$lease.'/deposit';
-  $this->postJson($deposit,['kind'=>'receipt','amount'=>2000,'occurred_on'=>'2025-01-01'])
+  $this->withHeader('Idempotency-Key','deposit-receipt-journey-001')->postJson($deposit,['kind'=>'receipt','amount'=>2000,'occurred_on'=>'2025-01-01'])
    ->assertCreated();
   $this->postJson('/api/leases/'.$lease.'/handovers',[
    'kind'=>'check_out','handed_over_on'=>'2026-11-05',
@@ -69,7 +69,7 @@ class OwnerJourneyAcceptanceTest extends TestCase {
    'objection'=>'Resident disputes the condition on the move-out report'
   ])->assertCreated()->json('id');
 
-  $this->postJson($deposit,[
+  $this->withHeader('Idempotency-Key','deposit-deduct-journey-001')->postJson($deposit,[
    'kind'=>'deduction','amount'=>250,'occurred_on'=>'2026-11-05',
    'reason'=>'Repair claim requires review','handover_damage_id'=>$damage
   ])->assertUnprocessable();
@@ -78,12 +78,12 @@ class OwnerJourneyAcceptanceTest extends TestCase {
    'resolution'=>'maintain_claim',
    'reason'=>'Photos and the initial move-in report support documented damage'
   ])->assertOk();
-  $this->postJson($deposit,[
+  $this->withHeader('Idempotency-Key','deposit-deduct-journey-001')->postJson($deposit,[
    'kind'=>'deduction','amount'=>250,'occurred_on'=>'2026-11-05',
    'reason'=>'Repair cost confirmed against move-out evidence',
    'handover_damage_id'=>$damage
   ])->assertCreated()->assertJsonPath('totals.held','1750.00');
-  $this->postJson($deposit,[
+  $this->withHeader('Idempotency-Key','deposit-refund-journey-001')->postJson($deposit,[
    'kind'=>'refund','amount'=>1750,'occurred_on'=>'2026-11-05',
    'reason'=>'Remaining tenant deposit returned'
   ])->assertCreated()->assertJsonPath('totals.held','0.00');
