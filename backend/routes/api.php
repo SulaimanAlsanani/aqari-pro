@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\OperationsController;
 use App\Http\Controllers\Api\RecordsController;
 use App\Http\Controllers\Api\RecordMutationsController;
 use App\Http\Controllers\Api\AuditController;
+use App\Http\Controllers\Api\FinancialReportController;
 
 Route::post('/login',[AuthController::class,'login'])->middleware('throttle:5,1');
 
@@ -16,6 +17,7 @@ Route::middleware('auth:sanctum')->group(function () {
  Route::get('/portfolio',[PortfolioController::class,'index']);
  Route::get('/overview',[OperationsController::class,'overview']);
  Route::get('/audit',[AuditController::class,'index']);
+ Route::get('/reports/cashflow',[FinancialReportController::class,'cashflow']);
  Route::get('/units',[RecordsController::class,'units']);
  Route::get('/tenants',[RecordsController::class,'tenants']);
  Route::get('/leases',[RecordsController::class,'leases']);
