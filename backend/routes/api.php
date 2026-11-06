@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\DocumentController;
 use App\Http\Controllers\Api\OperationsController;
 use App\Http\Controllers\Api\RecordsController;
 use App\Http\Controllers\Api\RecordMutationsController;
+use App\Http\Controllers\Api\AuditController;
 
 Route::post('/login',[AuthController::class,'login'])->middleware('throttle:5,1');
 
@@ -14,6 +15,7 @@ Route::middleware('auth:sanctum')->group(function () {
  Route::post('/logout',[AuthController::class,'logout']);
  Route::get('/portfolio',[PortfolioController::class,'index']);
  Route::get('/overview',[OperationsController::class,'overview']);
+ Route::get('/audit',[AuditController::class,'index']);
  Route::get('/units',[RecordsController::class,'units']);
  Route::get('/tenants',[RecordsController::class,'tenants']);
  Route::get('/leases',[RecordsController::class,'leases']);
