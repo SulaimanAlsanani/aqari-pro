@@ -18,6 +18,16 @@ permissions:
 jobs:
   container:
     runs-on: ubuntu-latest
+    env:
+      APP_KEY: "base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+      APP_URL: https://aqari.example.invalid
+      DB_PASSWORD: test-only-db-password
+      MYSQL_ROOT_PASSWORD: test-only-root-password
+      MAIL_MAILER: smtp
+      MAIL_HOST: smtp.example.invalid
+      MAIL_USERNAME: test@example.invalid
+      MAIL_PASSWORD: test-only-mail-password
+      MAIL_FROM_ADDRESS: test@example.invalid
     steps:
       - uses: actions/checkout@v4
       - name: Validate backup and container entrypoint scripts
@@ -28,14 +38,19 @@ jobs:
         run: docker build --progress=plain -t aqari-pro-api:ci backend
       - name: Check compose template syntax
         working-directory: backend
-        env:
-          APP_KEY: "base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-          APP_URL: https://aqari.example.invalid
-          DB_PASSWORD: test-only-db-password
-          MYSQL_ROOT_PASSWORD: test-only-root-password
-          MAIL_MAILER: smtp
-          MAIL_HOST: smtp.example.invalid
-          MAIL_USERNAME: test@example.invalid
-          MAIL_PASSWORD: test-only-mail-password
-          MAIL_FROM_ADDRESS: test@example.invalid
         run: docker compose config --quiet
+      - name: Smoke-test running PHP and MySQL containers
+        working-directory: backend
+        run: |
+          trap 'docker compose down -v --remove-orphans' EXIT
+          docker compose up -d
+          docker compose exec -T app php artisan migrate --force
+          ready=0
+          for i in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8080/up >/dev/null; then ready=1; break; fi
+            sleep 2
+          done
+          if [ "$ready" -ne 1 ]; then docker compose logs --tail=100; exit 1; fi
+          curl --fail --silent http://127.0.0.1:8080/app/index.html | grep -q 'عقاري برو'
+          status=$(curl --silent -o /dev/null -w '%{http_code}' -H 'Accept: application/json' http://127.0.0.1:8080/api/portfolio)
+          test "$status" = "401"
