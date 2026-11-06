@@ -7,4 +7,5 @@ class Lease extends Model {
  public function unit(){return $this->belongsTo(Unit::class);}
  public function tenant(){return $this->belongsTo(Tenant::class);}
  public function payments(){return $this->hasMany(Payment::class);}
+ public function dues(){return $this->hasMany(Due::class);}
 }
