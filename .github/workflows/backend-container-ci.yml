@@ -39,6 +39,11 @@ jobs:
           bash -n backend/scripts/ci-backup-restore-drill.sh
           bash -n backend/scripts/check-clamav-readiness.sh
           bash -n backend/scripts/check-http-security.sh
+          bash -n backend/scripts/staging-verify.sh
+          if AQARI_EXPECTED_SHA=not-a-sha AQARI_STAGING_URL=https://staging.example.invalid AQARI_STAGING_APPROVED=staging-only bash backend/scripts/staging-verify.sh; then
+            echo "Staging verification incorrectly accepted an invalid SHA" >&2
+            exit 1
+          fi
           bash -n backend/scripts/ci-clamav-readiness-drill.sh
           bash backend/scripts/ci-clamav-readiness-drill.sh
           sh -n backend/.docker/entrypoint.sh
