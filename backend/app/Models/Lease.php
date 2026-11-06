@@ -8,6 +8,7 @@ class Lease extends Model {
  public function tenant(){return $this->belongsTo(Tenant::class);}
  public function payments(){return $this->hasMany(Payment::class);}
  public function dues(){return $this->hasMany(Due::class);}
+ public function handovers(){return $this->hasMany(UnitHandover::class);}
  public function depositMovements(){return $this->hasMany(DepositMovement::class);}
  public function previousLease(){return $this->belongsTo(Lease::class,'renewed_from_id');}
  public function renewedLease(){return $this->hasOne(Lease::class,'renewed_from_id');}
