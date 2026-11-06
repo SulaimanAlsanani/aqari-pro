@@ -93,7 +93,11 @@ function drawList(data,key){
   }
   if(['properties','units','tenants','vendors'].includes(key)){
    const action=el('td'),edit=el('button','تعديل','secondary');
-   edit.type='button';edit.addEventListener('click',()=>drawForm(key,item));action.appendChild(edit);r.appendChild(action);
+   edit.type='button';edit.addEventListener('click',()=>drawForm(key,item));action.appendChild(edit);
+   if(key==='tenants'){
+    const stmt=el('button','كشف الحساب','secondary');stmt.type='button';stmt.addEventListener('click',()=>showTenantStatement(item.id));action.appendChild(stmt);
+   }
+   r.appendChild(action);
   }
   if(key==='payments'){
    const td=el('td');
@@ -180,6 +184,40 @@ function showRenewal(lease){
   }catch(error){notify(error.message,true);submit.disabled=false}
  });
  section.append(form);parent.append(section);
+}
+async function showTenantStatement(tenantId,page=1){
+ const view=$('view');view.replaceChildren(el('p','جاري تحميل كشف حساب المستأجر...','muted'));
+ try{
+  const data=await api('/tenants/'+tenantId+'/statement?page='+page);
+  view.replaceChildren();
+  const toolbar=el('div',null,'toolbar');
+  toolbar.appendChild(el('h3','كشف حساب: '+data.tenant.name));
+  const back=el('button','العودة إلى المستأجرين','secondary');
+  back.type='button';back.addEventListener('click',()=>refresh());
+  toolbar.appendChild(back);view.append(toolbar);
+  const metrics=el('div',null,'metrics');
+  for(const [label,value] of [['إجمالي الاستحقاقات',data.totals.billed],['إجمالي التحصيل',data.totals.received],['المبلغ المتبقي',data.totals.outstanding]]){
+   const card=el('div',null,'metric');card.append(el('span',label+' (ر.س)','muted'),el('strong',value));metrics.append(card);
+  }
+  view.append(metrics);
+  const wrap=el('div',null,'table-wrap'),table=el('table'),thead=el('thead'),hrow=el('tr');
+  for(const name of ['القسط','التاريخ','الوحدة','المستحق','المسدد','المتبقي','الحالة'])hrow.appendChild(el('th',name));
+  thead.appendChild(hrow);table.appendChild(thead);
+  const tbody=el('tbody');
+  for(const d of data.dues.data){
+   const tr=el('tr');
+   for(const value of [d.sequence,d.due_on,d.lease?.unit?.code||'—',d.amount,d.paid_amount,d.balance_amount,d.payment_status])tr.appendChild(el('td',value));
+   tbody.appendChild(tr);
+  }
+  table.appendChild(tbody);wrap.appendChild(table);view.append(wrap);
+  if(data.dues.last_page>1){
+   const controls=el('div',null,'actions'),prev=el('button','السابق','secondary'),next=el('button','التالي','secondary');
+   prev.disabled=page<=1;next.disabled=page>=data.dues.last_page;
+   prev.addEventListener('click',()=>showTenantStatement(tenantId,page-1));
+   next.addEventListener('click',()=>showTenantStatement(tenantId,page+1));
+   controls.append(prev,el('span','صفحة '+page+' من '+data.dues.last_page,'muted'),next);view.append(controls);
+  }
+ }catch(error){view.replaceChildren(el('p',error.message,'muted'));notify(error.message,true)}
 }
 function drawForm(key,record=null){
  const parent=$('view');parent.replaceChildren();
