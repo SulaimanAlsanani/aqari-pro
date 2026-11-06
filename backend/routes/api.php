@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\PortfolioController;
 use App\Http\Controllers\Api\DocumentController;
 use App\Http\Controllers\Api\OperationsController;
 use App\Http\Controllers\Api\RecordsController;
+use App\Http\Controllers\Api\RecordMutationsController;
 
 Route::post('/login',[AuthController::class,'login'])->middleware('throttle:5,1');
 
@@ -22,6 +23,9 @@ Route::middleware('auth:sanctum')->group(function () {
  Route::get('/documents',[RecordsController::class,'documents']);
  Route::get('/dues',[OperationsController::class,'dues']);
  Route::post('/properties',[PortfolioController::class,'storeProperty']);
+ Route::patch('/properties/{property}',[RecordMutationsController::class,'updateProperty']);
+ Route::patch('/units/{unit}',[RecordMutationsController::class,'updateUnit']);
+ Route::patch('/tenants/{tenant}',[RecordMutationsController::class,'updateTenant']);
  Route::get('/properties/{property}',[PortfolioController::class,'showProperty']);
  Route::post('/properties/{property}/units',[PortfolioController::class,'storeUnit']);
  Route::post('/tenants',[PortfolioController::class,'storeTenant']);
