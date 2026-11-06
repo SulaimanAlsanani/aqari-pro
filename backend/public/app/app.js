@@ -5,7 +5,7 @@ const $=id=>document.getElementById(id);
 const sections=[
  ['overview','لوحة أملاكي'],['properties','العقارات'],['units','الوحدات'],['tenants','المستأجرون'],
  ['leases','العقود'],['dues','الأقساط'],['payments','المقبوضات'],['expenses','المصروفات'],
- ['tickets','الصيانة'],['documents','المرفقات']
+ ['tickets','الصيانة'],['documents','المرفقات'],['audit','سجل العمليات']
 ];
 const fields={
  properties:[['id','الرقم'],['name','العقار'],['city','المدينة'],['district','الحي'],['type','النوع'],['units_count','الوحدات']],
@@ -16,7 +16,8 @@ const fields={
  payments:[['id','الرقم'],['lease_id','العقد'],['amount','المبلغ'],['paid_on','التاريخ'],['method','الطريقة']],
  expenses:[['id','الرقم'],['property_id','العقار'],['category','التصنيف'],['amount','المبلغ'],['incurred_on','التاريخ']],
  tickets:[['id','الرقم'],['property_id','العقار'],['title','البلاغ'],['priority','الأولوية'],['status','الحالة']],
- documents:[['id','الرقم'],['entity_type','مرتبط بـ'],['entity_id','رقم السجل'],['original_name','الاسم'],['size','الحجم']]
+ documents:[['id','الرقم'],['entity_type','مرتبط بـ'],['entity_id','رقم السجل'],['original_name','الاسم'],['size','الحجم']],
+ audit:[['created_at','التاريخ'],['entity_type','القسم'],['entity_id','رقم السجل'],['action','العملية']]
 };
 const templates={
  properties:{endpoint:'/properties',fields:[['name','اسم العقار','text'],['city','المدينة','text'],['district','الحي','text'],['type','نوع العقار','choice','residential:سكني|commercial:تجاري|mixed:مختلط'],['address','العنوان','text']]},
