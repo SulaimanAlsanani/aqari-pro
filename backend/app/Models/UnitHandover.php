@@ -9,4 +9,5 @@ class UnitHandover extends Model {
   return ['handed_over_on'=>'date:Y-m-d','keys_count'=>'integer','electricity_meter'=>'decimal:2','water_meter'=>'decimal:2'];
  }
  public function lease(){return $this->belongsTo(Lease::class);}
+ public function damages(){return $this->hasMany(HandoverDamage::class);}
 }
