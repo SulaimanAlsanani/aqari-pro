@@ -27,6 +27,8 @@ class LeaseSettlementController extends Controller {
   $hasCheckIn=$lease->handovers()->where('kind','check_in')->exists();
   $hasCheckOut=$lease->handovers()->where('kind','check_out')->exists();
   $handoverComplete=!$hasCheckIn||$hasCheckOut;
+  $outstandingDamages=$lease->handovers()->where('kind','check_out')->first()?->damages()
+    ->whereNull('waived_at')->whereDoesntHave('deduction')->count()??0;
   $expired=$lease->ends_on->toDateString()<=today()->toDateString();
   $flags=[];
   if(!$expired)$flags[]='LEASE_NOT_EXPIRED';
@@ -36,6 +38,7 @@ class LeaseSettlementController extends Controller {
   if(!$rentBalanced)$flags[]='RENT_LEDGER_MISMATCH';
   if(!$depositBalanced)$flags[]='DEPOSIT_LEDGER_MISMATCH';
   if(!$handoverComplete)$flags[]='UNIT_HANDOVER_PENDING';
+  if($outstandingDamages>0)$flags[]='UNRESOLVED_DAMAGE';
   return response()->json([
    'lease'=>['id'=>$lease->id,'status'=>$lease->status,'ends_on'=>$lease->ends_on->toDateString(),
     'tenant_id'=>$lease->tenant_id,'unit_id'=>$lease->unit_id],
@@ -45,8 +48,9 @@ class LeaseSettlementController extends Controller {
     'received'=>$depositReceived,'refunded'=>$depositRefunded,
     'deducted'=>$depositDeducted,'held'=>$held,'balanced'=>$depositBalanced],
    'handover'=>['check_in_recorded'=>$hasCheckIn,'check_out_recorded'=>$hasCheckOut,'complete'=>$handoverComplete],
+   'damages'=>['unresolved_count'=>$outstandingDamages],
    'review_flags'=>$flags,
-   'ready_for_financial_closure'=>$expired&&$handoverComplete&&in_array($lease->status,['active','completed'],true)&&$rentBalanced&&$depositBalanced
+   'ready_for_financial_closure'=>$expired&&$handoverComplete&&$outstandingDamages===0&&in_array($lease->status,['active','completed'],true)&&$rentBalanced&&$depositBalanced
     &&bccomp($rentOutstanding,'0.00',2)===0&&bccomp($held,'0.00',2)===0
   ]);
  }
