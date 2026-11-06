@@ -12,7 +12,10 @@ class PasswordResetController extends Controller {
  public function requestLink(Request $request){
   $data=$request->validate(['email'=>['required','email','max:255']]);
   // Do not expose whether the email exists. The broker handles cooldowns and expiry.
-  Password::broker()->sendResetLink(['email'=>$data['email']]);
+  if(app()->environment('production')&&in_array(config('mail.default'),['log','array'],true))
+   return response()->json(['message'=>'خدمة استعادة كلمة المرور غير مهيأة'],503);
+  try{Password::broker()->sendResetLink(['email'=>$data['email']]);}
+  catch(\Throwable $error){return response()->json(['message'=>'تعذّر إرسال تعليمات الاستعادة حاليًا'],503);}
   return response()->json(['message'=>'إذا كان البريد مسجلًا، ستصلك تعليمات إعادة تعيين كلمة المرور']);
  }
  public function reset(Request $request){
