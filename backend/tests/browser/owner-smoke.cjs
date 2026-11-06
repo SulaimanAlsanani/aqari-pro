@@ -44,10 +44,10 @@ async function main() {
       await propertyRow.getByRole('button', { name: /المرفقات/ }).click();
       await page.getByText('مرفقات السجل #' + propertyId).waitFor({ timeout: 15000 });
       await page.getByRole('button', { name: /إضافة مرفق/ }).click();
-      // A rejected extension must keep the upload form available for correction.
+      // An allowed extension beyond the 10 MiB limit must be rejected by the API.
       await page.locator('#view input[type=file]').setInputFiles({
-        name: 'rejected.exe', mimeType: 'application/x-msdownload',
-        buffer: Buffer.from('not-an-allowed-file')
+        name: 'oversized.pdf', mimeType: 'application/pdf',
+        buffer: Buffer.alloc(10241 * 1024)
       });
       await page.getByRole('button', { name: 'رفع الملف' }).click();
       await page.locator('#notice.error').waitFor({ state: 'visible', timeout: 15000 });
