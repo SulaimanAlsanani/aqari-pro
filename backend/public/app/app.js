@@ -180,6 +180,10 @@ function drawList(data,key){
    const state=el('td','✓ تم الإرفاق','tag');r.appendChild(state);
    const td=el('td'),buttons=el('div',null,'actions'),b=el('button','تنزيل','secondary');
    b.addEventListener('click',()=>download(item.id,item.original_name));buttons.appendChild(b);
+   if(canPreview(item)){
+    const preview=el('button','معاينة','secondary');preview.type='button';
+    preview.addEventListener('click',()=>previewDocument(item.id,item.original_name));buttons.appendChild(preview);
+   }
    const remove=el('button','حذف المرفق','secondary');remove.type='button';
    remove.addEventListener('click',async()=>{
     if(!confirm('تأكيد الحذف النهائي للملف «'+item.original_name+'»؟'))return;
@@ -663,6 +667,10 @@ async function showRecordDocuments(entity,id){
    const row=el('div',null,'toolbar'),name=el('span','📄 '+file.original_name+' — تم الإرفاق');
    const buttons=el('div',null,'actions'),down=el('button','تنزيل','secondary'),remove=el('button','حذف','secondary');
    down.addEventListener('click',()=>download(file.id,file.original_name));
+   if(canPreview(file)){
+    const preview=el('button','معاينة','secondary');preview.type='button';
+    preview.addEventListener('click',()=>previewDocument(file.id,file.original_name));buttons.append(preview);
+   }
    remove.addEventListener('click',async()=>{
     if(!confirm('حذف المرفق «'+file.original_name+'» نهائيًا؟'))return;
     remove.disabled=true;
@@ -689,6 +697,46 @@ async function exportCsv(resource,button){
   setTimeout(()=>URL.revokeObjectURL(url),3000);
   notify('تم إعداد تصدير السجلات');
  }catch(error){notify(error.message,true)}finally{button.disabled=false}
+}
+function canPreview(file){
+ return /\\.(pdf|png|jpe?g|webp)$/i.test(String(file.original_name||''));
+}
+async function previewDocument(id,name){
+ if(!accessToken){notify('انتهت الجلسة، يرجى تسجيل الدخول',true);return}
+ let url=null,overlay=null;
+ try{
+  const response=await fetch('/api/documents/'+encodeURIComponent(id)+'/preview',{
+   headers:{Authorization:'Bearer '+accessToken,Accept:'application/pdf,image/png,image/jpeg,image/webp'},
+   credentials:'omit'
+  });
+  if(response.status===401){resetAuth();throw Error('انتهت الجلسة، يرجى تسجيل الدخول')}
+  if(!response.ok)throw Error(response.status===415?'هذا النوع لا يدعم المعاينة؛ استخدم تنزيل':'تعذر عرض المرفق');
+  const type=(response.headers.get('Content-Type')||'').split(';')[0].trim().toLowerCase();
+  if(!['application/pdf','image/png','image/jpeg','image/webp'].includes(type))
+   throw Error('نوع ملف غير مدعوم للمعاينة');
+  const blob=await response.blob();
+  url=URL.createObjectURL(new Blob([blob],{type}));
+  overlay=el('div');overlay.setAttribute('role','dialog');overlay.setAttribute('aria-modal','true');
+  overlay.setAttribute('aria-label','معاينة '+String(name||'المرفق'));
+  Object.assign(overlay.style,{position:'fixed',inset:'0',zIndex:'9999',background:'#14271ddd',display:'flex',alignItems:'center',justifyContent:'center',padding:'14px'});
+  const panel=el('section');Object.assign(panel.style,{background:'white',borderRadius:'12px',width:'min(100%,1000px)',height:'min(95vh,900px)',display:'flex',flexDirection:'column',padding:'12px',gap:'8px'});
+  const bar=el('div',null,'toolbar'),title=el('strong',name||'المرفق'),close=el('button','إغلاق المعاينة','secondary');
+  const cleanup=()=>{overlay.remove();URL.revokeObjectURL(url);document.removeEventListener('keydown',onEscape)};
+  const onEscape=e=>{if(e.key==='Escape')cleanup()};
+  close.type='button';close.addEventListener('click',cleanup);
+  bar.append(title,close);panel.append(bar);
+  const content=el(type==='application/pdf'?'iframe':'img');
+  content.src=url;
+  if(type==='application/pdf'){content.setAttribute('sandbox','');content.title='ملف PDF'}
+  Object.assign(content.style,{width:'100%',flex:'1',minHeight:'0',objectFit:'contain',border:'0'});
+  panel.append(content);overlay.append(panel);
+  overlay.addEventListener('click',e=>{if(e.target===overlay)cleanup()});
+  document.body.append(overlay);document.addEventListener('keydown',onEscape);close.focus();
+ }catch(error){
+  if(overlay)overlay.remove();
+  if(url)URL.revokeObjectURL(url);
+  notify(error.message,true);
+ }
 }
 async function download(id,name){
  try{
