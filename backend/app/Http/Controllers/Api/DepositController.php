@@ -42,8 +42,19 @@ class DepositController extends Controller {
   ]);
   if($data['kind']==='deduction'&&mb_strlen(trim((string)($data['reason']??'')))<10)
    throw ValidationException::withMessages(['reason'=>'يجب توثيق سبب الخصم بعشرة أحرف على الأقل']);
-  return DB::transaction(function()use($lease,$data){
+  $key=$request->header('Idempotency-Key');
+  if($key!==null&&!preg_match('/^[A-Za-z0-9_-]{8,64}$/D',$key))
+   throw ValidationException::withMessages(['idempotency_key'=>'Invalid operation key']);
+  return DB::transaction(function()use($lease,$data,$key){
    $locked=Lease::whereKey($lease->id)->lockForUpdate()->firstOrFail();
+   if($key!==null){
+    $prior=$locked->depositMovements()->where('idempotency_key',$key)->first();
+    if($prior){
+     $same=$prior->kind===$data['kind']&&bccomp((string)$prior->amount,(string)$data['amount'],2)===0&&$prior->occurred_on->toDateString()===$data['occurred_on']&&($prior->reason??null)===($data['reason']??null)&&($prior->reference??null)===($data['reference']??null);
+     if(!$same)throw ValidationException::withMessages(['idempotency_key'=>'Key already used']);
+     return response()->json(['movement'=>$prior,'totals'=>$this->totals($locked)],200);
+    }
+   }
    if(in_array($locked->status,['draft','cancelled'],true))
     throw ValidationException::withMessages(['kind'=>'لا يمكن إجراء حركة تأمين على عقد مسودة أو ملغى']);
    if($data['kind']!=='receipt'&&$locked->ends_on->toDateString()>today()->toDateString())
@@ -52,7 +63,7 @@ class DepositController extends Controller {
    $maximum=$data['kind']==='receipt'?$totals['uncollected']:$totals['held'];
    if(bccomp((string)$data['amount'],$maximum,2)>0)
     throw ValidationException::withMessages(['amount'=>'المبلغ يتجاوز رصيد التأمين المتاح']);
-   $entry=$locked->depositMovements()->create($data);
+   $entry=$locked->depositMovements()->create([...$data,'idempotency_key'=>$key]);
    return response()->json(['movement'=>$entry,'totals'=>$this->totals($locked)],201);
   });
  }
