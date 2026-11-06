@@ -28,5 +28,11 @@ class DocumentSecurityTest extends TestCase {
   ])->assertCreated();
   $id=$resp->json('id');
   $this->actingAs($b)->get('/api/documents/'.$id)->assertNotFound();
+  $response=$this->actingAs($a)->get('/api/documents/'.$id)->assertOk()
+   ->assertHeader('X-Content-Type-Options','nosniff');
+  $this->assertStringContainsString('attachment',$response->headers->get('Content-Disposition'));
+  foreach (['private','no-store','max-age=0'] as $directive) {
+   $this->assertContains($directive,array_map('trim',explode(',',$response->headers->get('Cache-Control'))));
+  }
  }
 }
