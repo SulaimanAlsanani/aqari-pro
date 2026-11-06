@@ -6,7 +6,7 @@ const $=id=>document.getElementById(id);
 const sections=[
  ['overview','لوحة أملاكي'],['alerts','التنبيهات'],['properties','العقارات'],['units','الوحدات'],['tenants','المستأجرون'],
  ['leases','العقود'],['dues','الأقساط'],['payments','المقبوضات'],['expenses','المصروفات'],
- ['tickets','الصيانة'],['vendors','الموردون'],['documents','المرفقات'],['reports','التقارير المالية'],['reconciliation','مطابقة الحسابات'],['audit','سجل العمليات'],['account','حسابي']
+ ['tickets','الصيانة'],['vendors','الموردون'],['documents','المرفقات'],['reports','التقارير المالية'],['deposit-report','أرصدة التأمينات'],['reconciliation','مطابقة الحسابات'],['audit','سجل العمليات'],['account','حسابي']
 ];
 const fields={
  properties:[['id','الرقم'],['name','العقار'],['city','المدينة'],['district','الحي'],['type','النوع'],['units_count','الوحدات']],
@@ -461,6 +461,30 @@ async function download(id,name){
   setTimeout(()=>URL.revokeObjectURL(url),4000);
  }catch(err){notify(err.message,true)}
 }
+async function showDepositReport(){
+ const view=$('view');
+ view.replaceChildren(el('p','جاري تحميل تقرير التأمينات...','muted'));
+ const report=await api('/reports/deposits');
+ view.replaceChildren();
+ const info=el('section',null,'panel');
+ info.append(el('h3','أرصدة تأمينات المستأجرين'),el('p','هذه الأرصدة أمانات محتفظ بها، وليست إيرادات إيجارية. التقرير تراكمي حتى '+report.as_of+'.','muted'));
+ const cards=el('div',null,'metrics');
+ for(const [title,value] of [['إجمالي التأمين المستلم',report.totals.received],['التأمينات المرتجعة',report.totals.refunded],['الخصومات الموثقة',report.totals.deducted],['رصيد التأمين المحتفظ به',report.totals.held]]){
+  const card=el('div',null,'metric');card.append(el('span',title+' (ر.س)','muted'),el('strong',value));cards.append(card);
+ }
+ info.append(cards);
+ const wrapper=el('div',null,'table-wrap'),table=el('table'),heading=el('tr');
+ for(const label of ['العقار','المدينة','المستلم','المرتجع','المخصوم','الرصيد'])heading.append(el('th',label));
+ const thead=el('thead');thead.append(heading);table.append(thead);
+ const tbody=el('tbody');
+ for(const row of report.properties){
+  const tr=el('tr');
+  for(const value of [row.name,row.city,row.received,row.refunded,row.deducted,row.held])tr.append(el('td',value));
+  tbody.append(tr);
+ }
+ table.append(tbody);wrapper.append(table);info.append(wrapper);
+ view.append(info);
+}
 async function showCashflow(){
  const view=$('view');view.replaceChildren();
  const panel=el('section',null,'panel'),form=el('form');form.className='form-grid';
@@ -589,6 +613,7 @@ async function refresh(page=1){
   if(active==='overview'){drawOverview(await api('/overview'));return}
   if(active==='alerts'){await showAlerts();return}
   if(active==='reports'){await showCashflow();return}
+  if(active==='deposit-report'){await showDepositReport();return}
   if(active==='reconciliation'){await showReconciliation();return}
   if(active==='account'){showAccount();return}
   const url=active==='properties'?'/portfolio':'/'+active;
