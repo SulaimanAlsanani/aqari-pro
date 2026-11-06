@@ -69,8 +69,22 @@ class PortfolioController extends Controller {
    'method'=>['required','in:bank_transfer,cash,card'],
    'reference'=>['nullable','string','max:120']
   ]);
-  $payment=DB::transaction(function()use($lease,$data){
+  $key=$request->header('Idempotency-Key');
+  if($key!==null&&!preg_match('/^[a-zA-Z0-9_-]{8,64}$/D',$key))
+   throw ValidationException::withMessages(['idempotency_key'=>'مفتاح العملية يجب أن يكون من 8 إلى 64 حرفًا أو رقمًا']);
+  [$payment,$replayed]=DB::transaction(function()use($lease,$data,$key){
    $locked=Lease::whereKey($lease->id)->lockForUpdate()->firstOrFail();
+   if($key!==null){
+    $existing=$locked->payments()->where('idempotency_key',$key)->first();
+    if($existing){
+     if($existing->voided_at||bccomp((string)$existing->amount,(string)$data['amount'],2)!==0
+       ||$existing->paid_on->toDateString()!==$data['paid_on']
+       ||$existing->method!==$data['method']
+       ||($existing->reference??null)!==($data['reference']??null))
+      throw ValidationException::withMessages(['idempotency_key'=>'مفتاح العملية مستخدم سابقًا لعملية مختلفة أو ملغاة']);
+     return [$existing->load('allocations'),true];
+    }
+   }
    if($locked->status==='cancelled'||$locked->status==='completed')throw ValidationException::withMessages(['status'=>'لا يمكن التحصيل لعقد ملغى أو مكتمل']);
    $dues=$locked->dues()->withSum(['allocations'=>fn($q)=>$q->whereHas('payment',fn($p)=>$p->whereNull('voided_at'))],'amount')->orderBy('due_on')->orderBy('sequence')->get();
    $remaining=bcadd((string)$data['amount'],'0',2);
@@ -85,10 +99,10 @@ class PortfolioController extends Controller {
    }
    if(bccomp($remaining,'0.00',2)>0)
     throw ValidationException::withMessages(['amount'=>'قيمة التحصيل تتجاوز الأقساط غير المسددة للعقد']);
-   $payment=$locked->payments()->create($data);
+   $payment=$locked->payments()->create([...$data,'idempotency_key'=>$key]);
    $payment->allocations()->createMany($allocations);
-   return $payment->load('allocations');
+   return [$payment->load('allocations'),false];
   });
-  return response()->json($payment,201);
+  return response()->json($payment,$replayed?200:201);
  }
 }
