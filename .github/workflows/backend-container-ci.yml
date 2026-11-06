@@ -38,6 +38,7 @@ jobs:
           bash -n backend/scripts/backup-encrypted.sh
           bash -n backend/scripts/ci-backup-restore-drill.sh
           bash -n backend/scripts/check-clamav-readiness.sh
+          bash -n backend/scripts/check-http-security.sh
           tmp_signatures="$(mktemp -d)"
           if CLAMAV_DATABASE_DIR="$tmp_signatures" DOCUMENT_CLAMSCAN_BINARY=/bin/true \
             bash backend/scripts/check-clamav-readiness.sh; then
@@ -66,6 +67,7 @@ jobs:
           curl --fail --silent http://127.0.0.1:8080/app/index.html | grep -q 'عقاري برو'
           status=$(curl --silent -o /dev/null -w '%{http_code}' -H 'Accept: application/json' http://127.0.0.1:8080/api/portfolio)
           test "$status" = "401"
+          AQARI_SECURITY_BASE_URL=http://127.0.0.1:8080 bash scripts/check-http-security.sh
       - name: Run bounded concurrent finance and read-performance checks against disposable MySQL
         working-directory: backend
         env:
