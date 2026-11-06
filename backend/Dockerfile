@@ -1,7 +1,7 @@
 FROM php:8.3-apache
 ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libzip-dev libicu-dev libonig-dev unzip git ca-certificates \
+    libzip-dev libicu-dev libonig-dev unzip git ca-certificates clamav clamav-freshclam \
     && docker-php-ext-install pdo_mysql bcmath mbstring zip intl opcache \
     && a2enmod rewrite headers \
     && sed -ri -e 's!/var/www/html!/var/www/html/public!g' /etc/apache2/sites-available/000-default.conf \
