@@ -35,6 +35,63 @@ async function main() {
       await page.locator('#view td').filter({ hasText: 'عقار اختبار المتصفح ' + viewport.width }).first().waitFor({ timeout: 15000 });
       assert.equal(await page.locator('#notice.error').count(), 0, 'no form error');
 
+      // Continue the owner's actual workflow using the same visible forms.
+      const propertyRow = page.locator('#view tbody tr').filter({ hasText: 'عقار اختبار المتصفح ' + viewport.width });
+      const propertyId = (await propertyRow.locator('td').first().innerText()).trim();
+      assert.match(propertyId, /^\\d+$/);
+
+      await page.locator('#nav button').filter({ hasText: 'الوحدات' }).click();
+      await page.locator('#sectionTitle').getByText('الوحدات').waitFor();
+      await page.locator('#view button').filter({ hasText: '+ إضافة سجل' }).click();
+      await page.locator('#field-property_id').fill(propertyId);
+      await page.locator('#field-code').fill('U-' + viewport.width);
+      await page.locator('#field-type').fill('apartment');
+      await page.locator('#view form button[type=submit]').click();
+      const unitRow = page.locator('#view tbody tr').filter({ hasText: 'U-' + viewport.width });
+      await unitRow.waitFor({ timeout: 15000 });
+      const unitId = (await unitRow.locator('td').first().innerText()).trim();
+      assert.match(unitId, /^\\d+$/);
+
+      await page.locator('#nav button').filter({ hasText: 'المستأجرون' }).click();
+      await page.locator('#sectionTitle').getByText('المستأجرون').waitFor();
+      await page.locator('#view button').filter({ hasText: '+ إضافة سجل' }).click();
+      await page.locator('#field-name').fill('مستأجر اختبار المتصفح ' + viewport.width);
+      await page.locator('#field-phone').fill('0500000000');
+      await page.locator('#view form button[type=submit]').click();
+      const tenantRow = page.locator('#view tbody tr').filter({ hasText: 'مستأجر اختبار المتصفح ' + viewport.width });
+      await tenantRow.waitFor({ timeout: 15000 });
+      const tenantId = (await tenantRow.locator('td').first().innerText()).trim();
+      assert.match(tenantId, /^\\d+$/);
+
+      await page.locator('#nav button').filter({ hasText: 'العقود' }).click();
+      await page.locator('#sectionTitle').getByText('العقود').waitFor();
+      await page.locator('#view button').filter({ hasText: '+ إضافة سجل' }).click();
+      await page.locator('#field-unit_id').fill(unitId);
+      await page.locator('#field-tenant_id').fill(tenantId);
+      await page.locator('#field-starts_on').fill('2025-01-01');
+      await page.locator('#field-ends_on').fill('2025-12-31');
+      await page.locator('#field-total_amount').fill('1200');
+      await page.locator('#field-installments').selectOption('12');
+      await page.locator('#view form button[type=submit]').click();
+      const leaseRow = page.locator('#view tbody tr').filter({ hasText: unitId }).filter({ hasText: tenantId });
+      await leaseRow.waitFor({ timeout: 15000 });
+      const leaseId = (await leaseRow.locator('td').first().innerText()).trim();
+      assert.match(leaseId, /^\\d+$/);
+      page.once('dialog', dialog => dialog.accept());
+      await leaseRow.getByRole('button', { name: 'تفعيل', exact: true }).click();
+      await page.locator('#view tbody tr').filter({ hasText: leaseId }).getByText('active', { exact: true }).waitFor({ timeout: 15000 });
+
+      await page.locator('#nav button').filter({ hasText: 'المقبوضات' }).click();
+      await page.locator('#sectionTitle').getByText('المقبوضات').waitFor();
+      await page.locator('#view button').filter({ hasText: '+ إضافة سجل' }).click();
+      await page.locator('#field-lease_id').fill(leaseId);
+      await page.locator('#field-amount').fill('1200');
+      await page.locator('#field-paid_on').fill('2025-12-31');
+      await page.locator('#field-method').selectOption('bank_transfer');
+      await page.locator('#view form button[type=submit]').click();
+      await page.locator('#view tbody tr').filter({ hasText: leaseId }).filter({ hasText: '1200' }).first().waitFor({ timeout: 15000 });
+      assert.equal(await page.locator('#notice.error').count(), 0, 'no record creation errors');
+
       await page.locator('#nav button').filter({ hasText: 'أرصدة التأمينات' }).click();
       await page.getByText('أرصدة تأمينات المستأجرين').waitFor({ timeout: 15000 });
       await page.locator('#nav button').filter({ hasText: 'مطابقة الحسابات' }).click();
