@@ -63,3 +63,27 @@
 
 ## بريد استعادة كلمة المرور
 خدمة استعادة كلمة المرور تُرسل عبر SMTP فقط عند الإنتاج. يجب ضبط `MAIL_MAILER=smtp` و`MAIL_HOST` و`MAIL_PORT` و`MAIL_USERNAME` و`MAIL_PASSWORD` و`MAIL_FROM_ADDRESS` صحيحة من مدير الأسرار، مع إثبات نجاح وصول الرسائل وتحديث DNS (SPF/DKIM/DMARC). وضع `MAIL_MAILER=log` أو `array` لا يُقبل في الإنتاج.
+
+## تشغيل عبر Docker Compose — مرجع نشر جديد
+
+في `backend` تتوفر الملفات: `Dockerfile`, `compose.yaml`, `.docker/entrypoint.sh`.
+الخطوات تخص **خادمًا مخصصًا أو Staging مع صلاحيات Docker**، وليست أوامر GitHub Pages:
+
+1. تأكد من وجود Docker Engine وCompose plugin، ومن موارد خادم مناسبة ونسخ احتياطي خارجي.
+2. ضع الأسرار الحقيقية في ملف بيئة **خارج Git**، ولا تستخدم مفاتيح الاختبارات ولا تضع كلمات مرور في المحادثات.
+3. عرّف في بيئة Compose: `APP_KEY`, `APP_URL=https://DOMAIN`, `DB_PASSWORD`, `MYSQL_ROOT_PASSWORD`, `MAIL_MAILER=smtp`, `MAIL_HOST`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM_ADDRESS`.
+4. نفّذ `docker compose build`، ثم `docker compose up -d`.
+5. نفّذ `docker compose exec app php artisan migrate --force` بعد اختبار الترحيلات في Staging.
+6. أنشئ حساب المالك عبر `docker compose exec app php artisan owner:create owner@example.com "اسم المالك"`.
+7. ضع **Reverse Proxy مع TLS/HTTPS** أمام التطبيق الذي لا يستمع إلا على `127.0.0.1:8080`. يجب التأكد من تمرير الأصل والـ headers بصورة آمنة.
+8. افحص `/up`, `/app/index.html` وتسجيل الدخول والاستعادة والمرفقات، وتأكد أن `/api/portfolio` يعيد 401 دون رمز مصادقة.
+9. لا تنقل بيانات حقيقية قبل اختبار الأداء والنسخ الاحتياطية ومراجعة الأمان.
+
+الملف `backend/compose.yaml` يستخدم مجلدين مستمرين: `mysql_data` و`private_storage`. حذف أحجام Docker قد يمحو البيانات؛ لا تستخدم `docker compose down -v` على بيانات حقيقية.
+
+## النسخ الاحتياطي المشفر
+نص النسخ: `backend/scripts/backup-encrypted.sh`. يحتاج على خادم التشغيل: Docker Compose، وBash، و`age`، و`gzip`، و**مفتاح استقبال age عام** (`AGE_RECIPIENT`).
+بعد ضبط المتغيرات، شغّل من مجلد `backend`:
+`AGE_RECIPIENT=age1... BACKUP_DIR=/secure/offsite-stage bash scripts/backup-encrypted.sh`.
+
+النسخ تنشئ ملفًا مشفرًا لقاعدة MySQL وآخر للمرفقات الخاصة، ويتوقف HTTP مؤقتًا خلال النسخ ثم يُعاد تشغيله عند الخروج. النسخ المحلي لا يكفي؛ انقل الملفات المشفرة إلى وجهة مستقلة واختبر فكها واستعادتها **داخل Staging معزول**. لا تضع المفتاح الخاص لفك التشفير على نفس خادم قاعدة البيانات. لا تُعتبر ميزة النسخ الاحتياطي مكتملة تشغيليًا دون اختبار استعادة دوري موثق.
