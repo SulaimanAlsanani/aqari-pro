@@ -292,6 +292,7 @@ function drawForm(key,record=null){
  const parent=$('view');parent.replaceChildren();
  const config=templates[key],section=el('section',null,'panel'),heading=el('h3',(record?'تعديل ':'إضافة ')+sections.find(x=>x[0]===key)?.[1]);
  const form=el('form');form.enctype='multipart/form-data';
+ const receiptKey=key==='payments'?crypto.randomUUID().replaceAll('-',''):null;
  for(const [name,label,type,values] of config.fields){
   const div=el('div',null,'field');const lab=el('label',label);lab.htmlFor='field-'+name;
   let input;
@@ -325,7 +326,7 @@ function drawForm(key,record=null){
    }else{
     for(const numeric of ['unit_id','tenant_id','entity_id','total_amount','deposit','amount','installments','area','estimated_cost'])
      if(numeric in payload)payload[numeric]=Number(payload[numeric]);
-    await api(url,{method:record?'PATCH':'POST',body:payload});
+    await api(url,{method:record?'PATCH':'POST',body:payload,headers:receiptKey?{'Idempotency-Key':receiptKey}:{}});
    }
    notify(key==='documents'?'✓ تم إرفاق الملف بنجاح':record?'تم حفظ التعديلات بنجاح':'تم حفظ السجل بنجاح');await refresh();
   }catch(err){notify(err.message,true)}finally{save.disabled=false}
