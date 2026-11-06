@@ -40,6 +40,33 @@ async function main() {
       const propertyId = (await propertyRow.locator('td').first().innerText()).trim();
       assert.match(propertyId, /^[0-9]+$/);
 
+      // Exercise the real owner attachment UI: upload, preview and delete.
+      await propertyRow.getByRole('button', { name: /المرفقات/ }).click();
+      await page.getByText('مرفقات السجل #' + propertyId).waitFor({ timeout: 15000 });
+      await page.getByRole('button', { name: /إضافة مرفق/ }).click();
+      const attachmentName = 'inspection-' + viewport.width + '.png';
+      const png = Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==',
+        'base64'
+      );
+      await page.locator('#view input[type=file]').setInputFiles({
+        name: attachmentName, mimeType: 'image/png', buffer: png
+      });
+      await page.getByRole('button', { name: 'رفع الملف' }).click();
+      await page.getByText('📄 ' + attachmentName + ' — تم الإرفاق').waitFor({ timeout: 15000 });
+      assert.equal(await page.locator('#view input[type=file]').count(), 0, 'upload picker closes after save');
+      await page.getByRole('button', { name: 'معاينة' }).click();
+      const preview = page.getByRole('dialog', { name: 'معاينة ' + attachmentName });
+      await preview.waitFor({ state: 'visible', timeout: 15000 });
+      assert.match(await preview.locator('img').getAttribute('src'), /^blob:/);
+      await preview.getByRole('button', { name: 'إغلاق المعاينة' }).click();
+      await preview.waitFor({ state: 'detached', timeout: 15000 });
+      page.once('dialog', dialog => dialog.accept());
+      await page.getByRole('button', { name: 'حذف', exact: true }).click();
+      await page.getByText('لا توجد ملفات مرفقة بهذا السجل.').waitFor({ timeout: 15000 });
+      assert.equal(await page.locator('#notice.error').count(), 0, 'attachment operations succeeded');
+      await page.getByRole('button', { name: 'الرجوع' }).click();
+
       await page.locator('#nav button').filter({ hasText: 'الوحدات' }).click();
       await page.locator('#sectionTitle').getByText('الوحدات').waitFor();
       await page.locator('#view button').filter({ hasText: '+ إضافة سجل' }).click();
