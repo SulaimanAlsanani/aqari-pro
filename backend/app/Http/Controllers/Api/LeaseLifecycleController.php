@@ -53,6 +53,9 @@ class LeaseLifecycleController extends Controller {
    );
    if(bccomp($held,'0.00',2)!==0)
     throw ValidationException::withMessages(['status'=>'لا يمكن إكمال العقد وهناك تأمين محتفظ به أو فرق في سجل التأمين']);
+   if($locked->handovers()->where('kind','check_in')->exists()
+     &&!$locked->handovers()->where('kind','check_out')->exists())
+    throw ValidationException::withMessages(['status'=>'يجب تسجيل محضر تسليم الخروج قبل إكمال العقد']);
    $locked->update(['status'=>'completed']);
    return response()->json($locked->refresh());
   });
