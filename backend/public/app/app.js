@@ -124,6 +124,10 @@ function drawList(data,key){
     });
     bar.appendChild(button);
    }
+   if(['active','completed'].includes(item.status)){
+    const renew=el('button','تجديد العقد','secondary');renew.type='button';
+    renew.addEventListener('click',()=>showRenewal(item));bar.appendChild(renew);
+   }
    td.appendChild(bar);r.appendChild(td);
   }
   if(key==='documents'){
@@ -142,6 +146,40 @@ function drawList(data,key){
   prev.addEventListener('click',()=>refresh(data.current_page-1));next.addEventListener('click',()=>refresh(data.current_page+1));
   controls.append(prev,el('span','صفحة '+data.current_page+' من '+data.last_page,'muted'),next);parent.appendChild(controls);
  }
+}
+function showRenewal(lease){
+ const parent=$('view');parent.replaceChildren();
+ const section=el('section',null,'panel');
+ section.appendChild(el('h3','تجديد العقد رقم '+lease.id));
+ section.appendChild(el('p','سيُنشأ عقد جديد مدته سنة تبدأ بعد نهاية العقد السابق مباشرةً، لنفس الوحدة والمستأجر. ويبقى العقد السابق محفوظًا.','muted'));
+ const form=el('form');
+ const inputs=[['total_amount','القيمة السنوية الجديدة (ر.س)','number'],['deposit','التأمين الجديد (ر.س) — اختياري','number']];
+ for(const [field,label,type] of inputs){
+  const wrap=el('div',null,'field'),lab=el('label',label),input=el('input');
+  input.id='renew-'+field;input.name=field;input.type=type;input.min='0';input.step='0.01';input.required=field==='total_amount';
+  if(field==='total_amount')input.value=lease.total_amount||'';
+  lab.htmlFor=input.id;wrap.append(lab,input);form.append(wrap);
+ }
+ const wrap=el('div',null,'field'),label=el('label','عدد أقساط السنة'),select=el('select');
+ select.id='renew-installments';select.name='installments';
+ for(const [value,name] of [['1','سنوي'],['2','نصف سنوي'],['4','ربع سنوي'],['12','شهري']]){
+  const opt=el('option',name);opt.value=value;select.append(opt);
+ }
+ select.value='12';label.htmlFor=select.id;wrap.append(label,select);form.append(wrap);
+ const controls=el('div',null,'actions'),submit=el('button','إنشاء مسودة التجديد','primary'),back=el('button','رجوع','secondary');
+ submit.type='submit';back.type='button';back.addEventListener('click',()=>refresh());controls.append(submit,back);form.append(controls);
+ form.addEventListener('submit',async event=>{
+  event.preventDefault();submit.disabled=true;
+  const payload=Object.fromEntries(new FormData(form));
+  payload.total_amount=Number(payload.total_amount);
+  payload.installments=Number(payload.installments);
+  if(payload.deposit==='')delete payload.deposit;else payload.deposit=Number(payload.deposit);
+  try{
+   await api('/leases/'+lease.id+'/renew',{method:'POST',body:payload});
+   notify('تم إنشاء مسودة تجديد العقد وربطها بالعقد السابق');await refresh();
+  }catch(error){notify(error.message,true);submit.disabled=false}
+ });
+ section.append(form);parent.append(section);
 }
 function drawForm(key,record=null){
  const parent=$('view');parent.replaceChildren();
