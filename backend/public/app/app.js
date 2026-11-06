@@ -12,7 +12,7 @@ const fields={
  units:[['id','الرقم'],['code','الوحدة'],['type','النوع'],['floor','الدور'],['area','المساحة']],
  tenants:[['id','الرقم'],['name','المستأجر'],['phone','الجوال'],['email','البريد']],
  leases:[['id','الرقم'],['unit_id','الوحدة'],['tenant_id','المستأجر'],['starts_on','البداية'],['ends_on','النهاية'],['total_amount','الإجمالي'],['status','الحالة']],
- dues:[['id','الرقم'],['lease_id','العقد'],['due_on','الاستحقاق'],['amount','القسط']],
+ dues:[['id','الرقم'],['lease_id','العقد'],['due_on','الاستحقاق'],['amount','القسط'],['paid_amount','المسدّد'],['balance_amount','المتبقي'],['payment_status','الحالة']],
  payments:[['id','الرقم'],['lease_id','العقد'],['amount','المبلغ'],['paid_on','التاريخ'],['method','الطريقة']],
  expenses:[['id','الرقم'],['property_id','العقار'],['category','التصنيف'],['amount','المبلغ'],['incurred_on','التاريخ']],
  tickets:[['id','الرقم'],['property_id','العقار'],['title','البلاغ'],['priority','الأولوية'],['status','الحالة']],
