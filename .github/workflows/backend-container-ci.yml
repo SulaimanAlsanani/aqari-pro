@@ -51,7 +51,9 @@ jobs:
         run: docker build --progress=plain -t aqari-pro-api:ci backend
       - name: Check compose template syntax
         working-directory: backend
-        run: docker compose config --quiet
+        run: |
+          docker compose config --quiet
+          docker compose config --format json | python3 -c 'import json,sys; d=json.load(sys.stdin); v=d["services"]["app"].get("volumes",[]); assert any(x.get("target")=="/var/lib/clamav" and x.get("type")=="volume" for x in v), "ClamAV signatures must use a persistent named Docker volume"; assert "clamav_signatures" in d.get("volumes",{}), "ClamAV named volume missing"'
       - name: Smoke-test running PHP and MySQL containers
         working-directory: backend
         run: |
