@@ -34,6 +34,8 @@ services:
         condition: service_healthy
     volumes:
       - private_storage:/var/www/html/storage
+      # Preserve antivirus signatures across app image/container replacement.
+      - clamav_signatures:/var/lib/clamav
     security_opt:
       - no-new-privileges:true
   db:
@@ -56,3 +58,4 @@ services:
 volumes:
   mysql_data:
   private_storage:
+  clamav_signatures:
