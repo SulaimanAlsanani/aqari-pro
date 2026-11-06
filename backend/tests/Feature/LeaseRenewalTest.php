@@ -24,7 +24,7 @@ class LeaseRenewalTest extends TestCase {
    'total_amount'=>10000,'installments'=>12,'deposit'=>500
   ])->assertCreated()->assertJsonPath('status','draft')
    ->assertJsonPath('renewed_from_id',$lease->id)
-   ->assertJsonPath('starts_on','2026-01-01T00:00:00.000000Z')
+   ->assertJsonPath('starts_on','2026-01-01')
    ->assertJsonCount(12,'dues');
   $new=Lease::findOrFail($response->json('id'));
   $this->assertSame($lease->tenant_id,$new->tenant_id);
