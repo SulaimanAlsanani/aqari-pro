@@ -84,7 +84,7 @@ Route::middleware('auth:sanctum')->group(function () {
  Route::post('/leases/{lease}/complete',[LeaseLifecycleController::class,'complete']);
  Route::post('/leases/{lease}/payments',[PortfolioController::class,'storePayment']);
  Route::post('/payments/{payment}/void',[ReceiptReversalController::class,'void']);
- Route::post('/documents',[DocumentController::class,'store']);
+ Route::post('/documents',[DocumentController::class,'store'])->middleware('throttle:20,1');
  Route::get('/documents/{document}/preview',[DocumentController::class,'preview']);
  Route::get('/documents/{document}',[DocumentController::class,'download']);
  Route::delete('/documents/{document}',[DocumentController::class,'destroy']);
