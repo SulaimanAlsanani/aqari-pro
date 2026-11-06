@@ -236,6 +236,7 @@ async function showDepositLedger(lease){
    const card=el('div',null,'metric');card.append(el('span',label+' (ر.س)','muted'),el('strong',value));metrics.append(card);
   }
   section.append(metrics);
+  const transactionKey=crypto.randomUUID().replaceAll('-','');
   const form=el('form'),kindBox=el('div',null,'field'),kindLabel=el('label','نوع الحركة'),kind=el('select');
   kind.name='kind';kind.id='deposit-kind';
   for(const [value,name] of [['receipt','استلام التأمين'],['refund','إعادة التأمين للمستأجر'],['deduction','خصم مبرر من التأمين']]){
@@ -255,7 +256,7 @@ async function showDepositLedger(lease){
    event.preventDefault();submit.disabled=true;
    const data=Object.fromEntries(new FormData(form));data.amount=Number(data.amount);
    if(!data.reason)delete data.reason;if(!data.reference)delete data.reference;
-   try{await api('/leases/'+lease.id+'/deposit',{method:'POST',body:data});notify('تم حفظ حركة التأمين مع تسجيلها في سجل التدقيق');await showDepositLedger(lease)}
+   try{await api('/leases/'+lease.id+'/deposit',{method:'POST',body:data,headers:{'Idempotency-Key':transactionKey}});notify('تم حفظ حركة التأمين مع تسجيلها في سجل التدقيق');await showDepositLedger(lease)}
    catch(error){notify(error.message,true);submit.disabled=false}
   });
   section.appendChild(form);
