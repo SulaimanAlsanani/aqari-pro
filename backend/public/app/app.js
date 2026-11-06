@@ -313,15 +313,29 @@ async function showHandoverDamages(lease){
   section.append(el('h3','تقرير تلفيات الوحدة — العقد #'+lease.id),
    el('p','سجّل التلفيات من واقع محضر الخروج وصورها. تقدير التكلفة ليس خصمًا ماليًا؛ يلزم تسجيل الخصم منفصلًا في حساب التأمين.','muted'));
   const table=el('table'),heading=el('tr');
-  for(const title of ['الوصف','التكلفة المقدّرة','الخصم المسجّل','الإثبات'])heading.append(el('th',title));
+  for(const title of ['الوصف','التكلفة المقدّرة','المعالجة','الإثبات','الإجراءات'])heading.append(el('th',title));
   const thead=el('thead');thead.append(heading);table.append(thead);
   const tbody=el('tbody');
   for(const damage of report.damages){
    const row=el('tr');
-   row.append(el('td',damage.description),el('td',damage.estimated_cost),el('td',damage.deduction?.amount??'لم يُخصم'));
+   row.append(el('td',damage.description),el('td',damage.estimated_cost),el('td',damage.waived_at?'معفى — '+(damage.waiver_reason??''):damage.deduction?'خصم '+damage.deduction.amount:'لم تُحسم'));
    const td=el('td'),button=el('button','📎 الصور والمستندات','secondary');button.type='button';
    button.addEventListener('click',()=>showRecordDocuments('handover_damage',damage.id));
-   td.append(button);row.append(td);tbody.append(row);
+   td.append(button);row.append(td);
+   const actions=el('td');
+   if(lease.status==='active'&&!damage.waived_at&&!damage.deduction){
+    const waive=el('button','إعفاء مع سبب','secondary');waive.type='button';
+    waive.addEventListener('click',async()=>{
+     const reason=prompt('سبب إعفاء التلفيات (10 أحرف على الأقل):');
+     if(reason===null)return;
+     if(reason.trim().length<10){notify('يجب كتابة سبب واضح للإعفاء',true);return}
+     waive.disabled=true;
+     try{await api('/leases/'+lease.id+'/damages/'+damage.id+'/waive',{method:'POST',body:{reason:reason.trim()}});notify('تم تسجيل إعفاء التلفيات');await showHandoverDamages(lease)}
+     catch(error){notify(error.message,true);waive.disabled=false}
+    });
+    actions.append(waive);
+   }
+   row.append(actions);tbody.append(row);
   }
   table.append(tbody);const wrap=el('div',null,'table-wrap');wrap.append(table);section.append(wrap);
   if(!report.damages.length)section.append(el('p','لم تُسجّل تلفيات على محضر خروج هذه الوحدة.','muted'));
@@ -439,6 +453,7 @@ async function showLeaseSettlement(lease){
     RENT_OUTSTANDING:'يوجد إيجار لم يُحصّل',DEPOSIT_HELD:'يوجد تأمين ما زال محتفظًا به',
     RENT_LEDGER_MISMATCH:'توجد فروقات في توزيع الإيجار',
     DEPOSIT_LEDGER_MISMATCH:'توجد فروقات في التأمين',
+    UNRESOLVED_DAMAGE:'توجد تلفيات مسجلة لم يُحسم أمرها بخصم أو إعفاء',
     UNIT_HANDOVER_PENDING:'محضر استلام الوحدة مسجل، لكن محضر تسليم الخروج لم يُسجل'};
    for(const flag of report.review_flags)panel.appendChild(el('p','• '+(labels[flag]||flag),'muted'));
   }
