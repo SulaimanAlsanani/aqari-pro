@@ -44,6 +44,7 @@ Route::middleware('auth:sanctum')->group(function () {
  Route::post('/leases/{lease}/handovers',[UnitHandoverController::class,'store']);
  Route::get('/leases/{lease}/damages',[HandoverDamageController::class,'index']);
  Route::post('/leases/{lease}/damages',[HandoverDamageController::class,'store']);
+ Route::post('/leases/{lease}/damages/{damage}/waive',[HandoverDamageController::class,'waive']);
  Route::post('/leases/{lease}/deposit',[DepositController::class,'store']);
  Route::get('/reports/cashflow',[FinancialReportController::class,'cashflow']);
  Route::get('/reports/deposits',[DepositReportController::class,'index']);
