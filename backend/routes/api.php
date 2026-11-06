@@ -24,6 +24,7 @@ use App\Http\Controllers\Api\DepositReportController;
 use App\Http\Controllers\Api\LeaseSettlementController;
 use App\Http\Controllers\Api\UnitHandoverController;
 use App\Http\Controllers\Api\HandoverDamageController;
+use App\Http\Controllers\Api\DamageDisputeController;
 
 Route::post('/login',[AuthController::class,'login'])->middleware('throttle:5,1');
 Route::post('/password/forgot',[PasswordResetController::class,'requestLink'])->middleware('throttle:3,1');
@@ -45,6 +46,9 @@ Route::middleware('auth:sanctum')->group(function () {
  Route::get('/leases/{lease}/damages',[HandoverDamageController::class,'index']);
  Route::post('/leases/{lease}/damages',[HandoverDamageController::class,'store']);
  Route::post('/leases/{lease}/damages/{damage}/waive',[HandoverDamageController::class,'waive']);
+ Route::get('/leases/{lease}/damages/{damage}/dispute',[DamageDisputeController::class,'show']);
+ Route::post('/leases/{lease}/damages/{damage}/dispute',[DamageDisputeController::class,'open']);
+ Route::post('/leases/{lease}/damages/{damage}/dispute/resolve',[DamageDisputeController::class,'resolve']);
  Route::post('/leases/{lease}/deposit',[DepositController::class,'store']);
  Route::get('/reports/cashflow',[FinancialReportController::class,'cashflow']);
  Route::get('/reports/deposits',[DepositReportController::class,'index']);
