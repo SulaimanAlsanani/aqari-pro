@@ -46,7 +46,6 @@ jobs:
       - name: Smoke-test running PHP and MySQL containers
         working-directory: backend
         run: |
-          trap 'docker compose down -v --remove-orphans' EXIT
           docker compose up -d
           docker compose exec -T app php artisan migrate --force
           ready=0
@@ -68,3 +67,7 @@ jobs:
           CI: "true"
           GITHUB_ACTIONS: "true"
         run: bash scripts/ci-backup-restore-drill.sh
+      - name: Remove disposable containers after all checks
+        if: always()
+        working-directory: backend
+        run: docker compose down -v --remove-orphans
