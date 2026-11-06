@@ -42,7 +42,7 @@ class PortfolioController extends Controller {
   $lease=DB::transaction(function()use($unit,$tenant,$data){
    // Lock the shared unit row; prevents concurrent overlapping leases on the same unit.
    Unit::whereKey($unit->id)->lockForUpdate()->firstOrFail();
-   if(Lease::where('unit_id',$unit->id)->where('starts_on','<=',$data['ends_on'])->where('ends_on','>=',$data['starts_on'])->exists())
+   if(Lease::where('unit_id',$unit->id)->where('status','!=','cancelled')->where('starts_on','<=',$data['ends_on'])->where('ends_on','>=',$data['starts_on'])->exists())
     throw ValidationException::withMessages(['starts_on'=>'توجد مدة إيجارية متداخلة مع عقد آخر للوحدة']);
    $lease=$unit->leases()->create(['tenant_id'=>$tenant->id,'starts_on'=>$data['starts_on'],'ends_on'=>$data['ends_on'],'total_amount'=>$data['total_amount'],'deposit'=>$data['deposit']??0,'status'=>'draft']);
    $n=(int)$data['installments'];
@@ -71,6 +71,7 @@ class PortfolioController extends Controller {
   ]);
   $payment=DB::transaction(function()use($lease,$data){
    $locked=Lease::whereKey($lease->id)->lockForUpdate()->firstOrFail();
+   if($locked->status==='cancelled'||$locked->status==='completed')throw ValidationException::withMessages(['status'=>'لا يمكن التحصيل لعقد ملغى أو مكتمل']);
    $dues=$locked->dues()->withSum('allocations','amount')->orderBy('due_on')->orderBy('sequence')->get();
    $remaining=bcadd((string)$data['amount'],'0',2);
    $allocations=[];
