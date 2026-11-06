@@ -12,7 +12,7 @@ class LeaseValidationTest extends TestCase {
   $unit=$property->units()->create(['code'=>'101','type'=>'apartment']);
   $tenant=$other->tenants()->create(['name'=>'Tenant','phone'=>'0500000000']);
   $this->actingAs($other)->postJson('/api/leases',[
-   'unit_id'=>$unit->id,'tenant_id'=>$tenant->id,'starts_on'=>'2026-01-01','ends_on'=>'2026-12-31','total_amount'=>24000
+   'unit_id'=>$unit->id,'tenant_id'=>$tenant->id,'starts_on'=>'2026-01-01','ends_on'=>'2026-12-31','total_amount'=>24000,'installments'=>12
   ])->assertNotFound();
  }
  public function test_overlapping_leases_are_rejected():void {
