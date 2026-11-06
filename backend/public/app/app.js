@@ -378,7 +378,8 @@ async function showLeaseSettlement(lease){
    const labels={LEASE_NOT_EXPIRED:'العقد لم ينتهِ بعد',
     RENT_OUTSTANDING:'يوجد إيجار لم يُحصّل',DEPOSIT_HELD:'يوجد تأمين ما زال محتفظًا به',
     RENT_LEDGER_MISMATCH:'توجد فروقات في توزيع الإيجار',
-    DEPOSIT_LEDGER_MISMATCH:'توجد فروقات في التأمين'};
+    DEPOSIT_LEDGER_MISMATCH:'توجد فروقات في التأمين',
+    UNIT_HANDOVER_PENDING:'محضر استلام الوحدة مسجل، لكن محضر تسليم الخروج لم يُسجل'};
    for(const flag of report.review_flags)panel.appendChild(el('p','• '+(labels[flag]||flag),'muted'));
   }
   const back=el('button','رجوع للعقود','secondary');back.type='button';back.addEventListener('click',()=>refresh());
