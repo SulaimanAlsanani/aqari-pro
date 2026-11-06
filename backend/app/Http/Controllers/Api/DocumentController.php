@@ -51,6 +51,21 @@ class DocumentController extends Controller {
   abort_unless(Storage::disk('local')->exists($document->path),404);
   return Storage::disk('local')->download($document->path,$document->original_name);
  }
+ public function preview(Request $request,Document $document){
+  abort_unless($document->user_id===$request->user()->id,404);
+  abort_unless($this->belongsToOwner($request->user()->id,$document->entity_type,$document->entity_id),404);
+  abort_unless(Storage::disk('local')->exists($document->path),404);
+  // Inline rendering is restricted to formats that browsers can safely preview.
+  // Never expose Office files or arbitrary HTML as inline responses.
+  $mime=strtolower((string)$document->mime);
+  abort_unless(in_array($mime,['application/pdf','image/png','image/jpeg','image/webp'],true),415);
+  return Storage::disk('local')->response($document->path,$document->original_name,[
+   'Content-Type'=>$mime,
+   'X-Content-Type-Options'=>'nosniff',
+   'Cache-Control'=>'private, no-store, max-age=0',
+   'Content-Security-Policy'=>"default-src 'none'; sandbox",
+  ],'inline');
+ }
  public function destroy(Request $request,Document $document){
   abort_unless($document->user_id===$request->user()->id,404);
   abort_unless($this->belongsToOwner($request->user()->id,$document->entity_type,$document->entity_id),404);
