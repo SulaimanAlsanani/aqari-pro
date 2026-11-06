@@ -122,27 +122,3 @@ async function main() {
 }
 
 main().catch(error => { console.error(error); process.exitCode = 1; });
-) })
-      }).first();
-      await paymentRow.waitFor({ timeout: 15000 });
-      assert.equal((await paymentRow.locator('td').nth(2).innerText()).trim(), '1200.00');
-      assert.equal(await page.locator('#notice.error').count(), 0, 'no record creation errors');
-
-      await page.locator('#nav button').filter({ hasText: 'أرصدة التأمينات' }).click();
-      await page.getByText('أرصدة تأمينات المستأجرين').waitFor({ timeout: 15000 });
-      await page.locator('#nav button').filter({ hasText: 'مطابقة الحسابات' }).click();
-      await page.getByText('فحص التوافق بين الأقساط والمقبوضات').waitFor({ timeout: 15000 });
-
-      await page.locator('#logout').click();
-      await page.locator('#loginPanel').waitFor({ state: 'visible', timeout: 15000 });
-      assert.equal(await page.locator('#workspace').isVisible(), false);
-      assert.deepEqual(errors, [], 'no uncaught browser JavaScript exceptions');
-      console.log('PASS browser owner workflow viewport=' + viewport.width);
-      await page.close();
-    }
-  } finally {
-    await browser.close();
-  }
-}
-
-main().catch(error => { console.error(error); process.exitCode = 1; });
