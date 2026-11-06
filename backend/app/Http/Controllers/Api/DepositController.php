@@ -56,8 +56,8 @@ class DepositController extends Controller {
      return response()->json(['movement'=>$prior,'totals'=>$this->totals($locked)],200);
     }
    }
-   if(in_array($locked->status,['draft','cancelled'],true))
-    throw ValidationException::withMessages(['kind'=>'لا يمكن إجراء حركة تأمين على عقد مسودة أو ملغى']);
+   if($locked->status!=='active')
+    throw ValidationException::withMessages(['kind'=>'لا يمكن تسجيل حركة تأمين جديدة إلا على عقد نشط؛ العقد المكتمل سجله المالي مقفل']);
    if($data['kind']!=='receipt'&&$locked->ends_on->toDateString()>today()->toDateString())
     throw ValidationException::withMessages(['kind'=>'لا يمكن رد التأمين أو خصمه قبل انتهاء مدة العقد']);
    if(isset($data['handover_damage_id'])){
