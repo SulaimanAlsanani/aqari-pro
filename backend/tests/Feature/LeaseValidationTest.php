@@ -20,7 +20,7 @@ class LeaseValidationTest extends TestCase {
   $property=$owner->properties()->create(['name'=>'Tower','city'=>'Riyadh','type'=>'residential']);
   $unit=$property->units()->create(['code'=>'101','type'=>'apartment']);
   $tenant=$owner->tenants()->create(['name'=>'Tenant','phone'=>'0500000000']);
-  $data=['unit_id'=>$unit->id,'tenant_id'=>$tenant->id,'starts_on'=>'2026-01-01','ends_on'=>'2026-12-31','total_amount'=>24000];
+  $data=['unit_id'=>$unit->id,'tenant_id'=>$tenant->id,'starts_on'=>'2026-01-01','ends_on'=>'2026-12-31','total_amount'=>24000,'installments'=>12];
   $this->actingAs($owner)->postJson('/api/leases',$data)->assertCreated();
   $this->actingAs($owner)->postJson('/api/leases',$data)->assertUnprocessable()->assertJsonValidationErrors('starts_on');
  }
