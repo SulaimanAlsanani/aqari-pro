@@ -166,6 +166,10 @@ function drawList(data,key){
     const settlement=el('button','تسوية العقد','secondary');settlement.type='button';
     settlement.addEventListener('click',()=>showLeaseSettlement(item));bar.appendChild(settlement);
    }
+   if(item.status!=='draft'&&item.status!=='cancelled'){
+    const handovers=el('button','محاضر التسليم','secondary');handovers.type='button';
+    handovers.addEventListener('click',()=>showUnitHandovers(item));bar.appendChild(handovers);
+   }
    td.appendChild(bar);r.appendChild(td);
   }
   if(key==='documents'){
@@ -280,6 +284,69 @@ async function showDepositLedger(lease){
   table.append(body);wrap.append(table);history.append(wrap);
   if(data.movements.last_page>1)history.append(el('p','يعرض أول 30 حركة. بقية الحركات متاحة عبر واجهة API.','muted'));
   view.append(section,history);
+ }catch(error){view.replaceChildren(el('p',error.message,'muted'));notify(error.message,true)}
+}
+async function showUnitHandovers(lease){
+ const view=$('view');view.replaceChildren(el('p','جاري تحميل محاضر التسليم...','muted'));
+ try{
+  const data=await api('/leases/'+lease.id+'/handovers');
+  view.replaceChildren();
+  const panel=el('section',null,'panel');
+  panel.append(el('h3','محاضر تسليم الوحدة — العقد #'+lease.id),
+   el('p','سجّل حالة الوحدة والمفاتيح والعدادات عند الاستلام والخروج. يمكن إضافة ملفات إثبات خاصة لكل محضر.','muted'));
+  const recorded=new Set(data.handovers.map(x=>x.kind));
+  for(const h of data.handovers){
+   const item=el('div',null,'panel');
+   item.append(el('h3',h.kind==='check_in'?'محضر الاستلام':'محضر تسليم الخروج'),
+     el('p','التاريخ: '+h.handed_over_on+' — الحالة: '+h.condition,'muted'),
+     el('p','المفاتيح: '+(h.keys_count??'—')+' | عداد الكهرباء: '+(h.electricity_meter??'—')+' | عداد المياه: '+(h.water_meter??'—'),'muted'));
+   if(h.notes)item.append(el('p',h.notes,'muted'));
+   const docs=el('button','📎 إثبات المحضر','secondary');docs.type='button';
+   docs.addEventListener('click',()=>showRecordDocuments('unit_handover',h.id));item.append(docs);
+   panel.append(item);
+  }
+  if(!data.handovers.length)panel.append(el('p','لا توجد محاضر بعد. ابدأ بمحضر الاستلام.','muted'));
+  const nextKind=!recorded.has('check_in')?'check_in':!recorded.has('check_out')?'check_out':null;
+  if(nextKind){
+   const form=el('form');
+   form.append(el('h3',nextKind==='check_in'?'تسجيل محضر الاستلام':'تسجيل محضر تسليم الخروج'));
+   const properties=[
+    ['handed_over_on','تاريخ المحضر','date',true],
+    ['keys_count','عدد المفاتيح','number',false],
+    ['electricity_meter','قراءة عداد الكهرباء','number',false],
+    ['water_meter','قراءة عداد المياه','number',false],
+    ['notes','وصف حالة الوحدة وملاحظات التسليم','text',false]
+   ];
+   const group=el('div',null,'field'),label=el('label','حالة الوحدة'),select=el('select');
+   select.name='condition';select.required=true;
+   for(const [value,title] of [['good','جيدة'],['needs_repair','تحتاج صيانة'],['damaged','متضررة']]){
+    const option=el('option',title);option.value=value;select.append(option);
+   }
+   group.append(label,select);form.append(group);
+   for(const [name,title,type,required] of properties){
+    const field=el('div',null,'field'),caption=el('label',title),input=el('input');
+    input.name=name;input.type=type;input.id='handover-'+name;input.required=required;
+    if(type==='date'){input.value=new Date().toISOString().slice(0,10);input.max=input.value}
+    if(type==='number'){input.min='0';input.step=name==='keys_count'?'1':'0.01'}
+    caption.htmlFor=input.id;field.append(caption,input);form.append(field);
+   }
+   const submit=el('button','حفظ المحضر','primary');submit.type='submit';form.append(submit);
+   form.addEventListener('submit',async e=>{
+    e.preventDefault();submit.disabled=true;
+    const values=Object.fromEntries(new FormData(form));values.kind=nextKind;
+    for(const n of ['keys_count','electricity_meter','water_meter']){
+     if(values[n]==='')delete values[n];else values[n]=Number(values[n]);
+    }
+    if(!values.notes)delete values.notes;
+    try{
+     await api('/leases/'+lease.id+'/handovers',{method:'POST',body:values});
+     notify('تم حفظ محضر التسليم، ويمكن الآن إرفاق صور أو PDF');await showUnitHandovers(lease);
+    }catch(error){notify(error.message,true);submit.disabled=false}
+   });
+   panel.append(form);
+  }
+  const back=el('button','العودة للعقود','secondary');back.type='button';
+  back.addEventListener('click',()=>refresh());panel.append(back);view.append(panel);
  }catch(error){view.replaceChildren(el('p',error.message,'muted'));notify(error.message,true)}
 }
 async function showLeaseSettlement(lease){
