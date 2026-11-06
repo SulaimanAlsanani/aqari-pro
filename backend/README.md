@@ -7,7 +7,7 @@ This is a **development-stage Laravel 12 API**, intended to replace browser-only
 2. `cd backend && composer install`
 3. `cp .env.example .env && php artisan key:generate`
 4. Create `database/database.sqlite` when using SQLite, then `php artisan migrate`.
-5. Provision the initial owner account by an administrator, using Laravel's password hashing (no public registration endpoint).
+5. Provision the initial owner interactively with `php artisan owner:create owner@example.com 'اسم المالك'` on the server (no public registration endpoint, no password in shell history).
 6. `php artisan serve`
 7. `php artisan test`.
 
