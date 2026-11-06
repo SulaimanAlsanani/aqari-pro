@@ -317,6 +317,7 @@ async function showDamageDispute(lease,damage){
    el('p','التلف: '+damage.description+' — التكلفة المقدرة: '+damage.estimated_cost+' ر.س','muted'));
   if(dispute){
    panel.append(el('h3','الاعتراض المسجل'),el('p',dispute.objection));
+   const docs=el('button','📎 مرفقات الاعتراض','secondary');docs.type='button';docs.addEventListener('click',()=>showRecordDocuments('damage_dispute',dispute.id));panel.append(docs);
    panel.append(el('p','الحالة: '+(dispute.status==='open'?'مفتوح':'تمت المراجعة'),'muted'));
    if(dispute.resolution_reason)panel.append(el('p','القرار: '+dispute.resolution+' — '+dispute.resolution_reason,'muted'));
   }
@@ -376,7 +377,7 @@ async function showHandoverDamages(lease){
     object.type='button';object.addEventListener('click',()=>showDamageDispute(lease,damage));
     actions.append(object);
    }
-   if(lease.status==='active'&&!damage.waived_at&&!damage.deduction){
+   if(lease.status==='active'&&!damage.waived_at&&!damage.deduction&&damage.dispute?.status!=='open'){
     const waive=el('button','إعفاء مع سبب','secondary');waive.type='button';
     waive.addEventListener('click',async()=>{
      const reason=prompt('سبب إعفاء التلفيات (10 أحرف على الأقل):');
