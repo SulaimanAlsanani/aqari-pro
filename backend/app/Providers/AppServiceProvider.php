@@ -8,7 +8,7 @@ class AppServiceProvider extends ServiceProvider {
  public function register():void {}
  public function boot():void {
   $tracked=[Property::class,Unit::class,Tenant::class,Lease::class,Due::class,
-   Payment::class,PaymentAllocation::class,Expense::class,MaintenanceTicket::class,Document::class];
+   Payment::class,PaymentAllocation::class,Expense::class,MaintenanceTicket::class,Vendor::class,Document::class];
   foreach($tracked as $modelClass){
    foreach(['created','updated','deleted'] as $action){
     $modelClass::{$action}(function(Model $model)use($action):void{
