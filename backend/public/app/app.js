@@ -78,7 +78,7 @@ function drawList(data,key){
  if(templates[key]){const add=el('button','+ إضافة سجل','primary');add.addEventListener('click',()=>drawForm(key));row.append(add)}
  parent.append(row);
  const wrap=el('div',null,'table-wrap'),table=el('table'),thead=el('thead'),tr=el('tr');
- for(const [,label] of fields[key])tr.appendChild(el('th',label));if(key==='documents')tr.appendChild(el('th','الملف'));
+ for(const [,label] of fields[key])tr.appendChild(el('th',label));if(key==='documents'){tr.appendChild(el('th','الحالة'));tr.appendChild(el('th','الملف'))}
  thead.appendChild(tr);table.appendChild(thead);
  const body=el('tbody');
  for(const item of data.data||[]){
@@ -88,6 +88,7 @@ function drawList(data,key){
    r.appendChild(el('td',typeof value==='object'?'—':value));
   }
   if(key==='documents'){
+   const state=el('td','✓ تم الإرفاق','tag');r.appendChild(state);
    const td=el('td'),b=el('button','تنزيل','secondary');
    b.addEventListener('click',()=>download(item.id,item.original_name));td.appendChild(b);r.appendChild(td);
   }
@@ -141,7 +142,7 @@ function drawForm(key){
      if(numeric in payload)payload[numeric]=Number(payload[numeric]);
     await api(url,{method:'POST',body:payload});
    }
-   notify('تم حفظ السجل بنجاح');await refresh();
+   notify(key==='documents'?'✓ تم إرفاق الملف بنجاح':'تم حفظ السجل بنجاح');await refresh();
   }catch(err){notify(err.message,true)}finally{save.disabled=false}
  });
  section.append(heading,form);parent.appendChild(section);
