@@ -8,7 +8,7 @@ use Illuminate\Routing\Controller;
 class TenantStatementController extends Controller {
  public function show(Request $request,Tenant $tenant) {
   abort_unless($tenant->user_id===$request->user()->id,404);
-  $leaseIds=Lease::where('tenant_id',$tenant->id)
+  $leaseIds=Lease::where('tenant_id',$tenant->id)->where('status','!=','cancelled')
    ->whereHas('unit.property',fn($q)=>$q->where('user_id',$request->user()->id))
    ->select('id');
   $dueQuery=Due::whereIn('lease_id',$leaseIds);
