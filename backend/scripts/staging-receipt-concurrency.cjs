@@ -89,7 +89,25 @@ async function run() {
       'Exactly one payment should fit the lease balance; statuses=' + JSON.stringify(distinct.map(x=>x.status)));
     assert.equal(distinct.filter(x => x.status === 422).length, concurrency - 1,
       'Excess parallel receipts must be rejected; statuses=' + JSON.stringify(distinct.map(x=>x.status)));
-    console.log('PASS staging concurrent receipts (' + concurrency + ' requests/group); property=' + property.id);
+    // Competing lease creations must not reserve the same unit for overlapping dates.
+    const contestedUnit = await created('/properties/' + property.id + '/units', {
+      code: 'R-' + suffix + '-overlap', type: 'apartment'
+    });
+    const leasePayload = {
+      unit_id: contestedUnit.id, tenant_id: tenant.id,
+      starts_on: '2026-01-01', ends_on: '2026-12-31',
+      total_amount: 1200, installments: 12
+    };
+    const overlapping = await Promise.all(Array.from({ length: concurrency },
+      () => request('/leases', { method: 'POST', body: leasePayload })));
+    assert.equal(overlapping.filter(x => x.status === 201).length, 1,
+      'Overlapping concurrent leases must create exactly one contract; statuses=' +
+      JSON.stringify(overlapping.map(x => x.status)));
+    assert.equal(overlapping.filter(x => x.status === 422).length, concurrency - 1,
+      'Other overlapping leases must be rejected; statuses=' +
+      JSON.stringify(overlapping.map(x => x.status)));
+    console.log('PASS staging concurrent receipts and overlapping leases (' +
+      concurrency + ' requests/group); property=' + property.id);
   } finally {
     if (token) await request('/logout', { method: 'POST' }).catch(() => {});
   }
