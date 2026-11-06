@@ -49,7 +49,11 @@ class DocumentController extends Controller {
   abort_unless($document->user_id===$request->user()->id,404);
   abort_unless($this->belongsToOwner($request->user()->id,$document->entity_type,$document->entity_id),404);
   abort_unless(Storage::disk('local')->exists($document->path),404);
-  return Storage::disk('local')->download($document->path,$document->original_name);
+  return Storage::disk('local')->download($document->path,$document->original_name,[
+   'X-Content-Type-Options'=>'nosniff',
+   'Cache-Control'=>'private, no-store, max-age=0',
+   'Content-Security-Policy'=>"default-src 'none'; sandbox",
+  ]);
  }
  public function preview(Request $request,Document $document){
   abort_unless($document->user_id===$request->user()->id,404);
