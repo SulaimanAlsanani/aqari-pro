@@ -32,6 +32,21 @@ class TenantStatementTest extends TestCase {
    ->assertJsonPath('totals.received','0.00')
    ->assertJsonPath('totals.outstanding','12000.00');
  }
+ public function test_cancelled_draft_has_no_chargeable_balance():void {
+  $owner=User::create(['name'=>'Owner','email'=>'owner@example.test','password'=>'password']);
+  $p=$owner->properties()->create(['name'=>'Building','city'=>'Riyadh','type'=>'residential']);
+  $unit=$p->units()->create(['code'=>'101','type'=>'apartment']);
+  $tenant=$owner->tenants()->create(['name'=>'Tenant','phone'=>'0500000000']);
+  $r=$this->actingAs($owner)->postJson('/api/leases',[
+   'unit_id'=>$unit->id,'tenant_id'=>$tenant->id,'starts_on'=>'2026-01-01',
+   'ends_on'=>'2026-12-31','total_amount'=>12000,'installments'=>12
+  ])->assertCreated();
+  $this->actingAs($owner)->postJson('/api/leases/'.$r->json('id').'/cancel')->assertOk();
+  $this->actingAs($owner)->getJson('/api/tenants/'.$tenant->id.'/statement')
+   ->assertOk()->assertJsonPath('totals.billed','0.00')
+   ->assertJsonPath('totals.outstanding','0.00')->assertJsonCount(0,'dues.data');
+  $this->actingAs($owner)->getJson('/api/dues')->assertOk()->assertJsonPath('total',0);
+ }
  public function test_another_owner_cannot_read_private_statement():void {
   $owner=User::create(['name'=>'Owner','email'=>'owner@example.test','password'=>'password']);
   $other=User::create(['name'=>'Other','email'=>'other@example.test','password'=>'password']);
