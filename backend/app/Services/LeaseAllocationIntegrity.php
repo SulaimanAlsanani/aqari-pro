@@ -20,6 +20,23 @@ class LeaseAllocationIntegrity {
    ->whereColumn('p.lease_id','!=','d.lease_id')->exists();
   if($crossLease)return false;
 
+  // Database decimal fields do not inherently reject zero or negative rows
+  // inserted by imports, manual operations or buggy integrations.
+  $invalidAmount=DB::table('payment_allocations as a')
+   ->join('payments as p','p.id','=','a.payment_id')
+   ->join('dues as d','d.id','=','a.due_id')
+   ->whereNull('p.voided_at')
+   ->where(function($q)use($leaseId){
+    $q->where('p.lease_id',$leaseId)->orWhere('d.lease_id',$leaseId);
+   })
+   ->where('a.amount','<=',0)->exists();
+  if($invalidAmount)return false;
+  // The contractual installments themselves must be positive and unique
+  // in sequence, regardless of whether aggregate totals happen to match.
+  $invalidDue=DB::table('dues')->where('lease_id',$leaseId)
+   ->where('amount','<=',0)->exists();
+  if($invalidDue)return false;
+
   // A receipt must be completely distributed. Canceled receipts are excluded.
   $payments=DB::table('payments as p')
    ->leftJoin('payment_allocations as a','a.payment_id','=','p.id')
