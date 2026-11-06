@@ -47,6 +47,7 @@ jobs:
         working-directory: backend
         run: |
           docker compose up -d
+          docker compose exec -T app clamscan --version
           docker compose exec -T app php artisan migrate --force
           ready=0
           for i in $(seq 1 30); do
