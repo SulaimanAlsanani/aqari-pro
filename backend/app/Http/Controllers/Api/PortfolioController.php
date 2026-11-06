@@ -63,13 +63,30 @@ class PortfolioController extends Controller {
  public function storePayment(Request $request,Lease $lease){
   $uid=$request->user()->id;
   abort_unless($lease->unit()->whereHas('property',fn($q)=>$q->where('user_id',$uid))->exists(),404);
-  $data=$request->validate(['amount'=>'required|numeric|gt:0','paid_on'=>'required|date','method'=>'required|in:bank_transfer,cash,card','reference'=>'nullable|string|max:120']);
+  $data=$request->validate([
+   'amount'=>['required','numeric','gt:0','decimal:0,2'],
+   'paid_on'=>['required','date'],
+   'method'=>['required','in:bank_transfer,cash,card'],
+   'reference'=>['nullable','string','max:120']
+  ]);
   $payment=DB::transaction(function()use($lease,$data){
    $locked=Lease::whereKey($lease->id)->lockForUpdate()->firstOrFail();
-   $paid=(string)$locked->payments()->sum('amount');
-   if(bccomp(bcadd($paid,(string)$data['amount'],2),(string)$locked->total_amount,2)>0)
-    throw ValidationException::withMessages(['amount'=>'قيمة التحصيل تتجاوز القيمة المتبقية للعقد']);
-   return $locked->payments()->create($data);
+   $dues=$locked->dues()->withSum('allocations','amount')->orderBy('due_on')->orderBy('sequence')->get();
+   $remaining=bcadd((string)$data['amount'],'0',2);
+   $allocations=[];
+   foreach($dues as $due){
+    if(bccomp($remaining,'0.00',2)<=0)break;
+    $balance=bcsub((string)$due->amount,(string)($due->allocations_sum_amount??0),2);
+    if(bccomp($balance,'0.00',2)<=0)continue;
+    $take=bccomp($remaining,$balance,2)>0?$balance:$remaining;
+    $allocations[]=['due_id'=>$due->id,'amount'=>$take];
+    $remaining=bcsub($remaining,$take,2);
+   }
+   if(bccomp($remaining,'0.00',2)>0)
+    throw ValidationException::withMessages(['amount'=>'قيمة التحصيل تتجاوز الأقساط غير المسددة للعقد']);
+   $payment=$locked->payments()->create($data);
+   $payment->allocations()->createMany($allocations);
+   return $payment->load('allocations');
   });
   return response()->json($payment,201);
  }
