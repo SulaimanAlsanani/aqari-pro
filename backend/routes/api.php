@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\MaintenanceWorkflowController;
 use App\Http\Controllers\Api\ExpenseController;
 use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\DataExportController;
+use App\Http\Controllers\Api\ReconciliationController;
 
 Route::post('/login',[AuthController::class,'login'])->middleware('throttle:5,1');
 Route::post('/password/forgot',[PasswordResetController::class,'requestLink'])->middleware('throttle:3,1');
@@ -31,6 +32,7 @@ Route::middleware('auth:sanctum')->group(function () {
  Route::get('/overview',[OperationsController::class,'overview']);
  Route::get('/alerts',[AlertsController::class,'index']);
  Route::get('/audit',[AuditController::class,'index']);
+ Route::get('/reconciliation',[ReconciliationController::class,'index']);
  Route::get('/reports/cashflow',[FinancialReportController::class,'cashflow']);
  Route::get('/exports/{resource}',[DataExportController::class,'download'])->middleware('throttle:10,1');
  Route::get('/units',[RecordsController::class,'units']);
