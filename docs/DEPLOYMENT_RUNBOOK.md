@@ -148,3 +148,24 @@ node scripts/staging-receipt-concurrency.cjs
 السكربت يرفض التشغيل دون التصريح بالكتابة وبيانات الدخول، ويشترط HTTPS للنطاقات غير المحلية ويرفض أسماء المضيفين الظاهرة كبيئة إنتاج. رغم ذلك، **مسؤولية التأكد من أن الرابط Staging فعلية تقع على المشغّل**. لا تستخدم حسابًا حقيقيًا ولا قاعدة إنتاج لأن الاختبار يُنشئ سجلات عقارات ومستأجرين ووحدات وعقود وسندات اختبارية ولا يحذفها تلقائيًا.
 
 تحقق CI من صياغة JavaScript فقط؛ **نجاح اختبار التزامن الفعلي يتطلب تشغيل السكربت على بيئة Staging متعددة العمليات** وفحص نتائجه. احتفظ بنتائج الاختبار ضمن محضر اعتماد Go/No-Go قبل الإطلاق.
+
+
+## قياس أداء القراءة على Staging
+
+تتوفر أداة `backend/scripts/staging-read-performance.cjs` لقياس استجابة واجهات القراءة الأساسية على Staging بحساب مالك تجريبي. تستعلم الأداة فقط عن `overview` و`portfolio` و`units` و`leases` و`payments` و`documents`، ولا تنشئ بيانات جديدة. تُظهر عدد الأخطاء ومقاييس P50/P95/P99، وترفض نتيجة تتجاوز الحد المحدد.
+
+شغّل في مجلد `backend` باستخدام Node.js 20+:
+
+```bash
+AQARI_PERF_ACK=staging-only \
+AQARI_PERF_REMOTE=staging-confirmed \
+AQARI_PERF_URL=https://staging.example.invalid \
+AQARI_PERF_EMAIL=test-owner@example.invalid \
+AQARI_PERF_PASSWORD='REPLACE_WITH_STAGING_SECRET' \
+AQARI_PERF_REQUESTS=40 \
+AQARI_PERF_PARALLEL=4 \
+AQARI_PERF_P95_MS=2000 \
+node scripts/staging-read-performance.cjs
+```
+
+يقيد السكربت الإجمالي إلى 6–300 طلبًا والتوازي إلى 1–10 طلبات، ويتطلب موافقة صريحة لتشغيله على Staging وعنوان HTTPS للبيئات غير المحلية. يجب ألا تستخدمه على الإنتاج ولا بحساب يحتوي بيانات عملاء. **CI يتحقق من صياغة JavaScript، ولا يثبت أداء الخادم الفعلي**؛ احتفظ بنتيجة تشغيل Staging وقارنها بالحدود المعتمدة قبل قرار Go/No-Go.
