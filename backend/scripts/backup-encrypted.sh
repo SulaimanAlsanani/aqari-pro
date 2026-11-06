@@ -1,7 +1,7 @@
-#!/bin/sh
+#!/usr/bin/env bash
 # Encrypted, owner-operated snapshot of the Aqari Pro compose deployment.
 # Run on the deployment host with Docker Compose access and the public AGE_RECIPIENT.
-set -eu
+set -euo pipefail
 
 : "${AGE_RECIPIENT:?Set an age X25519 public recipient (not a private key)}"
 BACKUP_DIR="${BACKUP_DIR:-./backups}"
@@ -9,6 +9,7 @@ case "$BACKUP_DIR" in
   ""|"/"|".") echo "Choose a dedicated backup directory" >&2; exit 1 ;;
 esac
 command -v docker >/dev/null 2>&1 || { echo "docker is required" >&2; exit 1; }
+command -v bash >/dev/null 2>&1 || { echo "bash is required" >&2; exit 1; }
 command -v age >/dev/null 2>&1 || { echo "age encryption is required" >&2; exit 1; }
 command -v gzip >/dev/null 2>&1 || { echo "gzip is required" >&2; exit 1; }
 umask 077
