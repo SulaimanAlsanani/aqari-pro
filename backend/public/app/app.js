@@ -334,6 +334,9 @@ async function showRecordDocuments(entity,id){
   const back=el('button','الرجوع','secondary');back.addEventListener('click',()=>refresh());toolbar.append(back);
   view.append(toolbar);
   const pane=el('section',null,'panel'),uploadForm=el('form');
+  uploadForm.hidden=true;
+  const addButton=el('button','📎 إضافة مرفق','secondary');addButton.type='button';
+  addButton.addEventListener('click',()=>{uploadForm.hidden=false;addButton.hidden=true});
   const label=el('label','إرفاق ملف جديد'),input=el('input');
   input.type='file';input.name='file';input.required=true;
   input.accept='.pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx,.txt,.csv';
@@ -348,7 +351,8 @@ async function showRecordDocuments(entity,id){
     await showRecordDocuments(entity,id);
    }catch(error){notify(error.message,true);submit.disabled=false}
   });
-  pane.append(uploadForm,el('h3','✓ الملفات المرفقة ('+files.total+')'));
+  pane.append(addButton,uploadForm,el('h3','✓ الملفات المرفقة ('+files.total+')'));
+  // Successful uploads redraw this panel with the picker collapsed and the saved file visible.
   for(const file of files.data){
    const row=el('div',null,'toolbar'),name=el('span','📄 '+file.original_name+' — تم الإرفاق');
    const buttons=el('div',null,'actions'),down=el('button','تنزيل','secondary'),remove=el('button','حذف','secondary');
