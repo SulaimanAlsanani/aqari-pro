@@ -51,6 +51,12 @@ class LeaseLifecycleController extends Controller {
      bcsub((string)($movements['receipt']??'0'),(string)($movements['refund']??'0'),2),
      (string)($movements['deduction']??'0'),2
    );
+   $depositReceipts=bcadd((string)($movements['receipt']??'0'),'0',2);
+   $depositRefunds=bcadd((string)($movements['refund']??'0'),'0',2);
+   $depositDeductions=bcadd((string)($movements['deduction']??'0'),'0',2);
+   if(bccomp($depositReceipts,(string)$locked->deposit,2)>0
+      ||bccomp(bcadd($depositRefunds,$depositDeductions,2),$depositReceipts,2)>0)
+    throw ValidationException::withMessages(['status'=>'سجل التأمين يحتوي على مبالغ تتجاوز القيمة المصرح بها للعقد']);
    if(bccomp($held,'0.00',2)!==0)
     throw ValidationException::withMessages(['status'=>'لا يمكن إكمال العقد وهناك تأمين محتفظ به أو فرق في سجل التأمين']);
    if($locked->handovers()->where('kind','check_in')->exists()
