@@ -1,6 +1,6 @@
 <?php
 namespace App\Http\Controllers\Api;
-use App\Models\{Lease,UnitHandover};
+use App\Models\{Lease,UnitHandover,HandoverDamage};
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\DB;
@@ -17,6 +17,22 @@ class HandoverDamageController extends Controller {
    'damages'=>$lease->handovers()->where('kind','check_out')->first()?->damages()
      ->with('deduction:id,handover_damage_id,amount')->orderBy('id')->get()??[]
   ]);
+ }
+ public function waive(Request $request,Lease $lease,HandoverDamage $damage){
+  $this->owned($request,$lease);
+  $data=$request->validate(['reason'=>['required','string','min:10','max:500']]);
+  return DB::transaction(function()use($lease,$damage,$data){
+   $locked=Lease::whereKey($lease->id)->lockForUpdate()->firstOrFail();
+   if($locked->status!=='active')
+    throw ValidationException::withMessages(['status'=>'لا يمكن إعفاء التلفيات بعد إكمال العقد']);
+   $ownedDamage=$locked->handovers()->where('kind','check_out')->first()?->damages()
+    ->whereKey($damage->id)->first();
+   if(!$ownedDamage)abort(404);
+   if($ownedDamage->waived_at||$ownedDamage->deduction()->exists())
+    throw ValidationException::withMessages(['damage'=>'تمت معالجة التلفيات سابقًا ولا يجوز تكرار التسوية']);
+   $ownedDamage->forceFill(['waived_at'=>now(),'waiver_reason'=>$data['reason']])->save();
+   return response()->json($ownedDamage->refresh());
+  });
  }
  public function store(Request $request,Lease $lease) {
   $this->owned($request,$lease);
