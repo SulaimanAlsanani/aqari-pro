@@ -262,12 +262,26 @@ async function showDepositLedger(lease){
    if(type==='date'){input.value=new Date().toISOString().slice(0,10);input.max=input.value}
    lbl.htmlFor=input.id;wrapper.append(lbl,input);form.append(wrapper);
   }
+  const damageWrap=el('div',null,'field'),damageLabel=el('label','التلفيات المرتبطة بالخصم (اختياري)'),damageSelect=el('select');
+  damageSelect.name='handover_damage_id';
+  const empty=el('option','بدون ربط بتلفيات محددة');empty.value='';damageSelect.append(empty);
+  damageWrap.append(damageLabel,damageSelect);form.append(damageWrap);
+  const displayDamage=()=>{damageWrap.hidden=kind.value!=='deduction'};
+  kind.addEventListener('change',displayDamage);displayDamage();
+  api('/leases/'+lease.id+'/damages').then(report=>{
+   for(const damage of report.damages.filter(row=>!row.deduction)){
+    const option=el('option',damage.description+' — '+damage.estimated_cost+' ر.س');
+    option.value=damage.id;damageSelect.append(option);
+   }
+  }).catch(()=>{});
   const actions=el('div',null,'actions'),submit=el('button','تسجيل حركة التأمين','primary'),back=el('button','العودة للعقود','secondary');
   submit.type='submit';back.type='button';back.addEventListener('click',()=>refresh());actions.append(submit,back);form.append(actions);
   form.addEventListener('submit',async event=>{
    event.preventDefault();submit.disabled=true;
    const data=Object.fromEntries(new FormData(form));data.amount=Number(data.amount);
    if(!data.reason)delete data.reason;if(!data.reference)delete data.reference;
+   if(data.kind!=='deduction'||!data.handover_damage_id)delete data.handover_damage_id;
+   else data.handover_damage_id=Number(data.handover_damage_id);
    try{await api('/leases/'+lease.id+'/deposit',{method:'POST',body:data,headers:{'Idempotency-Key':transactionKey}});notify('تم حفظ حركة التأمين مع تسجيلها في سجل التدقيق');await showDepositLedger(lease)}
    catch(error){notify(error.message,true);submit.disabled=false}
   });
