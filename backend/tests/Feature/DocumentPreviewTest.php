@@ -19,7 +19,7 @@ class DocumentPreviewTest extends TestCase
   $this->actingAs($owner);
   foreach ([
    UploadedFile::fake()->create('deed.pdf',20,'application/pdf'),
-   UploadedFile::fake()->image('unit.png'),
+   UploadedFile::fake()->create('unit.png',20,'image/png'),
   ] as $file) {
    $id=$this->postJson('/api/documents',[
     'entity_type'=>'property','entity_id'=>$property->id,'file'=>$file,
