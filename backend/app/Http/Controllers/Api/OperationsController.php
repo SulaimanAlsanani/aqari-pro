@@ -38,9 +38,20 @@ class OperationsController extends Controller{
  }
  public function dues(Request $request){
   $uid=$request->user()->id;
-  return Due::whereHas('lease.unit.property',fn($q)=>$q->where('user_id',$uid))
+  $page=Due::whereHas('lease.unit.property',fn($q)=>$q->where('user_id',$uid))
    ->with(['lease:id,unit_id,tenant_id','lease.tenant:id,name'])
-   ->orderBy('due_on')->paginate(30);
+   ->withSum('allocations','amount')
+   ->orderBy('due_on')->orderBy('id')->paginate(30);
+  $today=now()->toDateString();
+  $page->getCollection()->transform(function(Due $due)use($today){
+   $paid=bcadd((string)($due->allocations_sum_amount??'0'),'0',2);
+   $balance=bcsub((string)$due->amount,$paid,2);
+   $due->setAttribute('paid_amount',$paid);
+   $due->setAttribute('balance_amount',$balance);
+   $due->setAttribute('payment_status',bccomp($balance,'0.00',2)<=0?'paid':($due->due_on->toDateString()<$today?'overdue':'pending'));
+   return $due;
+  });
+  return $page;
  }
  public function overview(Request $request){
   $uid=$request->user()->id;
