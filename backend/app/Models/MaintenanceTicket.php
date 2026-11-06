@@ -1,0 +1,9 @@
+<?php
+namespace App\Models;
+use Illuminate\Database\Eloquent\Model;
+class MaintenanceTicket extends Model {
+ protected $fillable=['unit_id','title','description','priority','status','estimated_cost'];
+ protected function casts():array{return ['estimated_cost'=>'decimal:2'];}
+ public function property(){return $this->belongsTo(Property::class);}
+ public function unit(){return $this->belongsTo(Unit::class);}
+}
