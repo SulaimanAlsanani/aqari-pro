@@ -18,6 +18,7 @@ class FinancialReportController extends Controller{
    ->join('units','units.id','=','leases.unit_id')
    ->join('properties','properties.id','=','units.property_id')
    ->where('properties.user_id',$uid)
+   ->whereNull('payments.voided_at')
    ->whereBetween('payments.paid_on',[$input['from'],$input['to']])
    ->selectRaw('units.property_id AS property_id, SUM(payments.amount) AS amount')
    ->groupBy('units.property_id')->pluck('amount','property_id');
