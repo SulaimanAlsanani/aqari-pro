@@ -15,7 +15,7 @@ class HandoverDamageController extends Controller {
   return response()->json([
    'lease_id'=>$lease->id,
    'damages'=>$lease->handovers()->where('kind','check_out')->first()?->damages()
-     ->with('deduction:id,handover_damage_id,amount')->orderBy('id')->get()??[]
+     ->with(['deduction:id,handover_damage_id,amount','dispute:id,handover_damage_id,status,resolution,objection,resolution_reason'])->orderBy('id')->get()??[]
   ]);
  }
  public function waive(Request $request,Lease $lease,HandoverDamage $damage){
@@ -28,6 +28,8 @@ class HandoverDamageController extends Controller {
    $ownedDamage=$locked->handovers()->where('kind','check_out')->first()?->damages()
     ->whereKey($damage->id)->first();
    if(!$ownedDamage)abort(404);
+   if($ownedDamage->dispute()->where('status','open')->exists())
+    throw ValidationException::withMessages(['damage'=>'يجب الفصل في الاعتراض المفتوح قبل الإعفاء']);
    if($ownedDamage->waived_at||$ownedDamage->deduction()->exists())
     throw ValidationException::withMessages(['damage'=>'تمت معالجة التلفيات سابقًا ولا يجوز تكرار التسوية']);
    $ownedDamage->forceFill(['waived_at'=>now(),'waiver_reason'=>$data['reason']])->save();
