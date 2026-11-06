@@ -5,7 +5,7 @@ const $=id=>document.getElementById(id);
 const sections=[
  ['overview','لوحة أملاكي'],['properties','العقارات'],['units','الوحدات'],['tenants','المستأجرون'],
  ['leases','العقود'],['dues','الأقساط'],['payments','المقبوضات'],['expenses','المصروفات'],
- ['tickets','الصيانة'],['vendors','الموردون'],['documents','المرفقات'],['reports','التقارير المالية'],['audit','سجل العمليات']
+ ['tickets','الصيانة'],['vendors','الموردون'],['documents','المرفقات'],['reports','التقارير المالية'],['audit','سجل العمليات'],['account','حسابي']
 ];
 const fields={
  properties:[['id','الرقم'],['name','العقار'],['city','المدينة'],['district','الحي'],['type','النوع'],['units_count','الوحدات']],
@@ -217,12 +217,38 @@ async function showCashflow(){
  });
  form.requestSubmit();
 }
+function showAccount(){
+ const view=$('view');view.replaceChildren();
+ const section=el('section',null,'panel'),h=el('h3','تغيير كلمة المرور');
+ const explanation=el('p','تغيير كلمة المرور يلغي جميع جلسات تسجيل الدخول. يجب استخدام كلمة جديدة من 12 حرفًا على الأقل.','muted');
+ const form=el('form');
+ const pairs=[['current_password','كلمة المرور الحالية'],['password','كلمة المرور الجديدة'],['password_confirmation','تأكيد كلمة المرور الجديدة']];
+ for(const [name,label] of pairs){
+  const group=el('div',null,'field'),lab=el('label',label),input=el('input');
+  input.id='account-'+name;input.name=name;input.type='password';input.required=true;
+  input.autocomplete=name==='current_password'?'current-password':'new-password';
+  if(name!=='current_password')input.minLength=12;
+  lab.htmlFor=input.id;group.append(lab,input);form.append(group);
+ }
+ const action=el('button','تحديث كلمة المرور','primary');action.type='submit';
+ form.appendChild(action);
+ form.addEventListener('submit',async e=>{
+  e.preventDefault();action.disabled=true;
+  try{
+   const credentials=Object.fromEntries(new FormData(form));
+   await api('/account/change-password',{method:'POST',body:credentials});
+   resetAuth();notify('تم تغيير كلمة المرور وإلغاء الجلسات، سجل الدخول بكلمة المرور الجديدة.');
+  }catch(err){notify(err.message,true)}finally{action.disabled=false}
+ });
+ section.append(h,explanation,form);view.append(section);
+}
 async function refresh(page=1){
  $('sectionTitle').textContent=sections.find(x=>x[0]===active)?.[1]||'عقاري برو';
  const view=$('view');view.replaceChildren(el('p','جاري تحميل البيانات...','muted'));
  try{
   if(active==='overview'){drawOverview(await api('/overview'));return}
   if(active==='reports'){await showCashflow();return}
+  if(active==='account'){showAccount();return}
   const url=active==='properties'?'/portfolio':'/'+active;
   const data=await api(url+'?page='+page);
   drawList(active==='properties'?data.properties:data,active);
