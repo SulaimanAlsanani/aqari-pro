@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\RecordsController;
 use App\Http\Controllers\Api\RecordMutationsController;
 use App\Http\Controllers\Api\AuditController;
 use App\Http\Controllers\Api\FinancialReportController;
+use App\Http\Controllers\Api\LeaseLifecycleController;
 
 Route::post('/login',[AuthController::class,'login'])->middleware('throttle:5,1');
 
@@ -37,6 +38,9 @@ Route::middleware('auth:sanctum')->group(function () {
  Route::post('/properties/{property}/tickets',[OperationsController::class,'storeTicket']);
  Route::patch('/tickets/{ticket}',[OperationsController::class,'updateTicket']);
  Route::post('/leases',[PortfolioController::class,'storeLease']);
+ Route::post('/leases/{lease}/activate',[LeaseLifecycleController::class,'activate']);
+ Route::post('/leases/{lease}/cancel',[LeaseLifecycleController::class,'cancel']);
+ Route::post('/leases/{lease}/complete',[LeaseLifecycleController::class,'complete']);
  Route::post('/leases/{lease}/payments',[PortfolioController::class,'storePayment']);
  Route::post('/documents',[DocumentController::class,'store']);
  Route::get('/documents/{document}',[DocumentController::class,'download']);
