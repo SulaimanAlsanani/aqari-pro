@@ -45,6 +45,8 @@ class LeaseLifecycleController extends Controller {
    if(bccomp($received,$dueTotal,2)!==0||bccomp($allocated,$received,2)!==0
      ||bccomp($dueTotal,(string)$locked->total_amount,2)!==0)
     throw ValidationException::withMessages(['status'=>'لا يمكن إكمال العقد قبل تسوية أقساط الإيجار ومطابقة المبالغ الموزعة']);
+   if(!\App\Services\LeaseAllocationIntegrity::isValid($locked->id))
+    throw ValidationException::withMessages(['status'=>'توزيع المقبوضات يحتوي على أقساط متجاوزة أو سندات غير موزعة أو ارتباط بعقد آخر']);
    $movements=$locked->depositMovements()->select('kind')
      ->selectRaw('SUM(amount) AS total')->groupBy('kind')->pluck('total','kind');
    $held=bcsub(
