@@ -39,13 +39,8 @@ jobs:
           bash -n backend/scripts/ci-backup-restore-drill.sh
           bash -n backend/scripts/check-clamav-readiness.sh
           bash -n backend/scripts/check-http-security.sh
-          tmp_signatures="$(mktemp -d)"
-          if CLAMAV_DATABASE_DIR="$tmp_signatures" DOCUMENT_CLAMSCAN_BINARY=/bin/true \
-            bash backend/scripts/check-clamav-readiness.sh; then
-            echo "ClamAV readiness check incorrectly accepted missing signature files" >&2
-            exit 1
-          fi
-          rm -rf "$tmp_signatures"
+          bash -n backend/scripts/ci-clamav-readiness-drill.sh
+          bash backend/scripts/ci-clamav-readiness-drill.sh
           sh -n backend/.docker/entrypoint.sh
       - name: Validate production container image build
         run: docker build --progress=plain -t aqari-pro-api:ci backend
