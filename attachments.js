@@ -54,11 +54,60 @@ function addButtons(){
   if(record.querySelector('[data-attachment-open]'))return;
   const b=document.createElement('button');
   b.type='button';b.className='btn alt attachment-open';b.dataset.attachmentOpen='1';
-  b.textContent='📎 المرفقات';b.style.marginTop='12px';b.style.fontSize='12px';
+  b.textContent='📎 إرفاق ملف';b.style.marginTop='12px';b.style.fontSize='12px';
   b.dataset.entity=record.dataset.attachEntity;
   b.dataset.recordId=record.dataset.attachId;
-  record.appendChild(b);
+  const area=document.createElement('div');area.className='record-attachments';
+  area.dataset.attachmentSummary='1';
+  area.setAttribute('aria-live','polite');
+  record.append(b,area);
+  renderSummary(record);
  });
+}
+const iconsFor=name=>/\.(pdf)$/i.test(name)?'📕':/\.(jpg|jpeg|png|webp)$/i.test(name)?'🖼️':'📄';
+async function renderSummary(record){
+ if(!record?.isConnected)return;
+ const area=record.querySelector('[data-attachment-summary]');if(!area)return;
+ const key=record.dataset.attachEntity+':'+record.dataset.attachId;
+ try{
+  const files=await byRecord(key);
+  if(!area.isConnected||record.dataset.attachEntity+':'+record.dataset.attachId!==key)return;
+  area.replaceChildren();
+  if(!files.length)return;
+  const header=document.createElement('div');header.className='attachment-summary-heading';
+  header.textContent='✓ تم الإرفاق ('+files.length+')';
+  area.appendChild(header);
+  for(const file of files){
+   const item=document.createElement('div');item.className='attached-file';
+   const name=document.createElement('span');name.className='attached-file-name';
+   name.textContent=iconsFor(file.name)+' '+file.name;
+   const size=document.createElement('small');size.className='muted';
+   size.textContent=' · '+(file.size/1024/1024).toFixed(2)+' MB';
+   const actions=document.createElement('span');actions.className='attached-file-actions';
+   if(/\.(pdf|png|jpg|jpeg|webp)$/i.test(file.name)){
+    const preview=document.createElement('button');preview.type='button';preview.className='btn alt';
+    preview.textContent='عرض';preview.dataset.attachmentPreview=file.id;actions.appendChild(preview);
+   }
+   const down=document.createElement('button');down.type='button';down.className='btn alt';
+   down.textContent='تنزيل';down.dataset.attachmentDownload=file.id;
+   const remove=document.createElement('button');remove.type='button';remove.className='btn danger';
+   remove.textContent='حذف';remove.dataset.attachmentDelete=file.id;
+   actions.append(down,remove);item.append(name,size,actions);area.appendChild(item);
+  }
+  const open=record.querySelector('[data-attachment-open]');
+  if(open)open.textContent='📎 إضافة مرفق آخر';
+ }catch(err){area.textContent='تعذر عرض المرفقات: '+err.message}
+}
+function updateRecordSummary(entity,id){
+ for(const record of document.querySelectorAll('#content .record[data-attach-entity][data-attach-id]')){
+  if(record.dataset.attachEntity===entity&&record.dataset.attachId===String(id))renderSummary(record);
+ }
+}
+function inlineNotice(message,isError=false){
+ let notice=document.getElementById('attachmentInlineNotice');
+ if(!notice){notice=document.createElement('div');notice.id='attachmentInlineNotice';notice.setAttribute('role','status');document.body.appendChild(notice)}
+ notice.className=isError?'attachment-notice attachment-notice-error':'attachment-notice';
+ notice.textContent=message;
 }
 function shell(){
  let el=document.getElementById('attachmentPanel');
@@ -116,8 +165,14 @@ async function upload(files){
    done++;
   }catch(err){errors.push(file.name+': '+(err?.name==='QuotaExceededError'?'مساحة المتصفح ممتلئة':err.message))}
  }
- status('تم حفظ '+done+' ملف. '+errors.join(' | '));
- await refresh();
+ if(done>0){
+  const [entity,id]=target.split(':');
+  close();
+  updateRecordSummary(entity,id);
+  inlineNotice('✓ تم إرفاق '+done+' ملف بنجاح'+(errors.length?'، وتعذر إرفاق: '+errors.join(' | '):''));
+ }else{
+  status('لم يتم إرفاق أي ملف. '+errors.join(' | '));
+ }
 }
 async function downloadFile(id){
  const file=await getFile(id);if(!file||!file.blob)throw Error('الملف غير موجود');
@@ -137,7 +192,9 @@ async function deleteFile(id){
  const file=await getFile(id);if(!file)return;
  if(!confirm('حذف المرفق «'+file.name+'» نهائيًا من هذا المتصفح؟'))return;
  await transaction('readwrite',store=>{store.delete(id)});
- status('تم حذف المرفق.');await refresh();
+ if(selected){status('تم حذف المرفق.');await refresh()}
+ const [entity,idNumber]=file.record.split(':');updateRecordSummary(entity,idNumber);
+ inlineNotice('تم حذف المرفق من السجل.');
 }
 document.addEventListener('click',event=>{
  const btn=event.target.closest('[data-attachment-open],[data-attachment-close],[data-attachment-download],[data-attachment-delete],[data-attachment-preview]');
