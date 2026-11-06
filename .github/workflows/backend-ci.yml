@@ -35,6 +35,7 @@ jobs:
         run: |
           node --check public/app/app.js
           node --check tests/browser/owner-smoke.cjs
+          node --check scripts/staging-receipt-concurrency.cjs
       - name: Validate PHP
         run: find app routes config database tests bootstrap public -name '*.php' -print0 | xargs -0 -n1 php -l
       - name: Run owner isolation and document security tests
