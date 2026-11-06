@@ -304,6 +304,50 @@ async function showDepositLedger(lease){
   view.append(section,history);
  }catch(error){view.replaceChildren(el('p',error.message,'muted'));notify(error.message,true)}
 }
+async function showDamageDispute(lease,damage){
+ const view=$('view');view.replaceChildren(el('p','جاري تحميل الاعتراض...','muted'));
+ try{
+  const path='/leases/'+lease.id+'/damages/'+damage.id+'/dispute';
+  const payload=await api(path);
+  const dispute=payload.dispute;
+  view.replaceChildren();
+  const panel=el('section',null,'panel');
+  panel.append(el('h3','اعتراض على تلفيات #'+damage.id),
+   el('p','هذا سجل اعتراض يوثقه المالك، وليس حسابًا يقدّم منه المستأجر الاعتراض مباشرة.','muted'),
+   el('p','التلف: '+damage.description+' — التكلفة المقدرة: '+damage.estimated_cost+' ر.س','muted'));
+  if(dispute){
+   panel.append(el('h3','الاعتراض المسجل'),el('p',dispute.objection));
+   panel.append(el('p','الحالة: '+(dispute.status==='open'?'مفتوح':'تمت المراجعة'),'muted'));
+   if(dispute.resolution_reason)panel.append(el('p','القرار: '+dispute.resolution+' — '+dispute.resolution_reason,'muted'));
+  }
+  if(lease.status==='active'&&(!dispute||dispute.status==='open')){
+   const form=el('form'),label=el('label',dispute?'سبب القرار':'وصف اعتراض المستأجر'),
+     notes=el('textarea');notes.name='reason';notes.required=true;notes.minLength=10;notes.maxLength=5000;notes.rows=4;
+   form.append(label,notes);
+   let decision=null;
+   if(dispute){
+    const wrap=el('div',null,'field'),decisionLabel=el('label','القرار'),select=el('select');
+    for(const [v,name] of [['maintain_claim','الإبقاء على المطالبة'],['waive_claim','إعفاء المستأجر من التلف']]){
+     const opt=el('option',name);opt.value=v;select.append(opt);
+    }
+    wrap.append(decisionLabel,select);form.append(wrap);decision=select;
+   }
+   const submit=el('button',dispute?'حفظ قرار الاعتراض':'تسجيل الاعتراض','primary');submit.type='submit';form.append(submit);
+   form.addEventListener('submit',async event=>{
+    event.preventDefault();submit.disabled=true;
+    try{
+     const body=dispute?{resolution:decision.value,reason:notes.value.trim()}:{objection:notes.value.trim()};
+     await api(path+(dispute?'/resolve':''),{method:'POST',body});
+     notify(dispute?'تم تسجيل قرار الاعتراض':'تم تسجيل الاعتراض وتعليق الخصم حتى المراجعة');
+     await showHandoverDamages(lease);
+    }catch(error){notify(error.message,true);submit.disabled=false}
+   });
+   panel.append(form);
+  }
+  const back=el('button','العودة للتلفيات','secondary');back.type='button';
+  back.addEventListener('click',()=>showHandoverDamages(lease));panel.append(back);view.append(panel);
+ }catch(error){view.replaceChildren(el('p',error.message,'muted'));notify(error.message,true)}
+}
 async function showHandoverDamages(lease){
  const view=$('view');view.replaceChildren(el('p','جاري تحميل سجل التلفيات...','muted'));
  try{
@@ -323,6 +367,15 @@ async function showHandoverDamages(lease){
    button.addEventListener('click',()=>showRecordDocuments('handover_damage',damage.id));
    td.append(button);row.append(td);
    const actions=el('td');
+   if(damage.dispute){
+    const review=el('button',damage.dispute.status==='open'?'مراجعة الاعتراض':'تفاصيل الاعتراض','secondary');
+    review.type='button';review.addEventListener('click',()=>showDamageDispute(lease,damage));
+    actions.append(review);
+   }else if(lease.status==='active'&&!damage.waived_at){
+    const object=el('button','تسجيل اعتراض','secondary');
+    object.type='button';object.addEventListener('click',()=>showDamageDispute(lease,damage));
+    actions.append(object);
+   }
    if(lease.status==='active'&&!damage.waived_at&&!damage.deduction){
     const waive=el('button','إعفاء مع سبب','secondary');waive.type='button';
     waive.addEventListener('click',async()=>{
@@ -454,6 +507,7 @@ async function showLeaseSettlement(lease){
     RENT_LEDGER_MISMATCH:'توجد فروقات في توزيع الإيجار',
     DEPOSIT_LEDGER_MISMATCH:'توجد فروقات في التأمين',
     UNRESOLVED_DAMAGE:'توجد تلفيات مسجلة لم يُحسم أمرها بخصم أو إعفاء',
+    OPEN_DAMAGE_DISPUTE:'يوجد اعتراض مفتوح على التلفيات يجب الفصل فيه',
     UNIT_HANDOVER_PENDING:'محضر استلام الوحدة مسجل، لكن محضر تسليم الخروج لم يُسجل'};
    for(const flag of report.review_flags)panel.appendChild(el('p','• '+(labels[flag]||flag),'muted'));
   }
