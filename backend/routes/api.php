@@ -16,6 +16,7 @@ Route::post('/login',[AuthController::class,'login'])->middleware('throttle:5,1'
 Route::middleware('auth:sanctum')->group(function () {
  Route::get('/me',[AuthController::class,'me']);
  Route::post('/logout',[AuthController::class,'logout']);
+ Route::post('/account/change-password',[AuthController::class,'changePassword'])->middleware('throttle:3,1');
  Route::get('/portfolio',[PortfolioController::class,'index']);
  Route::get('/overview',[OperationsController::class,'overview']);
  Route::get('/audit',[AuditController::class,'index']);
