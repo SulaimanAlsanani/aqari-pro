@@ -1,6 +1,6 @@
 <?php
 namespace App\Http\Controllers\Api;
-use App\Models\{Document,Property,Unit,Tenant,Lease,Payment};
+use App\Models\{Document,Property,Unit,Tenant,Lease,Payment,Expense,MaintenanceTicket,Due};
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Storage;
@@ -14,12 +14,15 @@ class DocumentController extends Controller {
    'tenant'=>Tenant::where('user_id',$ownerId)->whereKey($id)->exists(),
    'lease'=>Lease::whereHas('unit.property',fn($q)=>$q->where('user_id',$ownerId))->whereKey($id)->exists(),
    'payment'=>Payment::whereHas('lease.unit.property',fn($q)=>$q->where('user_id',$ownerId))->whereKey($id)->exists(),
+   'due'=>Due::whereHas('lease.unit.property',fn($q)=>$q->where('user_id',$ownerId))->whereKey($id)->exists(),
+   'expense'=>Expense::whereHas('property',fn($q)=>$q->where('user_id',$ownerId))->whereKey($id)->exists(),
+   'ticket'=>MaintenanceTicket::whereHas('property',fn($q)=>$q->where('user_id',$ownerId))->whereKey($id)->exists(),
    default=>false
   };
  }
  public function store(Request $request){
   $input=$request->validate([
-   'entity_type'=>['required',Rule::in(['property','unit','tenant','lease','payment'])],
+   'entity_type'=>['required',Rule::in(['property','unit','tenant','lease','payment','due','expense','ticket'])],
    'entity_id'=>'required|integer|min:1',
    'file'=>'required|file|max:10240|mimes:pdf,png,jpg,jpeg,webp,doc,docx,xls,xlsx,txt,csv'
   ]);
