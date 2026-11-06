@@ -36,6 +36,7 @@ jobs:
       - name: Validate backup and container entrypoint scripts
         run: |
           bash -n backend/scripts/backup-encrypted.sh
+          bash -n backend/scripts/ci-backup-restore-drill.sh
           sh -n backend/.docker/entrypoint.sh
       - name: Validate production container image build
         run: docker build --progress=plain -t aqari-pro-api:ci backend
@@ -57,3 +58,13 @@ jobs:
           curl --fail --silent http://127.0.0.1:8080/app/index.html | grep -q 'عقاري برو'
           status=$(curl --silent -o /dev/null -w '%{http_code}' -H 'Accept: application/json' http://127.0.0.1:8080/api/portfolio)
           test "$status" = "401"
+      - name: Install age for encrypted backup recovery drill
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y age
+      - name: Restore encrypted MySQL and private attachments in isolation
+        working-directory: backend
+        env:
+          CI: "true"
+          GITHUB_ACTIONS: "true"
+        run: bash scripts/ci-backup-restore-drill.sh
