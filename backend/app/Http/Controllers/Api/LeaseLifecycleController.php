@@ -37,7 +37,7 @@ class LeaseLifecycleController extends Controller {
    if($locked->status!=='active')throw ValidationException::withMessages(['status'=>'يمكن إكمال العقد النشط فقط']);
    if($locked->ends_on->toDateString()>today()->toDateString())throw ValidationException::withMessages(['ends_on'=>'لا يمكن إكمال عقد قبل تاريخ انتهائه']);
    $dueTotal=(string)$locked->dues()->sum('amount');
-   $received=(string)$locked->payments()->sum('amount');
+   $received=(string)$locked->payments()->whereNull('voided_at')->sum('amount');
    if(bccomp($received,$dueTotal,2)<0)throw ValidationException::withMessages(['status'=>'لا يمكن إكمال عقد له استحقاقات غير مسددة']);
    $locked->update(['status'=>'completed']);
    return response()->json($locked->refresh());
