@@ -170,6 +170,10 @@ function drawList(data,key){
     const handovers=el('button','محاضر التسليم','secondary');handovers.type='button';
     handovers.addEventListener('click',()=>showUnitHandovers(item));bar.appendChild(handovers);
    }
+   if(item.status==='active'||item.status==='completed'){
+    const damages=el('button','تلفيات الوحدة','secondary');damages.type='button';
+    damages.addEventListener('click',()=>showHandoverDamages(item));bar.appendChild(damages);
+   }
    td.appendChild(bar);r.appendChild(td);
   }
   if(key==='documents'){
@@ -285,6 +289,48 @@ async function showDepositLedger(lease){
   if(data.movements.last_page>1)history.append(el('p','يعرض أول 30 حركة. بقية الحركات متاحة عبر واجهة API.','muted'));
   view.append(section,history);
  }catch(error){view.replaceChildren(el('p',error.message,'muted'));notify(error.message,true)}
+}
+async function showHandoverDamages(lease){
+ const view=$('view');view.replaceChildren(el('p','جاري تحميل سجل التلفيات...','muted'));
+ try{
+  const report=await api('/leases/'+lease.id+'/damages');
+  view.replaceChildren();
+  const section=el('section',null,'panel');
+  section.append(el('h3','تقرير تلفيات الوحدة — العقد #'+lease.id),
+   el('p','سجّل التلفيات من واقع محضر الخروج وصورها. تقدير التكلفة ليس خصمًا ماليًا؛ يلزم تسجيل الخصم منفصلًا في حساب التأمين.','muted'));
+  const table=el('table'),heading=el('tr');
+  for(const title of ['الوصف','التكلفة المقدّرة','الخصم المسجّل','الإثبات'])heading.append(el('th',title));
+  const thead=el('thead');thead.append(heading);table.append(thead);
+  const tbody=el('tbody');
+  for(const damage of report.damages){
+   const row=el('tr');
+   row.append(el('td',damage.description),el('td',damage.estimated_cost),el('td',damage.deduction?.amount??'لم يُخصم'));
+   const td=el('td'),button=el('button','📎 الصور والمستندات','secondary');button.type='button';
+   button.addEventListener('click',()=>showRecordDocuments('handover_damage',damage.id));
+   td.append(button);row.append(td);tbody.append(row);
+  }
+  table.append(tbody);const wrap=el('div',null,'table-wrap');wrap.append(table);section.append(wrap);
+  if(!report.damages.length)section.append(el('p','لم تُسجّل تلفيات على محضر خروج هذه الوحدة.','muted'));
+  if(lease.status==='active'){
+   const form=el('form'),descriptionField=el('div',null,'field'),descLabel=el('label','وصف التلفيات'),description=el('textarea');
+   description.name='description';description.required=true;description.minLength=10;description.maxLength=500;description.rows=3;
+   descriptionField.append(descLabel,description);
+   const amountField=el('div',null,'field'),costLabel=el('label','تكلفة الإصلاح المقدرة (ر.س)'),cost=el('input');
+   cost.name='estimated_cost';cost.type='number';cost.min='0.01';cost.step='0.01';cost.required=true;
+   amountField.append(costLabel,cost);form.append(descriptionField,amountField);
+   const submit=el('button','تسجيل التلفيات','primary');submit.type='submit';form.append(submit);
+   form.addEventListener('submit',async event=>{
+    event.preventDefault();submit.disabled=true;
+    try{
+     await api('/leases/'+lease.id+'/damages',{method:'POST',body:{description:description.value.trim(),estimated_cost:Number(cost.value)}});
+     notify('تم حفظ التلفيات. يمكنك الآن إرفاق صور الإثبات.');await showHandoverDamages(lease);
+    }catch(err){notify(err.message,true);submit.disabled=false}
+   });
+   section.append(form);
+  }
+  const back=el('button','رجوع للعقود','secondary');back.type='button';back.addEventListener('click',()=>refresh());
+  section.append(back);view.append(section);
+ }catch(err){view.replaceChildren(el('p',err.message,'muted'));notify(err.message,true)}
 }
 async function showUnitHandovers(lease){
  const view=$('view');view.replaceChildren(el('p','جاري تحميل محاضر التسليم...','muted'));
