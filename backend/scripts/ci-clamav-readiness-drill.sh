@@ -8,7 +8,7 @@ mkdir -p "$root/signatures"
 cat > "$root/scanner" <<'EOF'
 #!/bin/sh
 # A harmless scanner stand-in for testing the readiness script's control flow.
-[ -f "$3" ] || exit 2
+[ -f "$4" ] || exit 2
 exit 0
 EOF
 chmod +x "$root/scanner"
