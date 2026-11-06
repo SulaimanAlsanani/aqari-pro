@@ -1,6 +1,6 @@
 <?php
 namespace App\Http\Controllers\Api;
-use App\Models\{Document,Property,Unit,Tenant,Lease,Payment,Expense,MaintenanceTicket,Due,Vendor,DepositMovement};
+use App\Models\{Document,Property,Unit,Tenant,Lease,Payment,Expense,MaintenanceTicket,Due,Vendor,DepositMovement,UnitHandover};
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Storage;
@@ -16,6 +16,7 @@ class DocumentController extends Controller {
    'tenant'=>Tenant::where('user_id',$ownerId)->whereKey($id)->exists(),
    'lease'=>Lease::whereHas('unit.property',fn($q)=>$q->where('user_id',$ownerId))->whereKey($id)->exists(),
    'payment'=>Payment::whereHas('lease.unit.property',fn($q)=>$q->where('user_id',$ownerId))->whereKey($id)->exists(),
+   'unit_handover'=>UnitHandover::whereHas('lease.unit.property',fn($q)=>$q->where('user_id',$ownerId))->whereKey($id)->exists(),
    'deposit_movement'=>DepositMovement::whereHas('lease.unit.property',fn($q)=>$q->where('user_id',$ownerId))->whereKey($id)->exists(),
    'due'=>Due::whereHas('lease.unit.property',fn($q)=>$q->where('user_id',$ownerId))->whereKey($id)->exists(),
    'expense'=>Expense::whereHas('property',fn($q)=>$q->where('user_id',$ownerId))->whereKey($id)->exists(),
@@ -25,7 +26,7 @@ class DocumentController extends Controller {
  }
  public function store(Request $request){
   $input=$request->validate([
-   'entity_type'=>['required',Rule::in(['owner','vendor','property','unit','tenant','lease','payment','due','deposit_movement','expense','ticket'])],
+   'entity_type'=>['required',Rule::in(['owner','vendor','property','unit','tenant','lease','payment','due','deposit_movement','unit_handover','expense','ticket'])],
    'entity_id'=>'required|integer|min:1',
    'file'=>'required|file|max:10240|mimes:pdf,png,jpg,jpeg,webp,doc,docx,xls,xlsx,txt,csv'
   ]);
