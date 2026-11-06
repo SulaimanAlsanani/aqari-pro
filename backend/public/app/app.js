@@ -699,7 +699,7 @@ async function exportCsv(resource,button){
  }catch(error){notify(error.message,true)}finally{button.disabled=false}
 }
 function canPreview(file){
- return /\\.(pdf|png|jpe?g|webp)$/i.test(String(file.original_name||''));
+ return /\.(pdf|png|jpe?g|webp)$/i.test(String(file.original_name||''));
 }
 async function previewDocument(id,name){
  if(!accessToken){notify('انتهت الجلسة، يرجى تسجيل الدخول',true);return}
