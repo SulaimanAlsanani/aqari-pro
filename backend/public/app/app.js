@@ -5,7 +5,7 @@ const $=id=>document.getElementById(id);
 const sections=[
  ['overview','لوحة أملاكي'],['properties','العقارات'],['units','الوحدات'],['tenants','المستأجرون'],
  ['leases','العقود'],['dues','الأقساط'],['payments','المقبوضات'],['expenses','المصروفات'],
- ['tickets','الصيانة'],['documents','المرفقات'],['reports','التقارير المالية'],['audit','سجل العمليات']
+ ['tickets','الصيانة'],['vendors','الموردون'],['documents','المرفقات'],['reports','التقارير المالية'],['audit','سجل العمليات']
 ];
 const fields={
  properties:[['id','الرقم'],['name','العقار'],['city','المدينة'],['district','الحي'],['type','النوع'],['units_count','الوحدات']],
@@ -15,7 +15,8 @@ const fields={
  dues:[['id','الرقم'],['lease_id','العقد'],['due_on','الاستحقاق'],['amount','القسط'],['paid_amount','المسدّد'],['balance_amount','المتبقي'],['payment_status','الحالة']],
  payments:[['id','الرقم'],['lease_id','العقد'],['amount','المبلغ'],['paid_on','التاريخ'],['method','الطريقة']],
  expenses:[['id','الرقم'],['property_id','العقار'],['category','التصنيف'],['amount','المبلغ'],['incurred_on','التاريخ']],
- tickets:[['id','الرقم'],['property_id','العقار'],['title','البلاغ'],['priority','الأولوية'],['status','الحالة']],
+ tickets:[['id','الرقم'],['property_id','العقار'],['title','البلاغ'],['priority','الأولوية'],['status','الحالة'],['vendor_id','المورد']],
+ vendors:[['id','الرقم'],['name','المورد'],['service','الخدمة'],['phone','الجوال'],['email','البريد']],
  documents:[['id','الرقم'],['entity_type','مرتبط بـ'],['entity_id','رقم السجل'],['original_name','الاسم'],['size','الحجم']],
  audit:[['created_at','التاريخ'],['entity_type','القسم'],['entity_id','رقم السجل'],['action','العملية']]
 };
@@ -26,7 +27,8 @@ const templates={
  leases:{endpoint:'/leases',fields:[['unit_id','رقم الوحدة','number'],['tenant_id','رقم المستأجر','number'],['starts_on','تاريخ البداية','date'],['ends_on','تاريخ النهاية','date'],['total_amount','القيمة الإجمالية','number'],['deposit','التأمين','number'],['installments','عدد الأقساط (1 إلى 36)','number']]},
  payments:{endpoint:'/leases/{lease_id}/payments',fields:[['lease_id','رقم العقد','number'],['amount','مبلغ التحصيل','number'],['paid_on','تاريخ السداد','date'],['method','طريقة السداد','choice','bank_transfer:تحويل بنكي|cash:نقدي|card:بطاقة'],['reference','المرجع','text']]},
  expenses:{endpoint:'/properties/{property_id}/expenses',fields:[['property_id','رقم العقار','number'],['category','التصنيف','text'],['description','الوصف','text'],['amount','المبلغ','number'],['incurred_on','التاريخ','date']]},
- tickets:{endpoint:'/properties/{property_id}/tickets',fields:[['property_id','رقم العقار','number'],['unit_id','رقم الوحدة (اختياري)','number'],['title','وصف البلاغ','text'],['description','التفاصيل','text'],['priority','الأولوية','choice','low:منخفض|normal:عادي|high:عالٍ|urgent:عاجل'],['estimated_cost','التكلفة المتوقعة','number']]},
+ tickets:{endpoint:'/properties/{property_id}/tickets',fields:[['property_id','رقم العقار','number'],['unit_id','رقم الوحدة (اختياري)','number'],['vendor_id','رقم المورد (اختياري)','number'],['title','وصف البلاغ','text'],['description','التفاصيل','text'],['priority','الأولوية','choice','low:منخفض|normal:عادي|high:عالٍ|urgent:عاجل'],['estimated_cost','التكلفة المتوقعة','number']]},
+ vendors:{endpoint:'/vendors',fields:[['name','اسم المورد','text'],['service','نوع الخدمة','text'],['phone','الجوال','text'],['email','البريد','email'],['notes','ملاحظات','text']]},
  documents:{endpoint:'/documents',fields:[['entity_type','نوع السجل','choice','property:عقار|unit:وحدة|tenant:مستأجر|lease:عقد|payment:سند قبض|due:استحقاق|expense:مصروف|ticket:صيانة'],['entity_id','رقم السجل','number'],['file','اختيار الملف','file']]}
 };
 function el(tag,text,className){
@@ -79,7 +81,7 @@ function drawList(data,key){
  if(templates[key]){const add=el('button','+ إضافة سجل','primary');add.addEventListener('click',()=>drawForm(key));row.append(add)}
  parent.append(row);
  const wrap=el('div',null,'table-wrap'),table=el('table'),thead=el('thead'),tr=el('tr');
- for(const [,label] of fields[key])tr.appendChild(el('th',label));if(['properties','units','tenants','leases'].includes(key))tr.appendChild(el('th','الإجراءات'));
+ for(const [,label] of fields[key])tr.appendChild(el('th',label));if(['properties','units','tenants','vendors','leases'].includes(key))tr.appendChild(el('th','الإجراءات'));
  if(key==='documents'){tr.appendChild(el('th','الحالة'));tr.appendChild(el('th','الملف'))}
  thead.appendChild(tr);table.appendChild(thead);
  const body=el('tbody');
@@ -89,7 +91,7 @@ function drawList(data,key){
    const value=item[field]??'—';
    r.appendChild(el('td',typeof value==='object'?'—':value));
   }
-  if(['properties','units','tenants'].includes(key)){
+  if(['properties','units','tenants','vendors'].includes(key)){
    const action=el('td'),edit=el('button','تعديل','secondary');
    edit.type='button';edit.addEventListener('click',()=>drawForm(key,item));action.appendChild(edit);r.appendChild(action);
   }
@@ -138,7 +140,7 @@ function drawForm(key,record=null){
   }else{input=el('input');input.type=type==='file'?'file':type; if(type==='number'){input.min='0';input.step='any'}}
   input.name=name;input.id='field-'+name;
   if(record&&record[name]!==undefined&&record[name]!==null)input.value=record[name];
-  if(!['district','address','email','deposit','floor','area','reference','description','unit_id','estimated_cost'].includes(name))input.required=true;
+  if(!['district','address','email','deposit','floor','area','reference','description','unit_id','vendor_id','estimated_cost'].includes(name))input.required=true;
   if(type==='file')input.accept='.pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx,.txt,.csv';
   div.append(lab,input);form.appendChild(div);
  }
