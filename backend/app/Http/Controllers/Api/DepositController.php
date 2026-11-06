@@ -38,7 +38,8 @@ class DepositController extends Controller {
    'amount'=>['required','numeric','gt:0','decimal:0,2'],
    'occurred_on'=>['required','date','before_or_equal:today'],
    'reason'=>['nullable','string','max:500'],
-   'reference'=>['nullable','string','max:120']
+   'reference'=>['nullable','string','max:120'],
+   'handover_damage_id'=>['nullable','integer','min:1']
   ]);
   if($data['kind']==='deduction'&&mb_strlen(trim((string)($data['reason']??'')))<10)
    throw ValidationException::withMessages(['reason'=>'يجب توثيق سبب الخصم بعشرة أحرف على الأقل']);
@@ -50,7 +51,7 @@ class DepositController extends Controller {
    if($key!==null){
     $prior=$locked->depositMovements()->where('idempotency_key',$key)->first();
     if($prior){
-     $same=$prior->kind===$data['kind']&&bccomp((string)$prior->amount,(string)$data['amount'],2)===0&&$prior->occurred_on->toDateString()===$data['occurred_on']&&($prior->reason??null)===($data['reason']??null)&&($prior->reference??null)===($data['reference']??null);
+     $same=$prior->kind===$data['kind']&&bccomp((string)$prior->amount,(string)$data['amount'],2)===0&&$prior->occurred_on->toDateString()===$data['occurred_on']&&($prior->reason??null)===($data['reason']??null)&&($prior->reference??null)===($data['reference']??null)&&($prior->handover_damage_id??null)===($data['handover_damage_id']??null);
      if(!$same)throw ValidationException::withMessages(['idempotency_key'=>'Key already used']);
      return response()->json(['movement'=>$prior,'totals'=>$this->totals($locked)],200);
     }
@@ -59,6 +60,18 @@ class DepositController extends Controller {
     throw ValidationException::withMessages(['kind'=>'لا يمكن إجراء حركة تأمين على عقد مسودة أو ملغى']);
    if($data['kind']!=='receipt'&&$locked->ends_on->toDateString()>today()->toDateString())
     throw ValidationException::withMessages(['kind'=>'لا يمكن رد التأمين أو خصمه قبل انتهاء مدة العقد']);
+   if(isset($data['handover_damage_id'])){
+    if($data['kind']!=='deduction')
+     throw ValidationException::withMessages(['handover_damage_id'=>'لا يمكن ربط التلفيات إلا بحركة خصم']);
+    $damage=$locked->handovers()->where('kind','check_out')->first()?->damages()
+      ->whereKey($data['handover_damage_id'])->first();
+    if(!$damage)
+     throw ValidationException::withMessages(['handover_damage_id'=>'التلفيات لا تتبع محضر خروج هذا العقد']);
+    if($damage->deduction()->exists())
+     throw ValidationException::withMessages(['handover_damage_id'=>'سبق تسجيل خصم لهذه التلفيات']);
+    if(bccomp((string)$data['amount'],(string)$damage->estimated_cost,2)>0)
+     throw ValidationException::withMessages(['amount'=>'الخصم يتجاوز التكلفة المقدرة للتلفيات']);
+   }
    $totals=$this->totals($locked);
    $maximum=$data['kind']==='receipt'?$totals['uncollected']:$totals['held'];
    if(bccomp((string)$data['amount'],$maximum,2)>0)
