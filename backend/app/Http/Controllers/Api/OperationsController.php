@@ -1,6 +1,6 @@
 <?php
 namespace App\Http\Controllers\Api;
-use App\Models\{Property,Unit,Expense,MaintenanceTicket,Due,Lease,Payment};
+use App\Models\{Property,Unit,Expense,MaintenanceTicket,Due,Lease,Payment,Vendor};
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 
@@ -20,11 +20,12 @@ class OperationsController extends Controller{
  public function storeTicket(Request $request,Property $property){
   $this->ownedProperty($request,$property);
   $data=$request->validate([
-   'unit_id'=>'nullable|integer','title'=>'required|string|max:250',
+   'unit_id'=>'nullable|integer','vendor_id'=>'nullable|integer','title'=>'required|string|max:250',
    'description'=>'nullable|string|max:5000','priority'=>'required|in:low,normal,high,urgent',
    'estimated_cost'=>'nullable|numeric|min:0'
   ]);
   if(isset($data['unit_id']))abort_unless($property->units()->whereKey($data['unit_id'])->exists(),422);
+  if(isset($data['vendor_id']))abort_unless(Vendor::where('user_id',$request->user()->id)->whereKey($data['vendor_id'])->exists(),422);
   return response()->json($property->tickets()->create([
    ...$data,'status'=>'open'
   ]),201);
