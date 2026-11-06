@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\LeaseLifecycleController;
 use App\Http\Controllers\Api\VendorController;
 use App\Http\Controllers\Api\ReceiptReversalController;
 use App\Http\Controllers\Api\LeaseRenewalController;
+use App\Http\Controllers\Api\AlertsController;
 
 Route::post('/login',[AuthController::class,'login'])->middleware('throttle:5,1');
 
@@ -21,6 +22,7 @@ Route::middleware('auth:sanctum')->group(function () {
  Route::post('/account/change-password',[AuthController::class,'changePassword'])->middleware('throttle:3,1');
  Route::get('/portfolio',[PortfolioController::class,'index']);
  Route::get('/overview',[OperationsController::class,'overview']);
+ Route::get('/alerts',[AlertsController::class,'index']);
  Route::get('/audit',[AuditController::class,'index']);
  Route::get('/reports/cashflow',[FinancialReportController::class,'cashflow']);
  Route::get('/units',[RecordsController::class,'units']);
