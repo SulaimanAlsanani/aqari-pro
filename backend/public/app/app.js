@@ -5,7 +5,7 @@ const $=id=>document.getElementById(id);
 const sections=[
  ['overview','لوحة أملاكي'],['properties','العقارات'],['units','الوحدات'],['tenants','المستأجرون'],
  ['leases','العقود'],['dues','الأقساط'],['payments','المقبوضات'],['expenses','المصروفات'],
- ['tickets','الصيانة'],['documents','المرفقات'],['audit','سجل العمليات']
+ ['tickets','الصيانة'],['documents','المرفقات'],['reports','التقارير المالية'],['audit','سجل العمليات']
 ];
 const fields={
  properties:[['id','الرقم'],['name','العقار'],['city','المدينة'],['district','الحي'],['type','النوع'],['units_count','الوحدات']],
@@ -163,11 +163,49 @@ async function download(id,name){
   setTimeout(()=>URL.revokeObjectURL(url),4000);
  }catch(err){notify(err.message,true)}
 }
+async function showCashflow(){
+ const view=$('view');view.replaceChildren();
+ const panel=el('section',null,'panel'),form=el('form');form.className='form-grid';
+ const year=new Date().getFullYear();
+ for(const [name,label,value] of [['from','من تاريخ',year+'-01-01'],['to','إلى تاريخ',year+'-12-31']]){
+  const field=el('div',null,'field'),lab=el('label',label),input=el('input');
+  input.type='date';input.name=name;input.value=value;input.required=true;lab.htmlFor='report-'+name;input.id='report-'+name;
+  field.append(lab,input);form.appendChild(field);
+ }
+ const button=el('button','عرض التقرير','primary');button.type='submit';
+ const actions=el('div',null,'actions');actions.appendChild(button);panel.append(form,actions);view.append(panel);
+ const result=el('section',null,'panel');result.appendChild(el('p','اختر الفترة لعرض المقبوضات والمصروفات حسب العقار.','muted'));view.append(result);
+ form.addEventListener('submit',async ev=>{
+  ev.preventDefault();button.disabled=true;
+  try{
+   const query=new URLSearchParams(new FormData(form));
+   const data=await api('/reports/cashflow?'+query.toString());
+   result.replaceChildren(el('h3','ملخص الفترة: '+data.from+' إلى '+data.to));
+   const metrics=el('div',null,'metrics');
+   for(const [label,value] of [['المقبوضات',data.totals.received],['المصروفات',data.totals.expenses],['صافي التدفق',data.totals.net]]){
+    const metric=el('div',null,'metric');metric.append(el('span',label+' (ر.س)','muted'),el('strong',value));metrics.append(metric);
+   }
+   result.appendChild(metrics);
+   const wrap=el('div',null,'table-wrap'),table=el('table'),thead=el('thead'),header=el('tr');
+   for(const label of ['العقار','المدينة','المقبوضات','المصروفات','الصافي'])header.appendChild(el('th',label));
+   thead.append(header);table.append(thead);
+   const tbody=el('tbody');
+   for(const row of data.properties){
+    const tr=el('tr');
+    for(const value of [row.name,row.city,row.received,row.expenses,row.net])tr.appendChild(el('td',value));
+    tbody.appendChild(tr);
+   }
+   table.append(tbody);wrap.append(table);result.append(wrap);
+  }catch(error){notify(error.message,true)}finally{button.disabled=false}
+ });
+ form.requestSubmit();
+}
 async function refresh(page=1){
  $('sectionTitle').textContent=sections.find(x=>x[0]===active)?.[1]||'عقاري برو';
  const view=$('view');view.replaceChildren(el('p','جاري تحميل البيانات...','muted'));
  try{
   if(active==='overview'){drawOverview(await api('/overview'));return}
+  if(active==='reports'){await showCashflow();return}
   const url=active==='properties'?'/portfolio':'/'+active;
   const data=await api(url+'?page='+page);
   drawList(active==='properties'?data.properties:data,active);
