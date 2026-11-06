@@ -56,6 +56,10 @@ class LeaseLifecycleController extends Controller {
    if($locked->handovers()->where('kind','check_in')->exists()
      &&!$locked->handovers()->where('kind','check_out')->exists())
     throw ValidationException::withMessages(['status'=>'يجب تسجيل محضر تسليم الخروج قبل إكمال العقد']);
+   $openDamages=$locked->handovers()->where('kind','check_out')->first()?->damages()
+     ->whereNull('waived_at')->whereDoesntHave('deduction')->count()??0;
+   if($openDamages>0)
+    throw ValidationException::withMessages(['status'=>'يجب معالجة التلفيات المسجلة بخصم موثق أو إعفاء مسبب قبل إكمال العقد']);
    $locked->update(['status'=>'completed']);
    return response()->json($locked->refresh());
   });
