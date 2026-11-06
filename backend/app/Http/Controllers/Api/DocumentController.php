@@ -6,6 +6,7 @@ use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use App\Services\AttachmentMalwareScanner;
 class DocumentController extends Controller {
  private function belongsToOwner(int $ownerId,string $type,int $id):bool {
   return match($type){
@@ -35,6 +36,7 @@ class DocumentController extends Controller {
   $userId=$request->user()->id;
   abort_unless($this->belongsToOwner($userId,$input['entity_type'],(int)$input['entity_id']),404);
   $file=$request->file('file');
+  app(AttachmentMalwareScanner::class)->scan($file);
   $path=$file->store('owners/'.$userId.'/documents','local');
   try{
    $doc=DB::transaction(fn()=>Document::create([
