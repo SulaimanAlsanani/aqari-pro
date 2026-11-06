@@ -158,6 +158,10 @@ function drawList(data,key){
     const renew=el('button','تجديد العقد','secondary');renew.type='button';
     renew.addEventListener('click',()=>showRenewal(item));bar.appendChild(renew);
    }
+   if(item.status!=='draft'&&item.status!=='cancelled'){
+    const deposit=el('button','التأمين','secondary');deposit.type='button';
+    deposit.addEventListener('click',()=>showDepositLedger(item));bar.appendChild(deposit);
+   }
    td.appendChild(bar);r.appendChild(td);
   }
   if(key==='documents'){
@@ -219,6 +223,56 @@ function showMaintenanceResolution(ticket){
   catch(error){notify(error.message,true);submit.disabled=false}
  });
  panel.append(h,info,form);view.append(panel);
+}
+async function showDepositLedger(lease){
+ const view=$('view');view.replaceChildren(el('p','جاري تحميل حساب التأمين...','muted'));
+ try{
+  const data=await api('/leases/'+lease.id+'/deposit');
+  view.replaceChildren();
+  const section=el('section',null,'panel'),heading=el('h3','تأمين العقد رقم '+lease.id);
+  section.append(heading,el('p','التأمين أمانة منفصلة عن إيجار العقد؛ لا يُسجل ضمن تحصيل الإيجارات.','muted'));
+  const metrics=el('div',null,'metrics');
+  for(const [label,value] of [['المتفق عليه',data.totals.contractual],['المستلم',data.totals.received],['المرتجع',data.totals.refunded],['المخصوم',data.totals.deducted],['المحتفظ به',data.totals.held]]){
+   const card=el('div',null,'metric');card.append(el('span',label+' (ر.س)','muted'),el('strong',value));metrics.append(card);
+  }
+  section.append(metrics);
+  const form=el('form'),kindBox=el('div',null,'field'),kindLabel=el('label','نوع الحركة'),kind=el('select');
+  kind.name='kind';kind.id='deposit-kind';
+  for(const [value,name] of [['receipt','استلام التأمين'],['refund','إعادة التأمين للمستأجر'],['deduction','خصم مبرر من التأمين']]){
+   const option=el('option',name);option.value=value;kind.append(option);
+  }
+  kindLabel.htmlFor=kind.id;kindBox.append(kindLabel,kind);form.append(kindBox);
+  for(const [name,label,type,required] of [['amount','المبلغ (ر.س)','number',true],['occurred_on','تاريخ الحركة','date',true],['reason','سبب الخصم أو الحركة','text',false],['reference','مرجع العملية','text',false]]){
+   const wrapper=el('div',null,'field'),lbl=el('label',label),input=el('input');
+   input.id='deposit-'+name;input.name=name;input.type=type;input.required=required;
+   if(type==='number'){input.min='0.01';input.step='0.01'}
+   if(type==='date'){input.value=new Date().toISOString().slice(0,10);input.max=input.value}
+   lbl.htmlFor=input.id;wrapper.append(lbl,input);form.append(wrapper);
+  }
+  const actions=el('div',null,'actions'),submit=el('button','تسجيل حركة التأمين','primary'),back=el('button','العودة للعقود','secondary');
+  submit.type='submit';back.type='button';back.addEventListener('click',()=>refresh());actions.append(submit,back);form.append(actions);
+  form.addEventListener('submit',async event=>{
+   event.preventDefault();submit.disabled=true;
+   const data=Object.fromEntries(new FormData(form));data.amount=Number(data.amount);
+   if(!data.reason)delete data.reason;if(!data.reference)delete data.reference;
+   try{await api('/leases/'+lease.id+'/deposit',{method:'POST',body:data});notify('تم حفظ حركة التأمين مع تسجيلها في سجل التدقيق');await showDepositLedger(lease)}
+   catch(error){notify(error.message,true);submit.disabled=false}
+  });
+  section.appendChild(form);
+  const history=el('section',null,'panel');history.appendChild(el('h3','حركات التأمين المسجلة'));
+  const wrap=el('div',null,'table-wrap'),table=el('table'),head=el('tr');
+  for(const label of ['الرقم','الحركة','المبلغ','التاريخ','السبب','المرجع'])head.appendChild(el('th',label));
+  const thead=el('thead');thead.appendChild(head);table.appendChild(thead);
+  const body=el('tbody');
+  for(const item of data.movements.data){
+   const row=el('tr');
+   for(const value of [item.id,item.kind,item.amount,item.occurred_on,item.reason??'—',item.reference??'—'])row.append(el('td',value));
+   body.append(row);
+  }
+  table.append(body);wrap.append(table);history.append(wrap);
+  if(data.movements.last_page>1)history.append(el('p','يعرض أول 30 حركة. بقية الحركات متاحة عبر واجهة API.','muted'));
+  view.append(section,history);
+ }catch(error){view.replaceChildren(el('p',error.message,'muted'));notify(error.message,true)}
 }
 function showRenewal(lease){
  const parent=$('view');parent.replaceChildren();
