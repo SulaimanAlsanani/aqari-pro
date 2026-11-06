@@ -19,8 +19,9 @@ class LeaseSettlementController extends Controller {
   $depositDeducted=bcadd((string)($movements['deduction']??0),'0',2);
   $held=bcsub(bcsub($depositReceived,$depositRefunded,2),$depositDeducted,2);
   $rentOutstanding=bcsub($billed,$received,2);
+  $allocationIntegrity=\App\Services\LeaseAllocationIntegrity::isValid($lease->id);
   $rentBalanced=bccomp($billed,(string)$lease->total_amount,2)===0
-    && bccomp($allocated,$received,2)===0
+    && $allocationIntegrity&&bccomp($allocated,$received,2)===0
     && bccomp($rentOutstanding,'0.00',2)>=0;
   $depositBalanced=bccomp($held,'0.00',2)>=0
     && bccomp($depositReceived,(string)$lease->deposit,2)<=0;
