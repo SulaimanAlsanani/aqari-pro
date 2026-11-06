@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\AuditController;
 use App\Http\Controllers\Api\FinancialReportController;
 use App\Http\Controllers\Api\LeaseLifecycleController;
 use App\Http\Controllers\Api\VendorController;
+use App\Http\Controllers\Api\ReceiptReversalController;
 
 Route::post('/login',[AuthController::class,'login'])->middleware('throttle:5,1');
 
@@ -47,6 +48,7 @@ Route::middleware('auth:sanctum')->group(function () {
  Route::post('/leases/{lease}/cancel',[LeaseLifecycleController::class,'cancel']);
  Route::post('/leases/{lease}/complete',[LeaseLifecycleController::class,'complete']);
  Route::post('/leases/{lease}/payments',[PortfolioController::class,'storePayment']);
+ Route::post('/payments/{payment}/void',[ReceiptReversalController::class,'void']);
  Route::post('/documents',[DocumentController::class,'store']);
  Route::get('/documents/{document}',[DocumentController::class,'download']);
  Route::delete('/documents/{document}',[DocumentController::class,'destroy']);
