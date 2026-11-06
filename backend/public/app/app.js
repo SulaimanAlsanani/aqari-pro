@@ -81,7 +81,7 @@ function drawList(data,key){
  if(templates[key]){const add=el('button','+ إضافة سجل','primary');add.addEventListener('click',()=>drawForm(key));row.append(add)}
  parent.append(row);
  const wrap=el('div',null,'table-wrap'),table=el('table'),thead=el('thead'),tr=el('tr');
- for(const [,label] of fields[key])tr.appendChild(el('th',label));if(['properties','units','tenants','vendors','leases','payments','tickets'].includes(key))tr.appendChild(el('th','الإجراءات'));
+ for(const [,label] of fields[key])tr.appendChild(el('th',label));if(['properties','units','tenants','vendors','leases','payments','tickets','dues','expenses'].includes(key))tr.appendChild(el('th','الإجراءات'));
  if(key==='documents'){tr.appendChild(el('th','الحالة'));tr.appendChild(el('th','الملف'))}
  thead.appendChild(tr);table.appendChild(thead);
  const body=el('tbody');
@@ -162,6 +162,17 @@ function drawList(data,key){
     try{await api('/documents/'+item.id,{method:'DELETE'});notify('تم حذف المرفق');await refresh()}
     catch(error){notify(error.message,true);remove.disabled=false}
    });buttons.appendChild(remove);td.appendChild(buttons);r.appendChild(td);
+  }
+  const entityKinds={properties:'property',units:'unit',tenants:'tenant',leases:'lease',payments:'payment',dues:'due',expenses:'expense',tickets:'ticket',vendors:'vendor'};
+  if(entityKinds[key]){
+   const currentAction=r.lastElementChild;
+   // Reuse the action cell when one exists; otherwise create it.
+   let target;
+   if(['properties','units','tenants','vendors','leases','payments','tickets'].includes(key))target=currentAction;
+   else {target=el('td');r.append(target)}
+   const attach=el('button','📎 المرفقات','secondary');attach.type='button';
+   attach.addEventListener('click',()=>showRecordDocuments(entityKinds[key],item.id));
+   target.appendChild(attach);
   }
   body.appendChild(r);
  }
@@ -311,6 +322,49 @@ function drawForm(key,record=null){
   }catch(err){notify(err.message,true)}finally{save.disabled=false}
  });
  section.append(heading,form);parent.appendChild(section);
+}
+async function showRecordDocuments(entity,id){
+ const view=$('view');view.replaceChildren(el('p','جاري تحميل المرفقات...','muted'));
+ try{
+  const params=new URLSearchParams({entity_type:entity,entity_id:String(id)});
+  const files=await api('/documents?'+params.toString());
+  view.replaceChildren();
+  const toolbar=el('div',null,'toolbar');
+  toolbar.append(el('h3','مرفقات السجل #'+id));
+  const back=el('button','الرجوع','secondary');back.addEventListener('click',()=>refresh());toolbar.append(back);
+  view.append(toolbar);
+  const pane=el('section',null,'panel'),uploadForm=el('form');
+  const label=el('label','إرفاق ملف جديد'),input=el('input');
+  input.type='file';input.name='file';input.required=true;
+  input.accept='.pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx,.txt,.csv';
+  label.append(input);uploadForm.append(label);
+  const submit=el('button','رفع الملف','primary');submit.type='submit';uploadForm.append(submit);
+  uploadForm.addEventListener('submit',async e=>{
+   e.preventDefault();submit.disabled=true;
+   try{
+    const form=new FormData();form.append('entity_type',entity);form.append('entity_id',String(id));form.append('file',input.files[0]);
+    await api('/documents',{method:'POST',body:form});
+    notify('✓ تم إرفاق الملف بنجاح');
+    await showRecordDocuments(entity,id);
+   }catch(error){notify(error.message,true);submit.disabled=false}
+  });
+  pane.append(uploadForm,el('h3','✓ الملفات المرفقة ('+files.total+')'));
+  for(const file of files.data){
+   const row=el('div',null,'toolbar'),name=el('span','📄 '+file.original_name+' — تم الإرفاق');
+   const buttons=el('div',null,'actions'),down=el('button','تنزيل','secondary'),remove=el('button','حذف','secondary');
+   down.addEventListener('click',()=>download(file.id,file.original_name));
+   remove.addEventListener('click',async()=>{
+    if(!confirm('حذف المرفق «'+file.original_name+'» نهائيًا؟'))return;
+    remove.disabled=true;
+    try{await api('/documents/'+file.id,{method:'DELETE'});notify('تم حذف المرفق');await showRecordDocuments(entity,id)}
+    catch(error){notify(error.message,true);remove.disabled=false}
+   });
+   buttons.append(down,remove);row.append(name,buttons);pane.append(row);
+  }
+  if(!files.data.length)pane.append(el('p','لا توجد ملفات مرفقة بهذا السجل.','muted'));
+  if(files.last_page>1)pane.append(el('p','يعرض أول 25 مرفقًا؛ تظهر بقية المرفقات في قسم المرفقات العام.','muted'));
+  view.append(pane);
+ }catch(error){view.replaceChildren(el('p',error.message,'muted'));notify(error.message,true)}
 }
 async function download(id,name){
  try{
