@@ -33,9 +33,11 @@ class OperationsController extends Controller{
  public function updateTicket(Request $request,MaintenanceTicket $ticket){
   $ownerId=$request->user()->id;
   abort_unless($ticket->property()->where('user_id',$ownerId)->exists(),404);
-  $data=$request->validate(['status'=>'required|in:open,in_progress,resolved,cancelled']);
+  $data=$request->validate(['status'=>'required|in:in_progress,cancelled']);
+  if($ticket->status!=='open')
+   throw \Illuminate\Validation\ValidationException::withMessages(['status'=>'لا يمكن تغيير حالة بلاغ مغلق أو بدأ تنفيذه عبر هذا الإجراء']);
   $ticket->update($data);
-  return response()->json($ticket);
+  return response()->json($ticket->refresh());
  }
  public function dues(Request $request){
   $uid=$request->user()->id;
