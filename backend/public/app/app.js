@@ -3,7 +3,7 @@
 let accessToken=null,active='overview',user=null;
 const $=id=>document.getElementById(id);
 const sections=[
- ['overview','لوحة أملاكي'],['properties','العقارات'],['units','الوحدات'],['tenants','المستأجرون'],
+ ['overview','لوحة أملاكي'],['alerts','التنبيهات'],['properties','العقارات'],['units','الوحدات'],['tenants','المستأجرون'],
  ['leases','العقود'],['dues','الأقساط'],['payments','المقبوضات'],['expenses','المصروفات'],
  ['tickets','الصيانة'],['vendors','الموردون'],['documents','المرفقات'],['reports','التقارير المالية'],['audit','سجل العمليات'],['account','حسابي']
 ];
@@ -296,11 +296,41 @@ function showAccount(){
  });
  section.append(h,explanation,form);view.append(section);
 }
+async function showAlerts(){
+ const view=$('view');view.replaceChildren(el('p','جاري تحميل التنبيهات...','muted'));
+ const data=await api('/alerts');
+ view.replaceChildren();
+ const metrics=el('div',null,'metrics');
+ for(const [label,value] of [['أقساط متأخرة',data.overdue_count],['أقساط خلال 30 يومًا',data.upcoming_count],['عقود تنتهي خلال 30 يومًا',data.expiring_leases.length]]){
+  const item=el('div',null,'metric');item.append(el('span',label,'muted'),el('strong',value));metrics.append(item);
+ }
+ view.append(metrics);
+ const panel=el('div',null,'panel');panel.append(el('h3','مواعيد الاستحقاقات غير المسددة'));
+ const wrap=el('div',null,'table-wrap'),table=el('table'),head=el('tr');
+ for(const x of ['الحالة','المستأجر','الوحدة','الاستحقاق','المتبقي (ر.س)'])head.append(el('th',x));
+ const thead=el('thead');thead.append(head);table.append(thead);
+ const body=el('tbody');
+ for(const due of data.dues){
+  const tr=el('tr');
+  for(const value of [due.type==='overdue'?'متأخر':'قادم',due.tenant??'—',due.unit??'—',due.due_on,due.balance])tr.append(el('td',value));
+  body.append(tr);
+ }
+ table.append(body);wrap.append(table);panel.append(wrap);
+ if(!data.dues.length)panel.append(el('p','لا توجد استحقاقات غير مسددة ضمن نطاق التنبيهات.','muted'));
+ view.append(panel);
+ const expiring=el('div',null,'panel');expiring.append(el('h3','العقود التي تنتهي خلال 30 يومًا'));
+ if(!data.expiring_leases.length)expiring.append(el('p','لا توجد عقود تنتهي خلال الفترة.','muted'));
+ for(const lease of data.expiring_leases){
+  expiring.append(el('p','العقد رقم '+lease.id+' — ينتهي في '+lease.ends_on,'muted'));
+ }
+ view.append(expiring);
+}
 async function refresh(page=1){
  $('sectionTitle').textContent=sections.find(x=>x[0]===active)?.[1]||'عقاري برو';
  const view=$('view');view.replaceChildren(el('p','جاري تحميل البيانات...','muted'));
  try{
   if(active==='overview'){drawOverview(await api('/overview'));return}
+  if(active==='alerts'){await showAlerts();return}
   if(active==='reports'){await showCashflow();return}
   if(active==='account'){showAccount();return}
   const url=active==='properties'?'/portfolio':'/'+active;
