@@ -44,7 +44,16 @@ th,td{text-align:right;padding:11px;border-bottom:1px solid #e4ece7}th{backgroun
 <section id="loginPanel" class="auth-card"><h2>دخول مالك العقار</h2><p class="muted">اتصال آمن بقاعدة بيانات النظام. لا تُخزّن كلمة المرور في المتصفح.</p>
 <form id="loginForm"><label for="email">البريد الإلكتروني</label><input id="email" name="email" type="email" autocomplete="username" required>
 <label for="password">كلمة المرور</label><input id="password" name="password" type="password" autocomplete="current-password" required>
-<div class="actions"><button class="primary" type="submit">دخول</button></div></form></section>
+<div class="actions"><button class="primary" type="submit">دخول</button><button class="secondary" type="button" id="forgotOpen">نسيت كلمة المرور؟</button></div></form></section>
+<section id="forgotPanel" class="auth-card hidden"><h2>استعادة كلمة المرور</h2>
+<p class="muted">أدخل بريد حسابك. سيُرسل رابط الاستعادة إذا كان البريد مسجلًا وكانت خدمة البريد مهيأة.</p>
+<form id="forgotForm"><label for="forgotEmail">البريد الإلكتروني</label><input id="forgotEmail" name="email" type="email" autocomplete="email" required>
+<div class="actions"><button class="primary" type="submit">إرسال الرابط</button><button class="secondary authBack" type="button">عودة للدخول</button></div></form></section>
+<section id="resetPanel" class="auth-card hidden"><h2>تعيين كلمة مرور جديدة</h2>
+<p class="muted">يعمل رابط الاستعادة مرة واحدة ولفترة محدودة. سيُلغى وصول جميع الأجهزة القديمة بعد التغيير.</p>
+<form id="resetForm"><label for="resetPassword">كلمة المرور الجديدة</label><input id="resetPassword" name="password" type="password" minlength="12" autocomplete="new-password" required>
+<label for="resetPasswordConfirmation">تأكيد كلمة المرور</label><input id="resetPasswordConfirmation" name="password_confirmation" type="password" minlength="12" autocomplete="new-password" required>
+<div class="actions"><button class="primary" type="submit">حفظ كلمة المرور</button><button class="secondary authBack" type="button">عودة للدخول</button></div></form></section>
 <div id="workspace" class="layout hidden"><aside id="nav" aria-label="قائمة الأقسام"></aside><main><div class="toolbar"><h2 id="sectionTitle">لوحة أملاكي</h2><button id="reload" type="button" class="secondary">تحديث</button></div><div id="view"></div></main></div>
 <div id="notice" role="status" aria-live="polite" style="position:fixed;left:18px;bottom:14px;max-width:420px;background:#fff;padding:10px 15px;border:1px solid #dfebe4;border-radius:8px;box-shadow:0 2px 14px #0001"></div>
 <script src="./app.js"></script></body></html>
