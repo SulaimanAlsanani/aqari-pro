@@ -19,6 +19,8 @@ class PasswordRotationTest extends TestCase {
    'current_password'=>'old-password-1234',
    'password'=>'new-secure-password-1234','password_confirmation'=>'new-secure-password-1234'
   ])->assertOk();
+  $this->assertDatabaseCount('personal_access_tokens',0);
+  $this->app['auth']->forgetGuards();
   $this->withToken($token)->getJson('/api/me')->assertUnauthorized();
   $this->postJson('/api/login',['email'=>'owner@example.test','password'=>'new-secure-password-1234'])->assertOk();
  }
