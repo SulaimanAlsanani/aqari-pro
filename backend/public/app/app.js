@@ -6,7 +6,7 @@ const $=id=>document.getElementById(id);
 const sections=[
  ['overview','لوحة أملاكي'],['alerts','التنبيهات'],['properties','العقارات'],['units','الوحدات'],['tenants','المستأجرون'],
  ['leases','العقود'],['dues','الأقساط'],['payments','المقبوضات'],['expenses','المصروفات'],
- ['tickets','الصيانة'],['vendors','الموردون'],['documents','المرفقات'],['reports','التقارير المالية'],['audit','سجل العمليات'],['account','حسابي']
+ ['tickets','الصيانة'],['vendors','الموردون'],['documents','المرفقات'],['reports','التقارير المالية'],['reconciliation','مطابقة الحسابات'],['audit','سجل العمليات'],['account','حسابي']
 ];
 const fields={
  properties:[['id','الرقم'],['name','العقار'],['city','المدينة'],['district','الحي'],['type','النوع'],['units_count','الوحدات']],
@@ -494,6 +494,36 @@ async function showAlerts(){
  }
  view.append(expiring);
 }
+async function showReconciliation(page=1){
+ const view=$('view');view.replaceChildren(el('p','جاري مطابقة العقود والمدفوعات...','muted'));
+ const data=await api('/reconciliation?page='+page);
+ view.replaceChildren();
+ const info=el('div',null,'panel'),heading=el('h3','فحص التوافق بين الأقساط والمقبوضات');
+ info.append(heading,el('p','تتم المطابقة داخل حساب المالك فقط؛ أي اختلاف يظهر للمراجعة ولا يجري تعديله تلقائيًا.','muted'));
+ const summary=el('p',data.issues.length?'⚠ تم العثور على '+data.issues.length+' ملاحظة محاسبية في هذه الصفحة.':'✓ لا توجد فروقات في العقود المعروضة.');
+ info.appendChild(summary);
+ const wrap=el('div',null,'table-wrap'),table=el('table'),head=el('tr');
+ for(const title of ['العقد','قيمة الأقساط','المقبوض','الموزّع','المتبقي','المطابقة'])head.append(el('th',title));
+ const thead=el('thead');thead.append(head);table.append(thead);
+ const body=el('tbody');
+ for(const row of data.data){
+  const tr=el('tr');
+  for(const value of [row.lease_id,row.billed,row.received,row.allocated,row.outstanding,row.balanced?'متطابق':'يحتاج مراجعة'])tr.append(el('td',value));
+  body.append(tr);
+ }
+ table.append(body);wrap.append(table);info.append(wrap);
+ if(data.issues.length){
+  const panel=el('div',null,'panel');panel.appendChild(el('h3','ملاحظات المطابقة'));
+  for(const issue of data.issues)panel.appendChild(el('p',issue.code+' — '+(issue.lease_id?'عقد #'+issue.lease_id:issue.payment_id?'سند #'+issue.payment_id:'قسط #'+issue.due_id),'muted'));
+  view.append(info,panel);
+ }else view.append(info);
+ if(data.last_page>1){
+  const actions=el('div',null,'actions'),prev=el('button','السابق','secondary'),next=el('button','التالي','secondary');
+  prev.disabled=page<=1;next.disabled=page>=data.last_page;
+  prev.addEventListener('click',()=>showReconciliation(page-1));next.addEventListener('click',()=>showReconciliation(page+1));
+  actions.append(prev,el('span','صفحة '+page+' من '+data.last_page,'muted'),next);view.append(actions);
+ }
+}
 async function refresh(page=1){
  $('sectionTitle').textContent=sections.find(x=>x[0]===active)?.[1]||'عقاري برو';
  const view=$('view');view.replaceChildren(el('p','جاري تحميل البيانات...','muted'));
@@ -501,6 +531,7 @@ async function refresh(page=1){
   if(active==='overview'){drawOverview(await api('/overview'));return}
   if(active==='alerts'){await showAlerts();return}
   if(active==='reports'){await showCashflow();return}
+  if(active==='reconciliation'){await showReconciliation();return}
   if(active==='account'){showAccount();return}
   const url=active==='properties'?'/portfolio':'/'+active;
   const data=await api(url+'?page='+page);
