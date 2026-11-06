@@ -27,5 +27,12 @@ class LeaseCloseDepositTest extends TestCase {
    'kind'=>'refund','amount'=>1000,'occurred_on'=>'2026-11-05'
   ])->assertCreated();
   $this->postJson('/api/leases/'.$id.'/complete')->assertOk()->assertJsonPath('status','completed');
+  $this->postJson('/api/leases/'.$id.'/deposit',[
+   'kind'=>'receipt','amount'=>1,'occurred_on'=>'2026-11-05'
+  ])->assertUnprocessable()->assertJsonValidationErrors('kind');
+  $this->postJson('/api/leases/'.$id.'/deposit',[
+   'kind'=>'refund','amount'=>1,'occurred_on'=>'2026-11-05'
+  ])->assertUnprocessable()->assertJsonValidationErrors('kind');
+  $this->assertDatabaseCount('deposit_movements',2);
  }
 }
