@@ -26,7 +26,11 @@ class DocumentPreviewTest extends TestCase
    ])->assertCreated()->json('id');
    $response=$this->get('/api/documents/'.$id.'/preview')->assertOk()
     ->assertHeader('X-Content-Type-Options','nosniff')
-    ->assertHeader('Cache-Control','private, no-store, max-age=0');
+    ;
+   $cache=$response->headers->get('Cache-Control');
+   foreach (['private','no-store','max-age=0'] as $directive) {
+    $this->assertContains($directive,array_map('trim',explode(',',$cache)));
+   }
    $this->assertStringContainsString('inline',$response->headers->get('Content-Disposition'));
   }
  }
