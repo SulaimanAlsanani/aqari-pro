@@ -55,14 +55,15 @@ jobs:
           curl --fail --silent --show-error http://127.0.0.1:8081/app/index.html | grep -q 'عقاري برو'
           status=$(curl --silent --output /dev/null --write-out '%{http_code}' -H 'Accept: application/json' http://127.0.0.1:8081/api/portfolio)
           test "$status" = "401"
-      - name: Install Playwright Chromium browser
+      - name: Use preinstalled Chromium-compatible Chrome
         run: |
+          command -v google-chrome
           npm install --no-save --no-package-lock playwright@1.56.1
-          npx playwright install --with-deps chromium
       - name: Run owner portal end-to-end in desktop and mobile Chromium
         env:
           APP_ENV: testing
           BROWSER_BASE_URL: http://127.0.0.1:8082
+          CHROME_PATH: /usr/bin/google-chrome
         run: |
           php artisan db:seed --class=BrowserSmokeSeeder --force
           php artisan serve --host=127.0.0.1 --port=8082 > /tmp/aqari-browser-http.log 2>&1 &
