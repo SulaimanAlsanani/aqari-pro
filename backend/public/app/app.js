@@ -81,7 +81,7 @@ function drawList(data,key){
  if(templates[key]){const add=el('button','+ إضافة سجل','primary');add.addEventListener('click',()=>drawForm(key));row.append(add)}
  parent.append(row);
  const wrap=el('div',null,'table-wrap'),table=el('table'),thead=el('thead'),tr=el('tr');
- for(const [,label] of fields[key])tr.appendChild(el('th',label));if(['properties','units','tenants','vendors','leases','payments'].includes(key))tr.appendChild(el('th','الإجراءات'));
+ for(const [,label] of fields[key])tr.appendChild(el('th',label));if(['properties','units','tenants','vendors','leases','payments','tickets'].includes(key))tr.appendChild(el('th','الإجراءات'));
  if(key==='documents'){tr.appendChild(el('th','الحالة'));tr.appendChild(el('th','الملف'))}
  thead.appendChild(tr);table.appendChild(thead);
  const body=el('tbody');
@@ -98,6 +98,23 @@ function drawList(data,key){
     const stmt=el('button','كشف الحساب','secondary');stmt.type='button';stmt.addEventListener('click',()=>showTenantStatement(item.id));action.appendChild(stmt);
    }
    r.appendChild(action);
+  }
+  if(key==='tickets'){
+   const td=el('td'),actions=el('div',null,'actions');
+   if(item.status==='open'){
+    const start=el('button','بدء التنفيذ','secondary');start.type='button';
+    start.addEventListener('click',async()=>{
+     start.disabled=true;
+     try{await api('/tickets/'+item.id,{method:'PATCH',body:{status:'in_progress'}});notify('تم بدء تنفيذ طلب الصيانة');await refresh()}
+     catch(error){notify(error.message,true);start.disabled=false}
+    });
+    actions.append(start);
+   }
+   if(['open','in_progress'].includes(item.status)){
+    const resolve=el('button','إغلاق مع التكلفة','secondary');resolve.type='button';
+    resolve.addEventListener('click',()=>showMaintenanceResolution(item));actions.append(resolve);
+   }
+   td.append(actions);r.append(td);
   }
   if(key==='payments'){
    const td=el('td');
@@ -136,8 +153,15 @@ function drawList(data,key){
   }
   if(key==='documents'){
    const state=el('td','✓ تم الإرفاق','tag');r.appendChild(state);
-   const td=el('td'),b=el('button','تنزيل','secondary');
-   b.addEventListener('click',()=>download(item.id,item.original_name));td.appendChild(b);r.appendChild(td);
+   const td=el('td'),buttons=el('div',null,'actions'),b=el('button','تنزيل','secondary');
+   b.addEventListener('click',()=>download(item.id,item.original_name));buttons.appendChild(b);
+   const remove=el('button','حذف المرفق','secondary');remove.type='button';
+   remove.addEventListener('click',async()=>{
+    if(!confirm('تأكيد الحذف النهائي للملف «'+item.original_name+'»؟'))return;
+    remove.disabled=true;
+    try{await api('/documents/'+item.id,{method:'DELETE'});notify('تم حذف المرفق');await refresh()}
+    catch(error){notify(error.message,true);remove.disabled=false}
+   });buttons.appendChild(remove);td.appendChild(buttons);r.appendChild(td);
   }
   body.appendChild(r);
  }
@@ -150,6 +174,31 @@ function drawList(data,key){
   prev.addEventListener('click',()=>refresh(data.current_page-1));next.addEventListener('click',()=>refresh(data.current_page+1));
   controls.append(prev,el('span','صفحة '+data.current_page+' من '+data.last_page,'muted'),next);parent.appendChild(controls);
  }
+}
+function showMaintenanceResolution(ticket){
+ const view=$('view');view.replaceChildren();
+ const panel=el('section',null,'panel'),h=el('h3','إغلاق بلاغ صيانة #'+ticket.id);
+ const info=el('p','سيتم إغلاق البلاغ وإنشاء مصروف واحد مرتبط به عند وجود تكلفة فعلية. لا يمكن إغلاق البلاغ مرتين.','muted');
+ const form=el('form'),fields=[['actual_cost','التكلفة الفعلية (ر.س)','number'],['resolved_on','تاريخ المعالجة','date'],['description','وصف المصروف (اختياري)','text']];
+ for(const [name,label,type] of fields){
+  const box=el('div',null,'field'),lab=el('label',label),input=el('input');
+  input.name=name;input.id='resolve-'+name;input.type=type;
+  if(name!=='description')input.required=true;
+  if(type==='number'){input.min='0';input.step='0.01'}
+  if(type==='date')input.value=new Date().toISOString().slice(0,10);
+  lab.htmlFor=input.id;box.append(lab,input);form.append(box);
+ }
+ const actions=el('div',null,'actions'),submit=el('button','إغلاق البلاغ وتسجيل المصروف','primary'),back=el('button','رجوع','secondary');
+ submit.type='submit';back.type='button';back.addEventListener('click',()=>refresh());actions.append(submit,back);form.append(actions);
+ form.addEventListener('submit',async event=>{
+  event.preventDefault();submit.disabled=true;
+  const values=Object.fromEntries(new FormData(form));
+  const payload={actual_cost:Number(values.actual_cost),resolved_on:values.resolved_on};
+  if(values.description.trim())payload.description=values.description.trim();
+  try{await api('/tickets/'+ticket.id+'/resolve',{method:'POST',body:payload});notify('تم إغلاق البلاغ وتسجيل تكلفته بنجاح');await refresh()}
+  catch(error){notify(error.message,true);submit.disabled=false}
+ });
+ panel.append(h,info,form);view.append(panel);
 }
 function showRenewal(lease){
  const parent=$('view');parent.replaceChildren();
