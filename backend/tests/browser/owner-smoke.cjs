@@ -7,7 +7,7 @@ const EMAIL = 'browser.owner@example.test';
 const PASSWORD = 'ci-browser-password-2026';
 
 async function main() {
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch({ headless: true, executablePath: process.env.CHROME_PATH || undefined });
   try {
     for (const viewport of [{ width: 1366, height: 820 }, { width: 390, height: 844 }]) {
       const page = await browser.newPage({ viewport, locale: 'ar-SA' });
