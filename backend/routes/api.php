@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\VendorController;
 use App\Http\Controllers\Api\ReceiptReversalController;
 use App\Http\Controllers\Api\LeaseRenewalController;
 use App\Http\Controllers\Api\AlertsController;
+use App\Http\Controllers\Api\TenantStatementController;
 
 Route::post('/login',[AuthController::class,'login'])->middleware('throttle:5,1');
 
@@ -27,6 +28,7 @@ Route::middleware('auth:sanctum')->group(function () {
  Route::get('/reports/cashflow',[FinancialReportController::class,'cashflow']);
  Route::get('/units',[RecordsController::class,'units']);
  Route::get('/tenants',[RecordsController::class,'tenants']);
+ Route::get('/tenants/{tenant}/statement',[TenantStatementController::class,'show']);
  Route::get('/leases',[RecordsController::class,'leases']);
  Route::get('/payments',[RecordsController::class,'payments']);
  Route::get('/expenses',[RecordsController::class,'expenses']);
