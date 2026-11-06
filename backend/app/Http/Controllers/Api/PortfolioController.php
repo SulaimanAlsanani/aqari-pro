@@ -72,7 +72,7 @@ class PortfolioController extends Controller {
   $payment=DB::transaction(function()use($lease,$data){
    $locked=Lease::whereKey($lease->id)->lockForUpdate()->firstOrFail();
    if($locked->status==='cancelled'||$locked->status==='completed')throw ValidationException::withMessages(['status'=>'لا يمكن التحصيل لعقد ملغى أو مكتمل']);
-   $dues=$locked->dues()->withSum('allocations','amount')->orderBy('due_on')->orderBy('sequence')->get();
+   $dues=$locked->dues()->withSum(['allocations'=>fn($q)=>$q->whereHas('payment',fn($p)=>$p->whereNull('voided_at'))],'amount')->orderBy('due_on')->orderBy('sequence')->get();
    $remaining=bcadd((string)$data['amount'],'0',2);
    $allocations=[];
    foreach($dues as $due){
