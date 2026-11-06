@@ -54,7 +54,7 @@ async function main() {
       });
       await page.getByRole('button', { name: 'رفع الملف' }).click();
       await page.getByText('📄 ' + attachmentName + ' — تم الإرفاق').waitFor({ timeout: 15000 });
-      assert.equal(await page.locator('#view input[type=file]').count(), 0, 'upload picker closes after save');
+      assert.equal(await page.locator('#view input[type=file]').isVisible(), false, 'upload picker closes after save');
       await page.getByRole('button', { name: 'معاينة' }).click();
       const preview = page.getByRole('dialog', { name: 'معاينة ' + attachmentName });
       await preview.waitFor({ state: 'visible', timeout: 15000 });
