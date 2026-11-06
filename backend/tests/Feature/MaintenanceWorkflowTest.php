@@ -34,6 +34,21 @@ class MaintenanceWorkflowTest extends TestCase {
   ])->assertOk()->assertJsonPath('expense',null);
   $this->assertDatabaseCount('expenses',0);
  }
+ public function test_ticket_cannot_be_marked_resolved_without_cost_workflow():void {
+  [$owner,$property,$id]=$this->setupTicket();
+  $this->actingAs($owner)->patchJson('/api/tickets/'.$id,['status'=>'resolved'])
+   ->assertUnprocessable()->assertJsonValidationErrors('status');
+  $this->assertDatabaseHas('maintenance_tickets',['id'=>$id,'status'=>'open']);
+  $this->assertDatabaseCount('expenses',0);
+ }
+ public function test_started_ticket_can_be_resolved_only_once():void {
+  [$owner,$property,$id]=$this->setupTicket();
+  $this->actingAs($owner)->patchJson('/api/tickets/'.$id,['status'=>'in_progress'])->assertOk();
+  $this->actingAs($owner)->postJson('/api/tickets/'.$id.'/resolve',[
+   'actual_cost'=>100,'resolved_on'=>'2026-11-05'
+  ])->assertOk()->assertJsonPath('ticket.status','resolved');
+  $this->actingAs($owner)->patchJson('/api/tickets/'.$id,['status'=>'in_progress'])->assertUnprocessable();
+ }
  public function test_other_owner_cannot_resolve_ticket():void {
   [$owner,$property,$id]=$this->setupTicket();
   $other=User::create(['name'=>'Other','email'=>'other@example.test','password'=>'password']);
