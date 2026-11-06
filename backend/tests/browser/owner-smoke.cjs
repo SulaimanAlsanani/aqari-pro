@@ -91,8 +91,17 @@ async function main() {
       await page.locator('#field-paid_on').fill('2025-12-31');
       await page.locator('#field-method').selectOption('bank_transfer');
       await page.locator('#view form button[type=submit]').click();
-      const paymentRow = page.locator('#view tbody tr').filter({
-        has: page.locator('td:nth-child(2)').filter({ hasText: new RegExp('^' + leaseId + '
+      const paymentRows = page.locator('#view tbody tr');
+      await paymentRows.first().waitFor({ timeout: 15000 });
+      let matchedPayment = false;
+      for (let idx = 0; idx < await paymentRows.count(); idx++) {
+        const cells = paymentRows.nth(idx).locator('td');
+        if ((await cells.nth(1).innerText()).trim() !== leaseId) continue;
+        assert.equal((await cells.nth(2).innerText()).trim(), '1200.00');
+        matchedPayment = true;
+        break;
+      }
+      assert.ok(matchedPayment, 'payment belongs to the newly created lease');
       assert.equal(await page.locator('#notice.error').count(), 0, 'no record creation errors');
 
       await page.locator('#nav button').filter({ hasText: 'أرصدة التأمينات' }).click();
