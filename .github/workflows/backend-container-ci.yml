@@ -15,6 +15,9 @@ on:
       - ".github/workflows/backend-container-ci.yml"
 permissions:
   contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
 jobs:
   container:
     runs-on: ubuntu-latest
