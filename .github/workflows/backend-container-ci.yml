@@ -1,0 +1,36 @@
+name: Backend container validation
+on:
+  push:
+    branches: [feature/production-foundation]
+    paths:
+      - "backend/Dockerfile"
+      - "backend/.docker/**"
+      - "backend/compose.yaml"
+      - "backend/composer.json"
+      - ".github/workflows/backend-container-ci.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-container-ci.yml"
+permissions:
+  contents: read
+jobs:
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate production container image build
+        run: docker build --progress=plain -t aqari-pro-api:ci backend
+      - name: Check compose template syntax
+        working-directory: backend
+        env:
+          APP_KEY: "base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+          APP_URL: https://aqari.example.invalid
+          DB_PASSWORD: test-only-db-password
+          MYSQL_ROOT_PASSWORD: test-only-root-password
+          MAIL_MAILER: smtp
+          MAIL_HOST: smtp.example.invalid
+          MAIL_USERNAME: test@example.invalid
+          MAIL_PASSWORD: test-only-mail-password
+          MAIL_FROM_ADDRESS: test@example.invalid
+        run: docker compose config --quiet
