@@ -1,6 +1,6 @@
 <?php
 namespace App\Providers;
-use App\Models\{AuditEvent,Property,Unit,Tenant,Lease,Due,Payment,PaymentAllocation,Expense,MaintenanceTicket,Document};
+use App\Models\{AuditEvent,Property,Unit,Tenant,Lease,Due,Payment,PaymentAllocation,Expense,MaintenanceTicket,Vendor,Document};
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\ServiceProvider;
 
