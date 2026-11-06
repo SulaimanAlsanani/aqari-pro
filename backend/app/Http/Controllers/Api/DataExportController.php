@@ -1,7 +1,7 @@
 <?php
 namespace App\Http\Controllers\Api;
 
-use App\Models\{Property,Unit,Tenant,Lease,Due,Payment,Expense,MaintenanceTicket,Vendor};
+use App\Models\{Property,Unit,Tenant,Lease,Due,Payment,Expense,MaintenanceTicket,Vendor,DepositMovement};
 use DateTimeInterface;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
@@ -18,6 +18,7 @@ class DataExportController extends Controller {
    'payments'=>[Payment::whereHas('lease.unit.property',fn($q)=>$q->where('user_id',$owner)),['id'=>'السند','lease_id'=>'العقد','amount'=>'المبلغ','paid_on'=>'السداد','method'=>'الطريقة','reference'=>'المرجع','voided_at'=>'تاريخ الإلغاء']],
    'expenses'=>[Expense::whereHas('property',fn($q)=>$q->where('user_id',$owner)),['id'=>'المصروف','property_id'=>'العقار','category'=>'التصنيف','description'=>'الوصف','amount'=>'المبلغ','incurred_on'=>'التاريخ']],
    'tickets'=>[MaintenanceTicket::whereHas('property',fn($q)=>$q->where('user_id',$owner)),['id'=>'البلاغ','property_id'=>'العقار','unit_id'=>'الوحدة','vendor_id'=>'المورد','title'=>'الوصف','status'=>'الحالة','estimated_cost'=>'المتوقعة','resolved_at'=>'تاريخ الإغلاق']],
+   'deposit_movements'=>[DepositMovement::whereHas('lease.unit.property',fn($q)=>$q->where('user_id',$owner)),['id'=>'الحركة','lease_id'=>'العقد','kind'=>'النوع','amount'=>'المبلغ','occurred_on'=>'التاريخ','reason'=>'السبب','reference'=>'المرجع']],
    'vendors'=>[Vendor::where('user_id',$owner),['id'=>'المورد','name'=>'الاسم','service'=>'الخدمة','phone'=>'الجوال','email'=>'البريد']]
   ];
   abort_unless(isset($definitions[$resource]),404);
