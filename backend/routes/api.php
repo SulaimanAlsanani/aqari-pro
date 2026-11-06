@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\DataExportController;
 use App\Http\Controllers\Api\ReconciliationController;
 use App\Http\Controllers\Api\DepositController;
 use App\Http\Controllers\Api\DepositReportController;
+use App\Http\Controllers\Api\LeaseSettlementController;
 
 Route::post('/login',[AuthController::class,'login'])->middleware('throttle:5,1');
 Route::post('/password/forgot',[PasswordResetController::class,'requestLink'])->middleware('throttle:3,1');
@@ -36,6 +37,7 @@ Route::middleware('auth:sanctum')->group(function () {
  Route::get('/audit',[AuditController::class,'index']);
  Route::get('/reconciliation',[ReconciliationController::class,'index']);
  Route::get('/leases/{lease}/deposit',[DepositController::class,'show']);
+ Route::get('/leases/{lease}/settlement',[LeaseSettlementController::class,'show']);
  Route::post('/leases/{lease}/deposit',[DepositController::class,'store']);
  Route::get('/reports/cashflow',[FinancialReportController::class,'cashflow']);
  Route::get('/reports/deposits',[DepositReportController::class,'index']);
