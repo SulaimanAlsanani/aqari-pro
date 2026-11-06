@@ -5,6 +5,7 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Carbon\CarbonImmutable;
 
 class PortfolioController extends Controller {
  public function index(Request $request){
@@ -34,7 +35,7 @@ class PortfolioController extends Controller {
   return response()->json($request->user()->tenants()->create($data),201);
  }
  public function storeLease(Request $request){
-  $data=$request->validate(['unit_id'=>'required|integer','tenant_id'=>'required|integer','starts_on'=>'required|date','ends_on'=>'required|date|after:starts_on','total_amount'=>'required|numeric|gt:0','deposit'=>'nullable|numeric|min:0']);
+  $data=$request->validate(['unit_id'=>'required|integer','tenant_id'=>'required|integer','starts_on'=>'required|date','ends_on'=>'required|date|after:starts_on','total_amount'=>'required|numeric|gt:0','deposit'=>'nullable|numeric|min:0','installments'=>'required|integer|min:1|max:36']);
   $uid=$request->user()->id;
   $unit=Unit::whereHas('property',fn($q)=>$q->where('user_id',$uid))->findOrFail($data['unit_id']);
   $tenant=Tenant::where('user_id',$uid)->findOrFail($data['tenant_id']);
@@ -43,7 +44,19 @@ class PortfolioController extends Controller {
    Unit::whereKey($unit->id)->lockForUpdate()->firstOrFail();
    if(Lease::where('unit_id',$unit->id)->where('starts_on','<=',$data['ends_on'])->where('ends_on','>=',$data['starts_on'])->exists())
     throw ValidationException::withMessages(['starts_on'=>'توجد مدة إيجارية متداخلة مع عقد آخر للوحدة']);
-   return $unit->leases()->create(['tenant_id'=>$tenant->id,'starts_on'=>$data['starts_on'],'ends_on'=>$data['ends_on'],'total_amount'=>$data['total_amount'],'deposit'=>$data['deposit']??0,'status'=>'draft']);
+   $lease=$unit->leases()->create(['tenant_id'=>$tenant->id,'starts_on'=>$data['starts_on'],'ends_on'=>$data['ends_on'],'total_amount'=>$data['total_amount'],'deposit'=>$data['deposit']??0,'status'=>'draft']);
+   $n=(int)$data['installments'];
+   $cents=(int)round((float)$data['total_amount']*100);
+   $base=intdiv($cents,$n);$remainder=$cents%$n;
+   $start=CarbonImmutable::parse($data['starts_on']);
+   $last=CarbonImmutable::parse($data['ends_on']);
+   for($i=0;$i<$n;$i++){
+    $dueOn=$start->addMonthsNoOverflow((int)floor($i*12/$n));
+    if($dueOn->greaterThan($last))$dueOn=$last;
+    $pennies=$base+($i<$remainder?1:0);
+    $lease->dues()->create(['sequence'=>$i+1,'due_on'=>$dueOn->toDateString(),'amount'=>number_format($pennies/100,2,'.','')]);
+   }
+   return $lease;
   });
   return response()->json($lease,201);
  }
