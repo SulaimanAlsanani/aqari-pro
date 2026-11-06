@@ -73,8 +73,10 @@ async function main() {
       await page.locator('#field-total_amount').fill('1200');
       await page.locator('#field-installments').selectOption('12');
       await page.locator('#view form button[type=submit]').click();
-      const leaseRow = page.locator('#view tbody tr').filter({ hasText: unitId }).filter({ hasText: tenantId });
+      const leaseRow = page.locator('#view tbody tr').first();
       await leaseRow.waitFor({ timeout: 15000 });
+      assert.equal((await leaseRow.locator('td').nth(1).innerText()).trim(), unitId);
+      assert.equal((await leaseRow.locator('td').nth(2).innerText()).trim(), tenantId);
       const leaseId = (await leaseRow.locator('td').first().innerText()).trim();
       assert.match(leaseId, /^[0-9]+$/);
       page.once('dialog', dialog => dialog.accept());
@@ -89,7 +91,32 @@ async function main() {
       await page.locator('#field-paid_on').fill('2025-12-31');
       await page.locator('#field-method').selectOption('bank_transfer');
       await page.locator('#view form button[type=submit]').click();
-      await page.locator('#view tbody tr').filter({ hasText: leaseId }).filter({ hasText: '1200' }).first().waitFor({ timeout: 15000 });
+      const paymentRow = page.locator('#view tbody tr').filter({
+        has: page.locator('td:nth-child(2)').filter({ hasText: new RegExp('^' + leaseId + '
+      assert.equal(await page.locator('#notice.error').count(), 0, 'no record creation errors');
+
+      await page.locator('#nav button').filter({ hasText: 'أرصدة التأمينات' }).click();
+      await page.getByText('أرصدة تأمينات المستأجرين').waitFor({ timeout: 15000 });
+      await page.locator('#nav button').filter({ hasText: 'مطابقة الحسابات' }).click();
+      await page.getByText('فحص التوافق بين الأقساط والمقبوضات').waitFor({ timeout: 15000 });
+
+      await page.locator('#logout').click();
+      await page.locator('#loginPanel').waitFor({ state: 'visible', timeout: 15000 });
+      assert.equal(await page.locator('#workspace').isVisible(), false);
+      assert.deepEqual(errors, [], 'no uncaught browser JavaScript exceptions');
+      console.log('PASS browser owner workflow viewport=' + viewport.width);
+      await page.close();
+    }
+  } finally {
+    await browser.close();
+  }
+}
+
+main().catch(error => { console.error(error); process.exitCode = 1; });
+) })
+      }).first();
+      await paymentRow.waitFor({ timeout: 15000 });
+      assert.equal((await paymentRow.locator('td').nth(2).innerText()).trim(), '1200.00');
       assert.equal(await page.locator('#notice.error').count(), 0, 'no record creation errors');
 
       await page.locator('#nav button').filter({ hasText: 'أرصدة التأمينات' }).click();
