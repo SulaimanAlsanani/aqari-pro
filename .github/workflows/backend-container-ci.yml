@@ -66,6 +66,31 @@ jobs:
           curl --fail --silent http://127.0.0.1:8080/app/index.html | grep -q 'عقاري برو'
           status=$(curl --silent -o /dev/null -w '%{http_code}' -H 'Accept: application/json' http://127.0.0.1:8080/api/portfolio)
           test "$status" = "401"
+      - name: Run bounded concurrent finance and read-performance checks against disposable MySQL
+        working-directory: backend
+        env:
+          CI: "true"
+          GITHUB_ACTIONS: "true"
+          AQARI_CONCURRENCY_WRITES: staging-only
+          AQARI_CONCURRENCY_URL: http://127.0.0.1:8080
+          AQARI_CONCURRENCY_EMAIL: browser.owner@example.test
+          AQARI_CONCURRENCY_PASSWORD: ci-browser-password-2026
+          AQARI_CONCURRENCY_REQUESTS: "4"
+          AQARI_PERF_ACK: staging-only
+          AQARI_PERF_URL: http://127.0.0.1:8080
+          AQARI_PERF_EMAIL: browser.owner@example.test
+          AQARI_PERF_PASSWORD: ci-browser-password-2026
+          AQARI_PERF_REQUESTS: "24"
+          AQARI_PERF_PARALLEL: "4"
+          AQARI_PERF_P95_MS: "5000"
+        run: |
+          # Strictly a disposable Actions stack. Seed the browser-only owner with
+          # APP_ENV=testing; the seeder refuses all normal production environments.
+          test "$CI" = "true"
+          test "$GITHUB_ACTIONS" = "true"
+          docker compose exec -T -e APP_ENV=testing app php artisan db:seed --class=BrowserSmokeSeeder --force
+          node scripts/staging-receipt-concurrency.cjs
+          node scripts/staging-read-performance.cjs
       - name: Install age for encrypted backup recovery drill
         run: |
           sudo apt-get update -qq
