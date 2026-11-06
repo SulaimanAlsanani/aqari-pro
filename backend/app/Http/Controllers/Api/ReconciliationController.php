@@ -57,7 +57,9 @@ class ReconciliationController extends Controller {
    $billed=$leaseDueAmounts[$lease->id]??'0.00';
    $received=$leasePaidAmounts[$lease->id]??'0.00';
    $allocated=$leaseAllocatedAmounts[$lease->id]??'0.00';
-   $valid=bccomp($billed,(string)$lease->total_amount,2)===0
+   $allocationValid=\App\Services\LeaseAllocationIntegrity::isValid($lease->id);
+   if(!$allocationValid)$issues[]=['code'=>'ALLOCATION_INTEGRITY_FAILED','lease_id'=>$lease->id];
+   $valid=$allocationValid&&bccomp($billed,(string)$lease->total_amount,2)===0
     && bccomp($received,$allocated,2)===0
     && bccomp($received,$billed,2)<=0;
    if(!$valid)$issues[]=['code'=>'LEASE_TOTAL_MISMATCH','lease_id'=>$lease->id];
