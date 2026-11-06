@@ -2,14 +2,15 @@
 namespace App\Http\Controllers\Api;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
-use Illuminate\Support\Facades\Auth;
+use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 class AuthController extends Controller {
  public function login(Request $request){
   $credentials=$request->validate(['email'=>['required','email'],'password'=>['required','string']]);
-  if(!Auth::attempt($credentials)){return response()->json(['message'=>'بيانات الدخول غير صحيحة'],422);}
-  $user=Auth::user();
+  $user=User::where('email',$credentials['email'])->first();
+  if(!$user||!Hash::check($credentials['password'],$user->password))
+   return response()->json(['message'=>'بيانات الدخول غير صحيحة'],422);
   $token=$user->createToken('aqari-web', ['*'], now()->addHours(12))->plainTextToken;
   return response()->json(['token'=>$token,'token_type'=>'Bearer','expires_in'=>43200,'user'=>['id'=>$user->id,'name'=>$user->name]]);
  }
