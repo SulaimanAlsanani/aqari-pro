@@ -16,8 +16,11 @@ use App\Http\Controllers\Api\AlertsController;
 use App\Http\Controllers\Api\TenantStatementController;
 use App\Http\Controllers\Api\MaintenanceWorkflowController;
 use App\Http\Controllers\Api\ExpenseController;
+use App\Http\Controllers\Api\PasswordResetController;
 
 Route::post('/login',[AuthController::class,'login'])->middleware('throttle:5,1');
+Route::post('/password/forgot',[PasswordResetController::class,'requestLink'])->middleware('throttle:3,1');
+Route::post('/password/reset',[PasswordResetController::class,'reset'])->middleware('throttle:5,1');
 
 Route::middleware('auth:sanctum')->group(function () {
  Route::get('/me',[AuthController::class,'me']);
