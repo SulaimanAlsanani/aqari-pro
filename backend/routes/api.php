@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\ReceiptReversalController;
 use App\Http\Controllers\Api\LeaseRenewalController;
 use App\Http\Controllers\Api\AlertsController;
 use App\Http\Controllers\Api\TenantStatementController;
+use App\Http\Controllers\Api\MaintenanceWorkflowController;
 
 Route::post('/login',[AuthController::class,'login'])->middleware('throttle:5,1');
 
@@ -48,6 +49,7 @@ Route::middleware('auth:sanctum')->group(function () {
  Route::post('/properties/{property}/expenses',[OperationsController::class,'storeExpense']);
  Route::post('/properties/{property}/tickets',[OperationsController::class,'storeTicket']);
  Route::patch('/tickets/{ticket}',[OperationsController::class,'updateTicket']);
+ Route::post('/tickets/{ticket}/resolve',[MaintenanceWorkflowController::class,'resolve']);
  Route::post('/leases',[PortfolioController::class,'storeLease']);
  Route::post('/leases/{lease}/renew',[LeaseRenewalController::class,'store']);
  Route::post('/leases/{lease}/activate',[LeaseLifecycleController::class,'activate']);
