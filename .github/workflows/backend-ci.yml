@@ -26,6 +26,7 @@ jobs:
           coverage: none
       - run: composer validate --no-check-publish
       - run: mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache
+      - run: cp .env.example .env
       - run: composer install --no-interaction --prefer-dist --no-progress
       - name: Validate owner portal JavaScript
         run: node --check public/app/app.js
