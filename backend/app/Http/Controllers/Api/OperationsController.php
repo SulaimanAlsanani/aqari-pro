@@ -41,7 +41,7 @@ class OperationsController extends Controller{
   $uid=$request->user()->id;
   $page=Due::whereHas('lease.unit.property',fn($q)=>$q->where('user_id',$uid))
    ->with(['lease:id,unit_id,tenant_id','lease.tenant:id,name'])
-   ->withSum('allocations','amount')
+   ->withSum(['allocations'=>fn($q)=>$q->whereHas('payment',fn($p)=>$p->whereNull('voided_at'))],'amount')
    ->orderBy('due_on')->orderBy('id')->paginate(30);
   $today=now()->toDateString();
   $page->getCollection()->transform(function(Due $due)use($today){
@@ -58,7 +58,7 @@ class OperationsController extends Controller{
   $uid=$request->user()->id;
   $propertyIds=Property::where('user_id',$uid)->select('id');
   $leaseIds=Lease::whereHas('unit.property',fn($q)=>$q->where('user_id',$uid))->select('id');
-  $received=Payment::whereIn('lease_id',$leaseIds)->sum('amount');
+  $received=Payment::whereIn('lease_id',$leaseIds)->whereNull('voided_at')->sum('amount');
   $expenses=Expense::whereIn('property_id',$propertyIds)->sum('amount');
   return response()->json([
    'properties'=>Property::where('user_id',$uid)->count(),
