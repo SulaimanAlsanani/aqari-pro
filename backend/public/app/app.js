@@ -79,7 +79,7 @@ function drawList(data,key){
  if(templates[key]){const add=el('button','+ إضافة سجل','primary');add.addEventListener('click',()=>drawForm(key));row.append(add)}
  parent.append(row);
  const wrap=el('div',null,'table-wrap'),table=el('table'),thead=el('thead'),tr=el('tr');
- for(const [,label] of fields[key])tr.appendChild(el('th',label));if(['properties','units','tenants'].includes(key))tr.appendChild(el('th','الإجراءات'));
+ for(const [,label] of fields[key])tr.appendChild(el('th',label));if(['properties','units','tenants','leases'].includes(key))tr.appendChild(el('th','الإجراءات'));
  if(key==='documents'){tr.appendChild(el('th','الحالة'));tr.appendChild(el('th','الملف'))}
  thead.appendChild(tr);table.appendChild(thead);
  const body=el('tbody');
@@ -92,6 +92,21 @@ function drawList(data,key){
   if(['properties','units','tenants'].includes(key)){
    const action=el('td'),edit=el('button','تعديل','secondary');
    edit.type='button';edit.addEventListener('click',()=>drawForm(key,item));action.appendChild(edit);r.appendChild(action);
+  }
+  if(key==='leases'){
+   const td=el('td'),bar=el('div',null,'actions');
+   const options=item.status==='draft'?[['activate','تفعيل'],['cancel','إلغاء المسودة']]:item.status==='active'?[['complete','إكمال']]:[];
+   for(const [action,label] of options){
+    const button=el('button',label,'secondary');button.type='button';
+    button.addEventListener('click',async()=>{
+     if(!confirm('تأكيد إجراء «'+label+'» على العقد رقم '+item.id+'؟'))return;
+     button.disabled=true;
+     try{await api('/leases/'+item.id+'/'+action,{method:'POST'});notify('تم تحديث حالة العقد');await refresh()}
+     catch(err){notify(err.message,true);button.disabled=false}
+    });
+    bar.appendChild(button);
+   }
+   td.appendChild(bar);r.appendChild(td);
   }
   if(key==='documents'){
    const state=el('td','✓ تم الإرفاق','tag');r.appendChild(state);
