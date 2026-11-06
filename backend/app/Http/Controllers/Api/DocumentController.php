@@ -1,6 +1,6 @@
 <?php
 namespace App\Http\Controllers\Api;
-use App\Models\{Document,Property,Unit,Tenant,Lease,Payment,Expense,MaintenanceTicket,Due};
+use App\Models\{Document,Property,Unit,Tenant,Lease,Payment,Expense,MaintenanceTicket,Due,Vendor};
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Storage;
@@ -9,6 +9,8 @@ use Illuminate\Validation\Rule;
 class DocumentController extends Controller {
  private function belongsToOwner(int $ownerId,string $type,int $id):bool {
   return match($type){
+   'owner'=>$id===$ownerId,
+   'vendor'=>Vendor::where('user_id',$ownerId)->whereKey($id)->exists(),
    'property'=>Property::where('user_id',$ownerId)->whereKey($id)->exists(),
    'unit'=>Unit::whereHas('property',fn($q)=>$q->where('user_id',$ownerId))->whereKey($id)->exists(),
    'tenant'=>Tenant::where('user_id',$ownerId)->whereKey($id)->exists(),
@@ -22,7 +24,7 @@ class DocumentController extends Controller {
  }
  public function store(Request $request){
   $input=$request->validate([
-   'entity_type'=>['required',Rule::in(['property','unit','tenant','lease','payment','due','expense','ticket'])],
+   'entity_type'=>['required',Rule::in(['owner','vendor','property','unit','tenant','lease','payment','due','expense','ticket'])],
    'entity_id'=>'required|integer|min:1',
    'file'=>'required|file|max:10240|mimes:pdf,png,jpg,jpeg,webp,doc,docx,xls,xlsx,txt,csv'
   ]);
