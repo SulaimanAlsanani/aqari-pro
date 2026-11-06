@@ -13,7 +13,7 @@ const fields={
  tenants:[['id','الرقم'],['name','المستأجر'],['phone','الجوال'],['email','البريد']],
  leases:[['id','الرقم'],['unit_id','الوحدة'],['tenant_id','المستأجر'],['starts_on','البداية'],['ends_on','النهاية'],['total_amount','الإجمالي'],['status','الحالة']],
  dues:[['id','الرقم'],['lease_id','العقد'],['due_on','الاستحقاق'],['amount','القسط'],['paid_amount','المسدّد'],['balance_amount','المتبقي'],['payment_status','الحالة']],
- payments:[['id','الرقم'],['lease_id','العقد'],['amount','المبلغ'],['paid_on','التاريخ'],['method','الطريقة']],
+ payments:[['id','الرقم'],['lease_id','العقد'],['amount','المبلغ'],['paid_on','التاريخ'],['method','الطريقة'],['voided_at','تاريخ الإلغاء'],['void_reason','سبب الإلغاء']],
  expenses:[['id','الرقم'],['property_id','العقار'],['category','التصنيف'],['amount','المبلغ'],['incurred_on','التاريخ']],
  tickets:[['id','الرقم'],['property_id','العقار'],['title','البلاغ'],['priority','الأولوية'],['status','الحالة'],['vendor_id','المورد']],
  vendors:[['id','الرقم'],['name','المورد'],['service','الخدمة'],['phone','الجوال'],['email','البريد']],
@@ -81,7 +81,7 @@ function drawList(data,key){
  if(templates[key]){const add=el('button','+ إضافة سجل','primary');add.addEventListener('click',()=>drawForm(key));row.append(add)}
  parent.append(row);
  const wrap=el('div',null,'table-wrap'),table=el('table'),thead=el('thead'),tr=el('tr');
- for(const [,label] of fields[key])tr.appendChild(el('th',label));if(['properties','units','tenants','vendors','leases'].includes(key))tr.appendChild(el('th','الإجراءات'));
+ for(const [,label] of fields[key])tr.appendChild(el('th',label));if(['properties','units','tenants','vendors','leases','payments'].includes(key))tr.appendChild(el('th','الإجراءات'));
  if(key==='documents'){tr.appendChild(el('th','الحالة'));tr.appendChild(el('th','الملف'))}
  thead.appendChild(tr);table.appendChild(thead);
  const body=el('tbody');
@@ -94,6 +94,22 @@ function drawList(data,key){
   if(['properties','units','tenants','vendors'].includes(key)){
    const action=el('td'),edit=el('button','تعديل','secondary');
    edit.type='button';edit.addEventListener('click',()=>drawForm(key,item));action.appendChild(edit);r.appendChild(action);
+  }
+  if(key==='payments'){
+   const td=el('td');
+   if(!item.voided_at){
+    const button=el('button','إلغاء السند','secondary');button.type='button';
+    button.addEventListener('click',async()=>{
+     const reason=prompt('أدخل سبب إلغاء سند القبض (10 أحرف على الأقل). سيبقى السند محفوظًا في السجلات.');
+     if(reason===null)return;
+     if(reason.trim().length<10){notify('يرجى كتابة سبب واضح لإلغاء السند',true);return}
+     button.disabled=true;
+     try{await api('/payments/'+item.id+'/void',{method:'POST',body:{reason:reason.trim()}});notify('تم إلغاء أثر سند القبض مع الاحتفاظ بسجل المراجعة');await refresh()}
+     catch(err){notify(err.message,true);button.disabled=false}
+    });
+    td.appendChild(button);
+   }else td.appendChild(el('span','ملغى','tag'));
+   r.appendChild(td);
   }
   if(key==='leases'){
    const td=el('td'),bar=el('div',null,'actions');
