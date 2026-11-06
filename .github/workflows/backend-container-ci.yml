@@ -7,6 +7,7 @@ on:
       - "backend/.docker/**"
       - "backend/compose.yaml"
       - "backend/composer.json"
+      - "backend/scripts/**"
       - ".github/workflows/backend-container-ci.yml"
   pull_request:
     paths:
@@ -19,6 +20,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Validate backup and container entrypoint scripts
+        run: |
+          bash -n backend/scripts/backup-encrypted.sh
+          sh -n backend/.docker/entrypoint.sh
       - name: Validate production container image build
         run: docker build --progress=plain -t aqari-pro-api:ci backend
       - name: Check compose template syntax
