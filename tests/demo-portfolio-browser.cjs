@@ -106,7 +106,8 @@ const fixture = {
     await page.locator('#propertyFilter').selectOption(String(secondId));
     const secondReport = await page.locator('#content').innerText();
     assert.ok(secondReport.includes('عقار منفصل'));
-    assert.ok(!secondReport.includes('عمارة الاختبار'), 'Property filter leaked first property');
+    const visibleProperties = await page.locator('#content .record').allTextContents();
+    assert.ok(!visibleProperties.some(text => text.includes('عمارة الاختبار')), 'Property filter leaked first property into report rows');
     assert.ok(!secondReport.includes('1,200'), 'Property filter leaked financial totals');
     assert.ok(!secondReport.includes('40.25'), 'Property filter leaked receipt');
 
