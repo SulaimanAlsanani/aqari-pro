@@ -58,5 +58,15 @@
       throw Error('تاريخ استحقاق أحد الأقساط يتجاوز نهاية العقد؛ عدّل المدة أو عدد الأقساط');
     return installments;
   }
-  return { addMonthsClamped, createInstallments, createLeaseSchedule, toCents, validatePayment };
+  function nextRecordId(records) {
+    if (!Array.isArray(records)) throw Error('مجموعة السجلات غير صالحة');
+    let maximum = 0;
+    for (const record of records) {
+      const id = Number(record?.id);
+      if (Number.isSafeInteger(id) && id > maximum) maximum = id;
+    }
+    if (!Number.isSafeInteger(maximum + 1)) throw Error('تم بلوغ الحد الأقصى لمعرفات السجلات');
+    return maximum + 1;
+  }
+  return { addMonthsClamped, createInstallments, createLeaseSchedule, toCents, validatePayment, nextRecordId };
 });
