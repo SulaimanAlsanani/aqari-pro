@@ -102,6 +102,35 @@ const fixture = {
     db = await state();
     assert.equal(db.properties.length,2);
     const secondId = db.properties[1].id;
+
+    // Reject duplicate unit codes in the same property, even with different casing.
+    await page.locator('[data-page="units"]').click();
+    await page.locator('[data-do="add"][data-kind="units"]').click();
+    await page.locator('#editForm [name="propertyId"]').selectOption(String(propertyId));
+    await page.locator('#editForm [name="code"]').fill(' a-101 ');
+    await page.locator('#editForm [name="type"]').fill('شقة');
+    await page.locator('#editForm [name="floor"]').fill('الأول');
+    await page.locator('#editForm [name="area"]').fill('90');
+    const errors=[];
+    page.on('dialog',async dialog=>{errors.push(dialog.message());await dialog.accept()});
+    await page.locator('#editForm button[type="submit"]').click();
+    assert.ok(errors.some(message=>message.includes('مكرر')));
+    assert.equal((await state()).units.length,1);
+    await page.locator('#modal [data-do="close"]').click();
+
+    // Cross-property inspection must not be recorded for a unit in another building.
+    await page.locator('[data-page="inspections"]').click();
+    await page.locator('[data-do="add"][data-kind="inspections"]').click();
+    await page.locator('#editForm [name="propertyId"]').selectOption(String(secondId));
+    await page.locator('#editForm [name="unitId"]').selectOption(String(unitId));
+    await page.locator('#editForm [name="date"]').fill('2027-02-04');
+    await page.locator('#editForm [name="status"]').fill('تجربة');
+    await page.locator('#editForm [name="notes"]').fill('فحص تجريبي غير صالح');
+    await page.locator('#editForm button[type="submit"]').click();
+    assert.ok(errors.some(message=>message.includes('لا تتبع')));
+    assert.equal((await state()).inspections.length,0);
+    await page.locator('#modal [data-do="close"]').click();
+
     await page.locator('[data-page="reports"]').click();
     await page.locator('#propertyFilter').selectOption(String(secondId));
     const secondReport = await page.locator('#content').innerText();
