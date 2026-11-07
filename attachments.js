@@ -58,7 +58,30 @@ function addButtons(){
   b.dataset.entity=record.dataset.attachEntity;
   b.dataset.recordId=record.dataset.attachId;
   record.appendChild(b);
+  updateButtonCount(b).catch(()=>{b.textContent='📎 المرفقات'});
  });
+}
+async function updateButtonCount(button){
+ const {entity,recordId}=button.dataset;
+ const files=await byRecord(entity+':'+recordId);
+ if(!button.isConnected)return;
+ button.textContent=files.length?'📎 مرفق ('+files.length+')':'📎 المرفقات';
+ button.setAttribute('aria-label',files.length?'إدارة '+files.length+' مرفقات محفوظة':'إضافة مرفقات للسجل');
+}
+async function updateVisibleCounts(entity,id){
+ const buttons=document.querySelectorAll('[data-attachment-open]');
+ await Promise.all(Array.from(buttons).filter(b=>b.dataset.entity===entity&&b.dataset.recordId===id).map(updateButtonCount));
+}
+function confirmation(message){
+ let toast=document.getElementById('attachmentToast');
+ if(!toast){
+  toast=document.createElement('div');toast.id='attachmentToast';
+  toast.setAttribute('role','status');toast.setAttribute('aria-live','polite');
+  toast.style.cssText='position:fixed;bottom:18px;left:18px;z-index:50;max-width:min(90vw,500px);padding:14px 18px;background:#eaf8ed;color:#174d32;border:1px solid #87bd99;border-radius:9px;box-shadow:0 5px 20px #0002;font-weight:700';
+  document.body.appendChild(toast);
+ }
+ toast.textContent=message;
+ toast.hidden=false;
 }
 function shell(){
  let el=document.getElementById('attachmentPanel');
@@ -116,7 +139,17 @@ async function upload(files){
    done++;
   }catch(err){errors.push(file.name+': '+(err?.name==='QuotaExceededError'?'مساحة المتصفح ممتلئة':err.message))}
  }
- status('تم حفظ '+done+' ملف. '+errors.join(' | '));
+ if(done>0){
+  const current=selected;
+  if(!errors.length){
+   close();
+   await updateVisibleCounts(current.entity,String(current.id));
+   confirmation(done===1?'تم إرفاق الملف وحفظه في هذا المتصفح.':'تم إرفاق '+done+' ملفات وحفظها في هذا المتصفح.');
+   return;
+  }
+  await updateVisibleCounts(current.entity,String(current.id));
+ }
+ status((done?'تم حفظ '+done+' ملف. ':'')+(errors.length?'تعذر إرفاق: '+errors.join(' | '):'لم يتم إرفاق أي ملف.'));
  await refresh();
 }
 async function downloadFile(id){
@@ -138,6 +171,7 @@ async function deleteFile(id){
  if(!confirm('حذف المرفق «'+file.name+'» نهائيًا من هذا المتصفح؟'))return;
  await transaction('readwrite',store=>{store.delete(id)});
  status('تم حذف المرفق.');await refresh();
+ if(selected)await updateVisibleCounts(selected.entity,String(selected.id));
 }
 document.addEventListener('click',event=>{
  const btn=event.target.closest('[data-attachment-open],[data-attachment-close],[data-attachment-download],[data-attachment-delete],[data-attachment-preview]');
