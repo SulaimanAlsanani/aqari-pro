@@ -7,6 +7,7 @@ on:
       - "index.html"
       - "app.js"
       - "attachments.js"
+      - "tests/demo-attachments-browser.cjs"
       - "demo-finance.js"
       - "demo-backup.js"
       - "tests/demo-backup.test.cjs"
@@ -49,6 +50,21 @@ jobs:
           test -s "$RUNNER_TEMP/aqari-public-demo/index.html"
           test ! -e "$RUNNER_TEMP/aqari-public-demo/backend"
           test ! -e "$RUNNER_TEMP/aqari-public-demo/.env"
+      - name: Install Chromium browser test tools
+        run: |
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Test attachments in a real Chromium browser
+        run: |
+          set -euo pipefail
+          python3 -m http.server 8765 --bind 127.0.0.1 --directory "$RUNNER_TEMP/aqari-public-demo" > "$RUNNER_TEMP/demo-http.log" 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" || true' EXIT
+          for i in $(seq 1 20); do
+            if curl -fsS http://127.0.0.1:8765/ -o /dev/null; then break; fi
+            sleep 1
+          done
+          node tests/demo-attachments-browser.cjs
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
