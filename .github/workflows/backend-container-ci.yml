@@ -10,11 +10,13 @@ on:
       - "backend/scripts/**"
       - ".github/workflows/backend-container-ci.yml"
       - ".github/workflows/staging-deploy.yml"
+      - "docs/DEPLOYMENT_RUNBOOK.md"
   pull_request:
     paths:
       - "backend/**"
       - ".github/workflows/backend-container-ci.yml"
       - ".github/workflows/staging-deploy.yml"
+      - "docs/DEPLOYMENT_RUNBOOK.md"
 permissions:
   contents: read
 concurrency:
