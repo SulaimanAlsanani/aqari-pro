@@ -7,6 +7,8 @@ on:
       - "index.html"
       - "app.js"
       - "attachments.js"
+      - "demo-finance.js"
+      - "tests/demo-finance.test.cjs"
   workflow_dispatch:
 permissions:
   contents: read
@@ -28,6 +30,8 @@ jobs:
           set -euo pipefail
           node --check app.js
           node --check attachments.js
+          node --check demo-finance.js
+          node tests/demo-finance.test.cjs
           # Prevent a public demo from becoming indistinguishable from a live service.
           grep -q 'demo-warning' index.html
           grep -q 'لا ترفع صكوكًا أو هويات أو عقودًا حقيقية' index.html
@@ -37,7 +41,7 @@ jobs:
             exit 1
           fi
           mkdir -p "$RUNNER_TEMP/aqari-public-demo"
-          cp index.html app.js attachments.js .nojekyll "$RUNNER_TEMP/aqari-public-demo/"
+          cp index.html app.js attachments.js demo-finance.js .nojekyll "$RUNNER_TEMP/aqari-public-demo/"
           test -s "$RUNNER_TEMP/aqari-public-demo/index.html"
           test ! -e "$RUNNER_TEMP/aqari-public-demo/backend"
           test ! -e "$RUNNER_TEMP/aqari-public-demo/.env"
