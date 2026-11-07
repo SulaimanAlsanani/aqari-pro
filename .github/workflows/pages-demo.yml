@@ -8,6 +8,7 @@ on:
       - "app.js"
       - "attachments.js"
       - "tests/demo-attachments-browser.cjs"
+      - "tests/demo-journey-browser.cjs"
       - "demo-finance.js"
       - "demo-backup.js"
       - "tests/demo-backup.test.cjs"
@@ -65,6 +66,7 @@ jobs:
             sleep 1
           done
           node tests/demo-attachments-browser.cjs
+          node tests/demo-journey-browser.cjs
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
