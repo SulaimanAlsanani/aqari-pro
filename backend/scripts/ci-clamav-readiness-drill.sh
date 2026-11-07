@@ -26,6 +26,10 @@ expect_fail "missing signatures"
 printf 'CI synthetic signatures\n' > "$root/signatures/daily.cvd"
 touch -d '5 days ago' "$root/signatures/daily.cvd"
 expect_fail "stale signatures"
+# A recently touched main database must not mask stale daily updates.
+printf 'CI synthetic main database\n' > "$root/signatures/main.cvd"
+touch "$root/signatures/main.cvd"
+expect_fail "fresh main but stale daily signatures"
 touch "$root/signatures/daily.cvd"
 
 if ! DOCUMENT_CLAMSCAN_BINARY="$root/scanner" CLAMAV_DATABASE_DIR="$root/signatures" \
