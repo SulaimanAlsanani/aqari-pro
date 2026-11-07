@@ -4,10 +4,22 @@ use App\Models\{AuditEvent,Property,Unit,Tenant,Lease,Due,Payment,PaymentAllocat
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Auth\Notifications\ResetPassword;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 
 class AppServiceProvider extends ServiceProvider {
  public function register():void {}
  public function boot():void {
+  // Apply both account- and IP-level controls; IP-only throttling cannot stop
+  // credential attacks spread across many source addresses.
+  RateLimiter::for('owner-login', function(Request $request):array {
+   $email=mb_strtolower(trim((string)$request->input('email','')));
+   return [
+    Limit::perMinute(5)->by('owner-login-email:'.hash('sha256',$email)),
+    Limit::perMinute(20)->by('owner-login-ip:'.$request->ip()),
+   ];
+  });
   ResetPassword::createUrlUsing(function($user,string $token):string {
    return rtrim(config('app.url'),'/').'/app/index.html?reset_token='.rawurlencode($token).'&email='.rawurlencode($user->getEmailForPasswordReset());
   });
