@@ -30,5 +30,24 @@
       amount: (base + (i < extra ? 1 : 0)) / 100
     }));
   }
-  return { addMonthsClamped, createInstallments };
+  function toCents(amount) {
+    const value = typeof amount === 'number' ? String(amount) : String(amount ?? '').trim();
+    if (!/^(?:0|[1-9]\\d*)(?:\\.\\d{1,2})?$/.test(value))
+      throw Error('المبلغ يجب أن يكون رقمًا موجبًا بدقة هللتين كحد أقصى');
+    const [whole, fractional = ''] = value.split('.');
+    const cents = Number(whole) * 100 + Number(fractional.padEnd(2, '0'));
+    if (!Number.isSafeInteger(cents)) throw Error('المبلغ أكبر من النطاق المسموح');
+    return cents;
+  }
+  function validatePayment(amount, dueAmount, previousPayments) {
+    const cents = toCents(amount);
+    const due = toCents(dueAmount);
+    if (!Array.isArray(previousPayments)) throw Error('بيانات الدفعات السابقة غير صحيحة');
+    const alreadyPaid = previousPayments.reduce((sum, p) => sum + toCents(p), 0);
+    const remaining = due - alreadyPaid;
+    if (cents <= 0 || cents > remaining)
+      throw Error('المبلغ يجب أن يكون أكبر من صفر ولا يتجاوز المتبقي من القسط');
+    return cents / 100;
+  }
+  return { addMonthsClamped, createInstallments, toCents, validatePayment };
 });
