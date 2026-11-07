@@ -28,6 +28,14 @@ jobs:
           set -euo pipefail
           node --check app.js
           node --check attachments.js
+          # Prevent a public demo from becoming indistinguishable from a live service.
+          grep -q 'demo-warning' index.html
+          grep -q 'لا ترفع صكوكًا أو هويات أو عقودًا حقيقية' index.html
+          grep -q 'محاكاة' index.html
+          if grep -Eq 'src=["\x27]/backend/|href=["\x27]/backend/' index.html; then
+            echo "Refusing to publish backend-linked paths in the public demo" >&2
+            exit 1
+          fi
           mkdir -p "$RUNNER_TEMP/aqari-public-demo"
           cp index.html app.js attachments.js .nojekyll "$RUNNER_TEMP/aqari-public-demo/"
           test -s "$RUNNER_TEMP/aqari-public-demo/index.html"
