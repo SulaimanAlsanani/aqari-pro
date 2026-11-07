@@ -65,6 +65,7 @@ const seed={
   // The overpayment attempt must be rejected, with no new payment recorded.
   await page.locator('.record[data-attach-entity="dues"]').first().locator('[data-do="pay"]').click();
   await page.locator('#editForm [name="amount"]').fill('100.00');
+  await page.locator('#editForm [name="reference"]').fill('E2E-OVERPAY');
   const rejectedDialogPromise=new Promise(resolve=>{
     page.once('dialog',async dialog=>{
       const message=dialog.message();
