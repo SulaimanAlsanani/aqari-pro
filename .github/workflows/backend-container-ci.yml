@@ -67,7 +67,7 @@ jobs:
             docker compose -f compose.yaml -f compose.staging.yaml config --quiet
           AQARI_STAGING_DOMAIN=staging.example.invalid AQARI_ACME_EMAIL=ci@example.invalid \
             docker compose -f compose.yaml -f compose.staging.yaml config --format json | \
-            python3 -c 'import json,sys; d=json.load(sys.stdin); g=d["services"]["gateway"]; assert "80:80" or g["ports"]; assert len(g["ports"])>=3; assert any(x.get("target")=="/data" and x.get("type")=="volume" for x in g.get("volumes",[])); assert "caddy_data" in d["volumes"]'
+            python3 -c 'import json,sys; d=json.load(sys.stdin); g=d["services"]["gateway"]; assert {80,443}.issubset({int(p["target"]) for p in g["ports"]}); assert len(g["ports"])>=3; assert all(p.get("host_ip")=="127.0.0.1" for p in d["services"]["app"]["ports"]); assert any(x.get("target")=="/data" and x.get("type")=="volume" for x in g.get("volumes",[])); assert "caddy_data" in d["volumes"]'
           docker compose config --format json | python3 -c 'import json,sys; d=json.load(sys.stdin); v=d["services"]["app"].get("volumes",[]); assert any(x.get("target")=="/var/lib/clamav" and x.get("type")=="volume" for x in v), "ClamAV signatures must use a persistent named Docker volume"; assert "clamav_signatures" in d.get("volumes",{}), "ClamAV named volume missing"'
       - name: Smoke-test running PHP and MySQL containers
         working-directory: backend
