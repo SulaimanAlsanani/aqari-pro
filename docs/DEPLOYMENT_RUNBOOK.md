@@ -252,3 +252,25 @@ AQARI_CLAMAV_REFRESH_APPROVED=signature-update bash scripts/refresh-clamav.sh
 تعتمد واجهة `POST /api/login` الآن محددين متزامنين: **5 محاولات في الدقيقة لكل بريد إلكتروني بعد توحيد الحروف والمسافات**، و**20 محاولة في الدقيقة لكل عنوان IP**. يُعاد رمز `429 Too Many Requests` عند تجاوز أحد الحدين. هذا يمنع تجاوز الحماية بإرسال محاولات الحساب الواحد من عدة عناوين IP. يفحص CI السيناريو تلقائيًا، مع التأكد أن الحد الخاص بحساب لا يمنع حسابًا مستقلًا بالضرورة.
 
 **مهم في الإنتاج:** إعداد `CACHE_STORE=file` يُبقي حدود المحاولات محلية لكل نسخة من التطبيق؛ إذا توسع التشغيل إلى عدة حاويات PHP يجب الانتقال إلى مخزن مركزي مشترك لحدود المحاولات. اضبط `TrustProxies` للوكيل العكسي الموثوق فقط، ولا تقبل ترويسات `X-Forwarded-For` من الإنترنت دون سياسة موثوقة كي لا يستطيع المهاجم تزييف عنوانه. هذه الضوابط لا تغني عن تنبيهات تسجيل الدخول أو MFA مستقبلًا.
+
+
+## HTTPS على بيئة Staging — إعداد عملي عبر Caddy
+
+تمت إضافة `backend/compose.staging.yaml` و`backend/.docker/Caddyfile` لتشغيل Reverse Proxy بواجهة HTTPS وشهادات Let's Encrypt/ACME تلقائية وحفظ الشهادات داخل Docker Volume `caddy_data` المستمر. هذه الملفات **لا تهيئ خادمًا أو نطاقًا بنفسها**. قبل استخدامها: خصص خادم Linux مستقلًا واسم نطاق فرعيًا `staging.YOUR_DOMAIN`، واربط سجل DNS الصحيح بعنوان الخادم، واسمح بالاتصال الوارد إلى المنفذين TCP 80 و443 (واختياريًا UDP 443)، وأغلق MySQL عن الإنترنت. لا تستخدم بيانات العملاء.
+
+على الخادم فقط، بعد تنزيل الفرع وحفظ القيم السرية في ملف بيئة محمي **خارج Git**، اضبط `AQARI_STAGING_DOMAIN` و`AQARI_ACME_EMAIL`، واجعل `APP_URL=https://AQARI_STAGING_DOMAIN`، مع مفاتيح مستقلة وSMTP حقيقي. لا تنسخ قيم GitHub Actions التجريبية. من مجلد `backend`:
+
+```bash
+bash scripts/staging-preflight.sh
+docker compose -f compose.yaml -f compose.staging.yaml up -d --build
+docker compose -f compose.yaml -f compose.staging.yaml exec -T app php artisan migrate --force
+AQARI_CLAMAV_REFRESH_APPROVED=signature-update bash scripts/refresh-clamav.sh
+AQARI_STAGING_APPROVED=staging-only \
+  AQARI_STAGING_URL=https://staging.YOUR_DOMAIN \
+  AQARI_EXPECTED_SHA=FULL_40_CHAR_REVIEWED_SHA \
+  bash scripts/staging-verify.sh
+```
+
+**تنبيه:** أوامر `refresh-clamav.sh` و`staging-verify.sh` تستخدم Docker Compose الافتراضي. عند استخدام ملف Staging الإضافي، ضع في جلسة التشغيل `COMPOSE_FILE=compose.yaml:compose.staging.yaml` قبل تنفيذها لتوحيد اسم المشروع وبيئة الخدمة. يلزم تجهيز Caddy والتأكد من صدور شهادة TLS حقيقية واختبار البريد والمرفقات والنسخ الاحتياطية على الخادم؛ لا تعتبر وجود هذه الأوامر إثباتًا للنشر أو الإطلاق.
+
+إذا تعذر إصدار الشهادة، افحص سجلات `docker compose -f compose.yaml -f compose.staging.yaml logs gateway` وتأكد من تطابق DNS، المنفذين 80/443، ومسار أسماء النطاقات. لا ترسل كلمات المرور في تقارير الأخطاء. مرحلة الإنتاج تأتي بعد نجاح Staging واعتماد المالك ومراجعة الخصوصية والأمان، وبنطاق وإعدادات إنتاج مستقلة.
