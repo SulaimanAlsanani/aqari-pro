@@ -1,0 +1,42 @@
+name: Publish Aqari Pro static demo to GitHub Pages
+on:
+  push:
+    branches: [feature/production-foundation]
+    paths:
+      - ".github/workflows/pages-demo.yml"
+      - "index.html"
+      - "app.js"
+      - "attachments.js"
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: false
+jobs:
+  publish-demo:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate standalone demo and build public-only artifact
+        run: |
+          set -euo pipefail
+          node --check app.js
+          node --check attachments.js
+          mkdir -p "$RUNNER_TEMP/aqari-public-demo"
+          cp index.html app.js attachments.js .nojekyll "$RUNNER_TEMP/aqari-public-demo/"
+          test -s "$RUNNER_TEMP/aqari-public-demo/index.html"
+          test ! -e "$RUNNER_TEMP/aqari-public-demo/backend"
+          test ! -e "$RUNNER_TEMP/aqari-public-demo/.env"
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ${{ runner.temp }}/aqari-public-demo
+      - name: Publish demonstration only (no Laravel API)
+        id: deployment
+        uses: actions/deploy-pages@v4
