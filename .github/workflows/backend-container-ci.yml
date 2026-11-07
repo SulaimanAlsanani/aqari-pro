@@ -46,6 +46,16 @@ jobs:
           fi
           bash -n backend/scripts/staging-verify.sh
           bash -n backend/scripts/staging-preflight.sh
+          bash -n backend/scripts/backup-offsite.sh
+          bash -n backend/scripts/monitor-availability.sh
+          if env -u AQARI_BACKUP_REMOTE -u AQARI_BACKUP_APPROVED bash backend/scripts/backup-offsite.sh >/dev/null 2>&1; then
+            echo "Offsite backup incorrectly accepted an unconfigured destination" >&2
+            exit 1
+          fi
+          if env -u AQARI_MONITOR_URL bash backend/scripts/monitor-availability.sh >/dev/null 2>&1; then
+            echo "Availability monitor incorrectly accepted missing HTTPS origin" >&2
+            exit 1
+          fi
           if bash backend/scripts/staging-preflight.sh >/dev/null 2>&1; then
             echo "Staging preflight must reject missing domain and secrets" >&2
             exit 1
