@@ -9,10 +9,12 @@ on:
       - "backend/composer.json"
       - "backend/scripts/**"
       - ".github/workflows/backend-container-ci.yml"
+      - ".github/workflows/staging-deploy.yml"
   pull_request:
     paths:
       - "backend/**"
       - ".github/workflows/backend-container-ci.yml"
+      - ".github/workflows/staging-deploy.yml"
 permissions:
   contents: read
 concurrency:
