@@ -26,7 +26,7 @@ use App\Http\Controllers\Api\UnitHandoverController;
 use App\Http\Controllers\Api\HandoverDamageController;
 use App\Http\Controllers\Api\DamageDisputeController;
 
-Route::post('/login',[AuthController::class,'login'])->middleware('throttle:5,1');
+Route::post('/login',[AuthController::class,'login'])->middleware('throttle:owner-login');
 Route::post('/password/forgot',[PasswordResetController::class,'requestLink'])->middleware('throttle:3,1');
 Route::post('/password/reset',[PasswordResetController::class,'reset'])->middleware('throttle:5,1');
 
