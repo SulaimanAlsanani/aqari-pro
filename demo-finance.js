@@ -32,7 +32,7 @@
   }
   function toCents(amount) {
     const value = typeof amount === 'number' ? String(amount) : String(amount ?? '').trim();
-    if (!/^(?:0|[1-9]\\d*)(?:\\.\\d{1,2})?$/.test(value))
+    if (!/^(?:0|[1-9]\d*)(?:\.\d{1,2})?$/.test(value))
       throw Error('المبلغ يجب أن يكون رقمًا موجبًا بدقة هللتين كحد أقصى');
     const [whole, fractional = ''] = value.split('.');
     const cents = Number(whole) * 100 + Number(fractional.padEnd(2, '0'));
