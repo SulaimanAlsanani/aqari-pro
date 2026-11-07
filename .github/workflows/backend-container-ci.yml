@@ -83,6 +83,14 @@ jobs:
             docker compose -f compose.yaml -f compose.staging.yaml config --format json | \
             python3 -c 'import json,sys; d=json.load(sys.stdin); g=d["services"]["gateway"]; assert {80,443}.issubset({int(p["target"]) for p in g["ports"]}); assert len(g["ports"])>=3; assert all(p.get("host_ip")=="127.0.0.1" for p in d["services"]["app"]["ports"]); assert any(x.get("target")=="/data" and x.get("type")=="volume" for x in g.get("volumes",[])); assert "caddy_data" in d["volumes"]'
           docker compose config --format json | python3 -c 'import json,sys; d=json.load(sys.stdin); v=d["services"]["app"].get("volumes",[]); assert any(x.get("target")=="/var/lib/clamav" and x.get("type")=="volume" for x in v), "ClamAV signatures must use a persistent named Docker volume"; assert "clamav_signatures" in d.get("volumes",{}), "ClamAV named volume missing"'
+      - name: Validate staging Caddy HTTPS configuration with real Caddy parser
+        working-directory: backend
+        run: |
+          docker run --rm \
+            -e AQARI_STAGING_DOMAIN=staging.example.invalid \
+            -e AQARI_ACME_EMAIL=ci@example.invalid \
+            -v "$PWD/.docker/Caddyfile:/etc/caddy/Caddyfile:ro" \
+            caddy:2.9-alpine caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
       - name: Smoke-test running PHP and MySQL containers
         working-directory: backend
         run: |
