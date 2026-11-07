@@ -20,9 +20,9 @@
   }
   function createInstallments(start, total, count) {
     if (!allowed.has(count)) throw Error('عدد الأقساط يجب أن يكون 1 أو 2 أو 4 أو 12');
-    if (!Number.isFinite(total) || total <= 0 || Math.round(total * 100) < count)
+    const cents = toCents(total);
+    if (cents <= 0 || cents < count)
       throw Error('قيمة العقد لا تكفي لتوزيع الأقساط');
-    const cents = Math.round(total * 100);
     const base = Math.floor(cents / count);
     const extra = cents % count;
     return Array.from({length: count}, (_, i) => ({
@@ -49,5 +49,14 @@
       throw Error('المبلغ يجب أن يكون أكبر من صفر ولا يتجاوز المتبقي من القسط');
     return cents / 100;
   }
-  return { addMonthsClamped, createInstallments, toCents, validatePayment };
+  function createLeaseSchedule(start, end, total, count) {
+    const startValid = addMonthsClamped(start, 0);
+    const endValid = addMonthsClamped(end, 0);
+    if (startValid > endValid) throw Error('نهاية العقد يجب أن تكون بعد تاريخ بدايته أو مساوية له');
+    const installments = createInstallments(start, total, count);
+    if (installments.some(item => item.date > end))
+      throw Error('تاريخ استحقاق أحد الأقساط يتجاوز نهاية العقد؛ عدّل المدة أو عدد الأقساط');
+    return installments;
+  }
+  return { addMonthsClamped, createInstallments, createLeaseSchedule, toCents, validatePayment };
 });
