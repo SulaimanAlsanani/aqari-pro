@@ -51,6 +51,8 @@ jobs:
           bash -n backend/scripts/staging-verify.sh
           bash -n backend/scripts/staging-preflight.sh
           bash -n backend/scripts/backup-offsite.sh
+          bash -n backend/scripts/ci-offsite-backup-drill.sh
+          bash backend/scripts/ci-offsite-backup-drill.sh
           bash -n backend/scripts/monitor-availability.sh
           if env -u AQARI_BACKUP_REMOTE -u AQARI_BACKUP_APPROVED bash backend/scripts/backup-offsite.sh >/dev/null 2>&1; then
             echo "Offsite backup incorrectly accepted an unconfigured destination" >&2
