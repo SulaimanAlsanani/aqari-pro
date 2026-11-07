@@ -68,5 +68,31 @@
     if (!Number.isSafeInteger(maximum + 1)) throw Error('تم بلوغ الحد الأقصى لمعرفات السجلات');
     return maximum + 1;
   }
-  return { addMonthsClamped, createInstallments, createLeaseSchedule, toCents, validatePayment, nextRecordId };
+  function validateRecordRelation(kind, record, portfolio) {
+    if (!portfolio || typeof portfolio !== 'object') throw Error('بيانات المحفظة غير متاحة');
+    const exists = (collection, id) => Array.isArray(portfolio[collection])
+      && portfolio[collection].some(x => Number(x.id) === Number(id) && Number.isSafeInteger(Number(id)) && Number(id) > 0);
+    if (['units','expenses','tickets','documents','inspections'].includes(kind)
+        && !exists('properties',record.propertyId))
+      throw Error('يجب اختيار عقار موجود');
+    if (kind === 'inspections') {
+      if (!exists('units',record.unitId)) throw Error('يجب اختيار وحدة موجودة');
+      const unit = portfolio.units.find(x => Number(x.id) === Number(record.unitId));
+      if (Number(unit.propertyId) !== Number(record.propertyId))
+        throw Error('الوحدة المختارة لا تتبع العقار المحدد');
+    }
+    if (kind === 'contracts') {
+      if (!exists('units',record.unitId)) throw Error('يجب اختيار وحدة موجودة');
+      if (!exists('tenants',record.tenantId)) throw Error('يجب اختيار مستأجر موجود');
+    }
+    if (kind === 'units') {
+      const code = String(record.code ?? '').trim().toLowerCase();
+      if (!code) throw Error('رقم الوحدة مطلوب');
+      if (portfolio.units.some(x => Number(x.propertyId) === Number(record.propertyId)
+        && String(x.code ?? '').trim().toLowerCase() === code))
+        throw Error('رقم الوحدة مكرر داخل العقار');
+    }
+    return true;
+  }
+  return { addMonthsClamped, createInstallments, createLeaseSchedule, toCents, validatePayment, nextRecordId, validateRecordRelation };
 });
