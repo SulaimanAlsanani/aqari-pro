@@ -1,0 +1,25 @@
+# Optional public HTTPS proxy for an isolated staging host.
+# Run: docker compose -f compose.yaml -f compose.staging.yaml up -d --build
+# DNS A/AAAA record must point to this host; ports 80/443 must be reachable.
+services:
+  gateway:
+    image: caddy:2.9-alpine
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      AQARI_STAGING_DOMAIN: "${AQARI_STAGING_DOMAIN:?Set staging DNS hostname}"
+      AQARI_ACME_EMAIL: "${AQARI_ACME_EMAIL:?Set ACME notification address}"
+    volumes:
+      - ./.docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    security_opt:
+      - no-new-privileges:true
+volumes:
+  caddy_data:
+  caddy_config:
