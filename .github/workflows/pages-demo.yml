@@ -8,6 +8,8 @@ on:
       - "app.js"
       - "attachments.js"
       - "demo-finance.js"
+      - "demo-backup.js"
+      - "tests/demo-backup.test.cjs"
       - "tests/demo-finance.test.cjs"
   workflow_dispatch:
 permissions:
@@ -31,6 +33,8 @@ jobs:
           node --check app.js
           node --check attachments.js
           node --check demo-finance.js
+          node --check demo-backup.js
+          node tests/demo-backup.test.cjs
           node tests/demo-finance.test.cjs
           # Prevent a public demo from becoming indistinguishable from a live service.
           grep -q 'demo-warning' index.html
@@ -41,7 +45,7 @@ jobs:
             exit 1
           fi
           mkdir -p "$RUNNER_TEMP/aqari-public-demo"
-          cp index.html app.js attachments.js demo-finance.js .nojekyll "$RUNNER_TEMP/aqari-public-demo/"
+          cp index.html app.js attachments.js demo-finance.js demo-backup.js .nojekyll "$RUNNER_TEMP/aqari-public-demo/"
           test -s "$RUNNER_TEMP/aqari-public-demo/index.html"
           test ! -e "$RUNNER_TEMP/aqari-public-demo/backend"
           test ! -e "$RUNNER_TEMP/aqari-public-demo/.env"
