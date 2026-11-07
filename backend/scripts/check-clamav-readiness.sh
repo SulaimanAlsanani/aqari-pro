@@ -19,7 +19,7 @@ if ! [[ "$max_hours" =~ ^[1-9][0-9]*$ ]]; then
   exit 1
 fi
 
-# Require at least one current main/daily signature database, not just an empty directory.
+# Require a recently updated DAILY database. A fresh main.cvd alone is insufficient.
 fresh=0
 while IFS= read -r -d '' signature; do
   if find "$signature" -maxdepth 0 -mmin "-$((max_hours * 60))" -print -quit | grep -q .; then
@@ -27,10 +27,10 @@ while IFS= read -r -d '' signature; do
     break
   fi
 done < <(find "$database" -maxdepth 1 -type f \
-  \( -name 'main.cvd' -o -name 'main.cld' -o -name 'daily.cvd' -o -name 'daily.cld' \) -print0)
+  \( -name 'daily.cvd' -o -name 'daily.cld' \) -print0)
 
 if [[ "$fresh" -ne 1 ]]; then
-  echo "FAIL: No main/daily signature database updated in the last $max_hours hours" >&2
+  echo "FAIL: No daily signature database updated in the last $max_hours hours" >&2
   echo "Run freshclam and retry before accepting customer uploads." >&2
   exit 1
 fi
