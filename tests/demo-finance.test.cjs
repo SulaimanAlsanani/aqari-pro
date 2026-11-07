@@ -46,4 +46,16 @@ assert.throws(() => createLeaseSchedule('2026-02-01', '2026-01-31', '1200', 1), 
 assert.throws(() => createLeaseSchedule('2026-01-31', '2026-02-30', '1200', 1), /تاريخ بداية غير صالح/);
 assert.throws(() => createLeaseSchedule('2026-01-31', '2026-12-31', '1200.001', 12), /هللتين/);
 assert.throws(() => createInstallments('2026-01-01', 12.345, 12), /هللتين/);
-console.log('PASS: exact rent cents, calendar clamping, supported frequencies and input and payment and lease-period validation');
+const { nextRecordId } = require('../demo-finance.js');
+assert.equal(nextRecordId([]), 1);
+assert.equal(nextRecordId([{id:1},{id:8},{id:3}]), 9);
+assert.equal(nextRecordId([{id:'100'},{id:102},{id:101}]), 103);
+assert.equal(nextRecordId([{id:1000},{id:1001}]), 1002);
+assert.equal(nextRecordId([{id:1},{id:1}]), 2);
+assert.throws(() => nextRecordId(null), /مجموعة السجلات/);
+assert.throws(() => nextRecordId([{id:Number.MAX_SAFE_INTEGER}]), /الحد الأقصى/);
+const existingDues = [{id:100},{id:200}];
+const beginning = nextRecordId(existingDues);
+const generatedIds = Array.from({length:12}, (_, i) => beginning + i);
+assert.equal(new Set([...existingDues.map(x=>x.id), ...generatedIds]).size, 14);
+console.log('PASS: exact rent cents, calendar clamping, supported frequencies and input and payment and lease-period and collision-free ID validation');
