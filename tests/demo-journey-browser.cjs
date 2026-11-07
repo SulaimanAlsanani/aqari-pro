@@ -74,7 +74,7 @@ const seed={
     });
   });
   await page.locator('#editForm button[type="submit"]').click();
-  assert.match(await rejectedDialogPromise,/المتبقي/);
+  assert.match(await Promise.race([rejectedDialogPromise,new Promise((_,reject)=>setTimeout(()=>reject(Error('لم تظهر رسالة رفض التحصيل الزائد خلال 10 ثوانٍ')),10000))]),/المتبقي/);
   page.on('dialog',dialog=>dialog.accept());
   assert.equal((await state()).payments.length,1);
   await page.locator('[data-do="close"]').click();
