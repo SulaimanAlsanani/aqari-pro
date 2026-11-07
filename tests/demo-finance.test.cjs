@@ -58,4 +58,18 @@ const existingDues = [{id:100},{id:200}];
 const beginning = nextRecordId(existingDues);
 const generatedIds = Array.from({length:12}, (_, i) => beginning + i);
 assert.equal(new Set([...existingDues.map(x=>x.id), ...generatedIds]).size, 14);
+const { validateRecordRelation } = require('../demo-finance.js');
+const referenceFixture = {
+ properties:[{id:1},{id:2}],
+ units:[{id:1,propertyId:1,code:'A1'},{id:2,propertyId:2,code:'B1'}],
+ tenants:[{id:1}]
+};
+assert.equal(validateRecordRelation('units',{propertyId:'1',code:'NEW'},referenceFixture),true);
+assert.throws(()=>validateRecordRelation('units',{propertyId:999,code:'NEW'},referenceFixture),/عقار موجود/);
+assert.throws(()=>validateRecordRelation('units',{propertyId:1,code:' a1 '},referenceFixture),/مكرر/);
+assert.throws(()=>validateRecordRelation('inspections',{propertyId:1,unitId:2},referenceFixture),/لا تتبع/);
+assert.equal(validateRecordRelation('inspections',{propertyId:1,unitId:1},referenceFixture),true);
+assert.throws(()=>validateRecordRelation('contracts',{unitId:999,tenantId:1},referenceFixture),/وحدة موجودة/);
+assert.throws(()=>validateRecordRelation('contracts',{unitId:1,tenantId:999},referenceFixture),/مستأجر موجود/);
+assert.throws(()=>validateRecordRelation('expenses',{propertyId:999},referenceFixture),/عقار موجود/);
 console.log('PASS: exact rent cents, calendar clamping, supported frequencies and input and payment and lease-period and collision-free ID validation');
