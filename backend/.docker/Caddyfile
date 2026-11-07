@@ -1,0 +1,18 @@
+{
+  email {$AQARI_ACME_EMAIL}
+  admin off
+}
+
+{$AQARI_STAGING_DOMAIN} {
+  encode zstd gzip
+
+  # Caddy automatically provisions and renews a public HTTPS certificate.
+  reverse_proxy app:80
+
+  header {
+    Strict-Transport-Security "max-age=300"
+    X-Content-Type-Options "nosniff"
+    X-Frame-Options "DENY"
+    Referrer-Policy "strict-origin-when-cross-origin"
+  }
+}

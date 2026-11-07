@@ -1,0 +1,61 @@
+# Template for a private staging/production candidate; external HTTPS proxy required.
+# Never commit actual .env passwords. Do not expose database ports publicly.
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:80"
+    environment:
+      APP_NAME: "Aqari Pro"
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_KEY: "${APP_KEY:?Set APP_KEY}"
+      APP_URL: "${APP_URL:?Set HTTPS APP_URL}"
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_DATABASE: aqari
+      DB_USERNAME: aqari
+      DB_PASSWORD: "${DB_PASSWORD:?Set DB_PASSWORD}"
+      FILESYSTEM_DISK: local
+      SESSION_DRIVER: file
+      CACHE_STORE: file
+      LOG_CHANNEL: stderr
+      SESSION_SECURE_COOKIE: "true"
+      MAIL_MAILER: "${MAIL_MAILER:?Set SMTP mailer}"
+      MAIL_HOST: "${MAIL_HOST:?Set mail host}"
+      MAIL_PORT: "${MAIL_PORT:-587}"
+      MAIL_USERNAME: "${MAIL_USERNAME:?Set SMTP username}"
+      MAIL_PASSWORD: "${MAIL_PASSWORD:?Set SMTP password}"
+      MAIL_FROM_ADDRESS: "${MAIL_FROM_ADDRESS:?Set sender}"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - private_storage:/var/www/html/storage
+      # Preserve antivirus signatures across app image/container replacement.
+      - clamav_signatures:/var/lib/clamav
+    security_opt:
+      - no-new-privileges:true
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: aqari
+      MYSQL_USER: aqari
+      MYSQL_PASSWORD: "${DB_PASSWORD:?Set DB_PASSWORD}"
+      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD}"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    security_opt:
+      - no-new-privileges:true
+volumes:
+  mysql_data:
+  private_storage:
+  clamav_signatures:

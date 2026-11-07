@@ -1,0 +1,100 @@
+name: Deploy Aqari Pro to isolated Staging
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: "Type deploy-staging to explicitly authorize changes on the staging host only"
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: aqari-staging-deployment
+  cancel-in-progress: false
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/feature/production-foundation' && inputs.confirmation == 'deploy-staging'
+    runs-on: ubuntu-latest
+    environment: staging
+    timeout-minutes: 60
+    steps:
+      - name: Validate matching CI success on exact commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          results="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${GITHUB_SHA}&per_page=100")"
+          for workflow in "Laravel API checks" "Backend container validation"; do
+            conclusion="$(jq -r --arg name "$workflow"               '[.workflow_runs[] | select(.name == $name)] | sort_by(.created_at) | last | .conclusion // ""' <<<"$results")"
+            if [ "$conclusion" != "success" ]; then
+              echo "FAIL: $workflow is not successful on exact staging commit $GITHUB_SHA ($conclusion)" >&2
+              exit 1
+            fi
+          done
+      - name: Validate staging SSH connection secrets
+        env:
+          STAGING_SSH_HOST: ${{ secrets.STAGING_SSH_HOST }}
+          STAGING_SSH_USER: ${{ secrets.STAGING_SSH_USER }}
+          STAGING_SSH_KEY: ${{ secrets.STAGING_SSH_KEY }}
+          STAGING_SSH_KNOWN_HOSTS: ${{ secrets.STAGING_SSH_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          for key in STAGING_SSH_HOST STAGING_SSH_USER STAGING_SSH_KEY STAGING_SSH_KNOWN_HOSTS; do
+            if [ -z "${!key}" ]; then echo "FAIL: missing staging environment secret $key" >&2; exit 1; fi
+          done
+      - name: Deploy reviewed SHA to pre-provisioned isolated staging host
+        env:
+          STAGING_SSH_HOST: ${{ secrets.STAGING_SSH_HOST }}
+          STAGING_SSH_USER: ${{ secrets.STAGING_SSH_USER }}
+          STAGING_SSH_KEY: ${{ secrets.STAGING_SSH_KEY }}
+          STAGING_SSH_KNOWN_HOSTS: ${{ secrets.STAGING_SSH_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          umask 077
+          work="$(mktemp -d)"
+          trap 'rm -rf "$work"' EXIT
+          printf '%s\n' "$STAGING_SSH_KEY" > "$work/id"
+          printf '%s\n' "$STAGING_SSH_KNOWN_HOSTS" > "$work/known_hosts"
+          chmod 600 "$work/id" "$work/known_hosts"
+          ssh -i "$work/id" -o BatchMode=yes -o StrictHostKeyChecking=yes             -o UserKnownHostsFile="$work/known_hosts"             "$STAGING_SSH_USER@$STAGING_SSH_HOST" "bash -se -- '$GITHUB_SHA'" <<'REMOTE'
+          set -euo pipefail
+          # This fixed, dedicated directory must be initially provisioned by an operator.
+          repo=/opt/aqari-pro-staging
+          sha="$1"
+          test -d "$repo/.git" || { echo "FAIL: staging repository not provisioned"; exit 1; }
+          test -f "$repo/backend/.env" || { echo "FAIL: staging environment secrets missing"; exit 1; }
+          cd "$repo"
+          if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+            echo "FAIL: tracked files on staging host contain unreviewed changes" >&2; exit 1
+          fi
+          git fetch origin feature/production-foundation
+          git cat-file -e "$sha^{commit}"
+          git checkout --detach "$sha"
+          cd backend
+          set -a
+          . ./.env
+          set +a
+          # Never deploy on the production hostname.
+          case "${AQARI_STAGING_DOMAIN:-}" in
+            staging.*|stg.*) ;;
+            *) echo "FAIL: use a dedicated staging.* or stg.* hostname" >&2; exit 1 ;;
+          esac
+          export COMPOSE_FILE=compose.yaml:compose.staging.yaml
+          bash scripts/staging-preflight.sh
+          docker compose up -d --build
+          docker compose exec -T app php artisan migrate --force
+          AQARI_CLAMAV_REFRESH_APPROVED=signature-update bash scripts/refresh-clamav.sh
+          # Wait for public ACME certificate issuance/HTTPS route.
+          ready=0
+          for i in $(seq 1 12); do
+            if curl --fail --silent --show-error --max-time 10 "https://$AQARI_STAGING_DOMAIN/up" >/dev/null 2>&1; then
+              ready=1
+              break
+            fi
+            sleep 10
+          done
+          test "$ready" -eq 1 || { echo "FAIL: public staging HTTPS not ready"; exit 1; }
+          AQARI_EXPECTED_SHA="$sha"             AQARI_STAGING_URL="https://$AQARI_STAGING_DOMAIN"             AQARI_STAGING_APPROVED=staging-only             bash scripts/staging-verify.sh
+          echo "PASS: staging deployed, verified and restricted to reviewed commit $sha"
+          REMOTE

@@ -1,0 +1,150 @@
+name: Backend container validation
+on:
+  push:
+    branches: [feature/production-foundation]
+    paths:
+      - "backend/Dockerfile"
+      - "backend/.docker/**"
+      - "backend/compose.yaml"
+      - "backend/composer.json"
+      - "backend/scripts/**"
+      - ".github/workflows/backend-container-ci.yml"
+      - ".github/workflows/staging-deploy.yml"
+      - "docs/DEPLOYMENT_RUNBOOK.md"
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-container-ci.yml"
+      - ".github/workflows/staging-deploy.yml"
+      - "docs/DEPLOYMENT_RUNBOOK.md"
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+jobs:
+  container:
+    runs-on: ubuntu-latest
+    env:
+      APP_KEY: "base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+      APP_URL: https://aqari.example.invalid
+      DB_PASSWORD: test-only-db-password
+      MYSQL_ROOT_PASSWORD: test-only-root-password
+      MAIL_MAILER: smtp
+      MAIL_HOST: smtp.example.invalid
+      MAIL_USERNAME: test@example.invalid
+      MAIL_PASSWORD: test-only-mail-password
+      MAIL_FROM_ADDRESS: test@example.invalid
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate backup and container entrypoint scripts
+        run: |
+          bash -n backend/scripts/backup-encrypted.sh
+          bash -n backend/scripts/ci-backup-restore-drill.sh
+          bash -n backend/scripts/check-clamav-readiness.sh
+          bash -n backend/scripts/check-http-security.sh
+          bash -n backend/scripts/refresh-clamav.sh
+          if env -u AQARI_CLAMAV_REFRESH_APPROVED bash backend/scripts/refresh-clamav.sh; then
+            echo "ClamAV refresh must require explicit approval" >&2
+            exit 1
+          fi
+          bash -n backend/scripts/staging-verify.sh
+          bash -n backend/scripts/staging-preflight.sh
+          bash -n backend/scripts/backup-offsite.sh
+          bash -n backend/scripts/ci-offsite-backup-drill.sh
+          bash backend/scripts/ci-offsite-backup-drill.sh
+          bash -n backend/scripts/monitor-availability.sh
+          if env -u AQARI_BACKUP_REMOTE -u AQARI_BACKUP_APPROVED bash backend/scripts/backup-offsite.sh >/dev/null 2>&1; then
+            echo "Offsite backup incorrectly accepted an unconfigured destination" >&2
+            exit 1
+          fi
+          if env -u AQARI_MONITOR_URL bash backend/scripts/monitor-availability.sh >/dev/null 2>&1; then
+            echo "Availability monitor incorrectly accepted missing HTTPS origin" >&2
+            exit 1
+          fi
+          if bash backend/scripts/staging-preflight.sh >/dev/null 2>&1; then
+            echo "Staging preflight must reject missing domain and secrets" >&2
+            exit 1
+          fi
+          if AQARI_EXPECTED_SHA=not-a-sha AQARI_STAGING_URL=https://staging.example.invalid AQARI_STAGING_APPROVED=staging-only bash backend/scripts/staging-verify.sh; then
+            echo "Staging verification incorrectly accepted an invalid SHA" >&2
+            exit 1
+          fi
+          bash -n backend/scripts/ci-clamav-readiness-drill.sh
+          bash backend/scripts/ci-clamav-readiness-drill.sh
+          sh -n backend/.docker/entrypoint.sh
+      - name: Validate production container image build
+        run: docker build --progress=plain -t aqari-pro-api:ci backend
+      - name: Check compose template syntax
+        working-directory: backend
+        run: |
+          docker compose config --quiet
+          AQARI_STAGING_DOMAIN=staging.example.invalid AQARI_ACME_EMAIL=ci@example.invalid \
+            docker compose -f compose.yaml -f compose.staging.yaml config --quiet
+          AQARI_STAGING_DOMAIN=staging.example.invalid AQARI_ACME_EMAIL=ci@example.invalid \
+            docker compose -f compose.yaml -f compose.staging.yaml config --format json | \
+            python3 -c 'import json,sys; d=json.load(sys.stdin); g=d["services"]["gateway"]; assert {80,443}.issubset({int(p["target"]) for p in g["ports"]}); assert len(g["ports"])>=3; assert all(p.get("host_ip")=="127.0.0.1" for p in d["services"]["app"]["ports"]); assert any(x.get("target")=="/data" and x.get("type")=="volume" for x in g.get("volumes",[])); assert "caddy_data" in d["volumes"]'
+          docker compose config --format json | python3 -c 'import json,sys; d=json.load(sys.stdin); v=d["services"]["app"].get("volumes",[]); assert any(x.get("target")=="/var/lib/clamav" and x.get("type")=="volume" for x in v), "ClamAV signatures must use a persistent named Docker volume"; assert "clamav_signatures" in d.get("volumes",{}), "ClamAV named volume missing"'
+      - name: Validate staging Caddy HTTPS configuration with real Caddy parser
+        working-directory: backend
+        run: |
+          docker run --rm \
+            -e AQARI_STAGING_DOMAIN=staging.example.invalid \
+            -e AQARI_ACME_EMAIL=ci@example.invalid \
+            -v "$PWD/.docker/Caddyfile:/etc/caddy/Caddyfile:ro" \
+            caddy:2.9-alpine caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+      - name: Smoke-test running PHP and MySQL containers
+        working-directory: backend
+        run: |
+          docker compose up -d
+          docker compose exec -T app clamscan --version
+          docker compose exec -T app php artisan migrate --force
+          ready=0
+          for i in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8080/up >/dev/null; then ready=1; break; fi
+            sleep 2
+          done
+          if [ "$ready" -ne 1 ]; then docker compose logs --tail=100; exit 1; fi
+          curl --fail --silent http://127.0.0.1:8080/app/index.html | grep -q 'عقاري برو'
+          status=$(curl --silent -o /dev/null -w '%{http_code}' -H 'Accept: application/json' http://127.0.0.1:8080/api/portfolio)
+          test "$status" = "401"
+          AQARI_SECURITY_BASE_URL=http://127.0.0.1:8080 bash scripts/check-http-security.sh
+      - name: Run bounded concurrent finance and read-performance checks against disposable MySQL
+        working-directory: backend
+        env:
+          CI: "true"
+          GITHUB_ACTIONS: "true"
+          AQARI_CONCURRENCY_WRITES: staging-only
+          AQARI_CONCURRENCY_URL: http://127.0.0.1:8080
+          AQARI_CONCURRENCY_EMAIL: browser.owner@example.test
+          AQARI_CONCURRENCY_PASSWORD: ci-browser-password-2026
+          AQARI_CONCURRENCY_REQUESTS: "4"
+          AQARI_PERF_ACK: staging-only
+          AQARI_PERF_URL: http://127.0.0.1:8080
+          AQARI_PERF_EMAIL: browser.owner@example.test
+          AQARI_PERF_PASSWORD: ci-browser-password-2026
+          AQARI_PERF_REQUESTS: "24"
+          AQARI_PERF_PARALLEL: "4"
+          AQARI_PERF_P95_MS: "5000"
+        run: |
+          # Strictly a disposable Actions stack. Seed the browser-only owner with
+          # APP_ENV=testing; the seeder refuses all normal production environments.
+          test "$CI" = "true"
+          test "$GITHUB_ACTIONS" = "true"
+          docker compose exec -T -e APP_ENV=testing app php artisan db:seed --class=BrowserSmokeSeeder --force
+          node scripts/staging-receipt-concurrency.cjs
+          node scripts/staging-read-performance.cjs
+      - name: Install age for encrypted backup recovery drill
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y age
+      - name: Restore encrypted MySQL and private attachments in isolation
+        working-directory: backend
+        env:
+          CI: "true"
+          GITHUB_ACTIONS: "true"
+        run: bash scripts/ci-backup-restore-drill.sh
+      - name: Remove disposable containers after all checks
+        if: always()
+        working-directory: backend
+        run: docker compose down -v --remove-orphans

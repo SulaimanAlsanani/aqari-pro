@@ -1,0 +1,87 @@
+name: Laravel API checks
+on:
+  push:
+    branches: [feature/production-foundation]
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+      - ".github/workflows/staging-deploy.yml"
+      - "docs/DEPLOYMENT_RUNBOOK.md"
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+      - ".github/workflows/staging-deploy.yml"
+      - "docs/DEPLOYMENT_RUNBOOK.md"
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+jobs:
+  api-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, sqlite3, pdo_sqlite, bcmath, fileinfo
+          coverage: none
+      - run: composer validate --no-check-publish
+      - run: mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache
+      - run: cp .env.example .env
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Validate owner portal JavaScript
+        run: |
+          node --check public/app/app.js
+          node --check tests/browser/owner-smoke.cjs
+          node --check scripts/staging-receipt-concurrency.cjs
+          node --check scripts/staging-read-performance.cjs
+      - name: Validate PHP
+        run: find app routes config database tests bootstrap public -name '*.php' -print0 | xargs -0 -n1 php -l
+      - name: Run owner isolation and document security tests
+        run: php artisan test
+      - name: Boot Laravel and smoke-test HTTP endpoints
+        run: |
+          touch database/database.sqlite
+          sed -i "s|^DB_DATABASE=.*|DB_DATABASE=$PWD/database/database.sqlite|" .env
+          php artisan key:generate --force
+          php artisan migrate --force
+          php artisan serve --host=127.0.0.1 --port=8081 > /tmp/aqari-http.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          ready=0
+          for i in $(seq 1 25); do
+            if curl --fail --silent --show-error http://127.0.0.1:8081/up >/dev/null 2>&1; then ready=1; break; fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then cat /tmp/aqari-http.log; exit 1; fi
+          curl --fail --silent --show-error http://127.0.0.1:8081/app/index.html | grep -q 'عقاري برو'
+          status=$(curl --silent --output /dev/null --write-out '%{http_code}' -H 'Accept: application/json' http://127.0.0.1:8081/api/portfolio)
+          test "$status" = "401"
+      - name: Use preinstalled Chromium-compatible Chrome
+        run: |
+          command -v google-chrome
+          npm install --no-save --no-package-lock playwright@1.56.1
+      - name: Run owner portal end-to-end in desktop and mobile Chromium
+        env:
+          APP_ENV: testing
+          BROWSER_BASE_URL: http://127.0.0.1:8082
+          CHROME_PATH: /usr/bin/google-chrome
+        run: |
+          php artisan db:seed --class=BrowserSmokeSeeder --force
+          php artisan serve --host=127.0.0.1 --port=8082 > /tmp/aqari-browser-http.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          ready=0
+          for i in $(seq 1 25); do
+            if curl --fail --silent http://127.0.0.1:8082/up >/dev/null; then ready=1; break; fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then cat /tmp/aqari-browser-http.log; exit 1; fi
+          node tests/browser/owner-smoke.cjs
+

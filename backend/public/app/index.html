@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>عقاري برو | بوابة المالك</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{font-family:Cairo,Arial,sans-serif;color:#173d2e;background:#f5f8f6;font-size:14px}
+*{box-sizing:border-box}body{margin:0;min-height:100vh}button,input,select{font:inherit}button{cursor:pointer}button:disabled{opacity:.5;cursor:not-allowed}
+header{background:#104432;border-bottom:3px solid #bb995c;color:white;padding:16px 24px;display:flex;gap:16px;align-items:center;justify-content:space-between}
+header h1{font-size:22px;margin:0;font-weight:800}header small{color:#d1e8da}header button{background:none;border:1px solid #ffffff66;color:white;border-radius:8px;padding:7px 15px}
+.layout{max-width:1440px;margin:auto;padding:24px;display:grid;grid-template-columns:225px 1fr;gap:20px}
+aside,main,.auth-card{background:white;border:1px solid #dae6df;border-radius:14px;box-shadow:0 4px 20px #133d2b0a}
+aside{padding:14px;align-self:start}main{padding:22px;min-height:560px}
+aside button{display:block;border:0;border-right:3px solid transparent;border-radius:7px;background:none;text-align:right;width:100%;padding:10px 14px;color:#315744;font-weight:600}
+aside button.active{background:#e9f4ec;border-right-color:#087448;color:#085a3c;font-weight:800}
+h2{margin:0 0 15px;font-size:21px;color:#154732}h3{font-size:16px}
+.panel{padding:18px;border-radius:12px;border:1px solid #e2e9e4;margin-bottom:15px;background:white}
+.toolbar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:18px}
+button.primary{background:#087448;color:white;border:1px solid #087448;border-radius:8px;padding:10px 17px;font-weight:700}
+button.secondary{background:#fff;color:#126440;border:1px solid #c8dacc;border-radius:8px;padding:10px 17px}
+input,select{width:100%;border:1px solid #c5d8cb;border-radius:8px;padding:10px;color:#173d2e;background:white}
+label{display:block;font-weight:700;margin:8px 0 5px}
+input:focus,select:focus,button:focus-visible{outline:2px solid #c39f57;outline-offset:2px}
+.field{min-width:180px}.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 16px}
+.actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:18px}
+.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:20px}
+.metric{border:1px solid #dfebe3;border-top:3px solid #b99b61;border-radius:10px;padding:16px;background:#fff}
+.metric strong{display:block;font-size:22px;color:#105b3b;margin-top:4px}
+.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;min-width:540px}
+th,td{text-align:right;padding:11px;border-bottom:1px solid #e4ece7}th{background:#edf5ef;font-weight:800}
+.auth-card{width:min(460px,calc(100% - 24px));margin:70px auto;padding:30px}
+#notice{min-height:24px;margin:10px 0;color:#116741}#notice.error{color:#b32c3b}
+.muted{color:#687f70;font-size:12px}.hidden{display:none!important}
+.tag{border-radius:7px;background:#ecf5ed;color:#1e663d;padding:3px 8px;font-size:12px}
+@media(max-width:900px){.metrics{grid-template-columns:repeat(2,1fr)}.layout{grid-template-columns:1fr;padding:12px}aside{display:flex;gap:6px;overflow:auto}aside button{width:auto;white-space:nowrap}}
+@media(max-width:540px){.metrics,.form-grid{grid-template-columns:1fr}header{padding:12px}main{padding:15px}.auth-card{margin:30px auto}}
+</style>
+</head>
+<body>
+<header><div><h1>⌂ عقاري برو</h1><small>بوابة ملاك العقارات — إصدار المالك</small></div><button id="logout" class="hidden" type="button">تسجيل الخروج</button></header>
+<section id="loginPanel" class="auth-card"><h2>دخول مالك العقار</h2><p class="muted">اتصال آمن بقاعدة بيانات النظام. لا تُخزّن كلمة المرور في المتصفح.</p>
+<form id="loginForm"><label for="email">البريد الإلكتروني</label><input id="email" name="email" type="email" autocomplete="username" required>
+<label for="password">كلمة المرور</label><input id="password" name="password" type="password" autocomplete="current-password" required>
+<div class="actions"><button class="primary" type="submit">دخول</button><button class="secondary" type="button" id="forgotOpen">نسيت كلمة المرور؟</button></div></form></section>
+<section id="forgotPanel" class="auth-card hidden"><h2>استعادة كلمة المرور</h2>
+<p class="muted">أدخل بريد حسابك. سيُرسل رابط الاستعادة إذا كان البريد مسجلًا وكانت خدمة البريد مهيأة.</p>
+<form id="forgotForm"><label for="forgotEmail">البريد الإلكتروني</label><input id="forgotEmail" name="email" type="email" autocomplete="email" required>
+<div class="actions"><button class="primary" type="submit">إرسال الرابط</button><button class="secondary authBack" type="button">عودة للدخول</button></div></form></section>
+<section id="resetPanel" class="auth-card hidden"><h2>تعيين كلمة مرور جديدة</h2>
+<p class="muted">يعمل رابط الاستعادة مرة واحدة ولفترة محدودة. سيُلغى وصول جميع الأجهزة القديمة بعد التغيير.</p>
+<form id="resetForm"><label for="resetPassword">كلمة المرور الجديدة</label><input id="resetPassword" name="password" type="password" minlength="12" autocomplete="new-password" required>
+<label for="resetPasswordConfirmation">تأكيد كلمة المرور</label><input id="resetPasswordConfirmation" name="password_confirmation" type="password" minlength="12" autocomplete="new-password" required>
+<div class="actions"><button class="primary" type="submit">حفظ كلمة المرور</button><button class="secondary authBack" type="button">عودة للدخول</button></div></form></section>
+<div id="workspace" class="layout hidden"><aside id="nav" aria-label="قائمة الأقسام"></aside><main><div class="toolbar"><h2 id="sectionTitle">لوحة أملاكي</h2><button id="reload" type="button" class="secondary">تحديث</button></div><div id="view"></div></main></div>
+<div id="notice" role="status" aria-live="polite" style="position:fixed;left:18px;bottom:14px;max-width:420px;background:#fff;padding:10px 15px;border:1px solid #dfebe4;border-radius:8px;box-shadow:0 2px 14px #0001"></div>
+<script src="./app.js"></script></body></html>

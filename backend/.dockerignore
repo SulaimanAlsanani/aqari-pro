@@ -1,0 +1,12 @@
+vendor
+.env
+.env.*
+!.env.example
+database/*.sqlite
+database/*.sqlite-*
+storage/
+bootstrap/cache/*.php
+.phpunit.cache
+.git
+tests
+node_modules

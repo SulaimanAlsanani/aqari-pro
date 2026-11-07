@@ -1,0 +1,83 @@
+<?php
+namespace App\Http\Controllers\Api;
+use App\Models\{Document,Property,Unit,Tenant,Lease,Payment,Expense,MaintenanceTicket,Due,Vendor,DepositMovement,UnitHandover,HandoverDamage,DamageDispute};
+use Illuminate\Http\Request;
+use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
+use App\Services\AttachmentMalwareScanner;
+class DocumentController extends Controller {
+ private function belongsToOwner(int $ownerId,string $type,int $id):bool {
+  return match($type){
+   'owner'=>$id===$ownerId,
+   'vendor'=>Vendor::where('user_id',$ownerId)->whereKey($id)->exists(),
+   'property'=>Property::where('user_id',$ownerId)->whereKey($id)->exists(),
+   'unit'=>Unit::whereHas('property',fn($q)=>$q->where('user_id',$ownerId))->whereKey($id)->exists(),
+   'tenant'=>Tenant::where('user_id',$ownerId)->whereKey($id)->exists(),
+   'lease'=>Lease::whereHas('unit.property',fn($q)=>$q->where('user_id',$ownerId))->whereKey($id)->exists(),
+   'payment'=>Payment::whereHas('lease.unit.property',fn($q)=>$q->where('user_id',$ownerId))->whereKey($id)->exists(),
+   'damage_dispute'=>DamageDispute::whereHas('damage.handover.lease.unit.property',fn($q)=>$q->where('user_id',$ownerId))->whereKey($id)->exists(),
+   'handover_damage'=>HandoverDamage::whereHas('handover.lease.unit.property',fn($q)=>$q->where('user_id',$ownerId))->whereKey($id)->exists(),
+   'unit_handover'=>UnitHandover::whereHas('lease.unit.property',fn($q)=>$q->where('user_id',$ownerId))->whereKey($id)->exists(),
+   'deposit_movement'=>DepositMovement::whereHas('lease.unit.property',fn($q)=>$q->where('user_id',$ownerId))->whereKey($id)->exists(),
+   'due'=>Due::whereHas('lease.unit.property',fn($q)=>$q->where('user_id',$ownerId))->whereKey($id)->exists(),
+   'expense'=>Expense::whereHas('property',fn($q)=>$q->where('user_id',$ownerId))->whereKey($id)->exists(),
+   'ticket'=>MaintenanceTicket::whereHas('property',fn($q)=>$q->where('user_id',$ownerId))->whereKey($id)->exists(),
+   default=>false
+  };
+ }
+ public function store(Request $request){
+  $input=$request->validate([
+   'entity_type'=>['required',Rule::in(['owner','vendor','property','unit','tenant','lease','payment','due','deposit_movement','unit_handover','handover_damage','damage_dispute','expense','ticket'])],
+   'entity_id'=>'required|integer|min:1',
+   'file'=>'required|file|max:10240|mimes:pdf,png,jpg,jpeg,webp,doc,docx,xls,xlsx,txt,csv'
+  ]);
+  $userId=$request->user()->id;
+  abort_unless($this->belongsToOwner($userId,$input['entity_type'],(int)$input['entity_id']),404);
+  $file=$request->file('file');
+  app(AttachmentMalwareScanner::class)->scan($file);
+  $path=$file->store('owners/'.$userId.'/documents','local');
+  try{
+   $doc=DB::transaction(fn()=>Document::create([
+    'user_id'=>$userId,'entity_type'=>$input['entity_type'],'entity_id'=>$input['entity_id'],
+    'path'=>$path,'original_name'=>mb_substr(basename(str_replace('\\','/',$file->getClientOriginalName())),0,200),
+    'mime'=>$file->getMimeType()?:'application/octet-stream','size'=>$file->getSize()
+   ]));
+  }catch(\Throwable $e){Storage::disk('local')->delete($path);throw $e;}
+  return response()->json($doc,201);
+ }
+ public function download(Request $request,Document $document){
+  abort_unless($document->user_id===$request->user()->id,404);
+  abort_unless($this->belongsToOwner($request->user()->id,$document->entity_type,$document->entity_id),404);
+  abort_unless(Storage::disk('local')->exists($document->path),404);
+  return Storage::disk('local')->download($document->path,$document->original_name,[
+   'X-Content-Type-Options'=>'nosniff',
+   'Cache-Control'=>'private, no-store, max-age=0',
+   'Content-Security-Policy'=>"default-src 'none'; sandbox",
+  ]);
+ }
+ public function preview(Request $request,Document $document){
+  abort_unless($document->user_id===$request->user()->id,404);
+  abort_unless($this->belongsToOwner($request->user()->id,$document->entity_type,$document->entity_id),404);
+  abort_unless(Storage::disk('local')->exists($document->path),404);
+  // Inline rendering is restricted to formats that browsers can safely preview.
+  // Never expose Office files or arbitrary HTML as inline responses.
+  $mime=strtolower((string)$document->mime);
+  abort_unless(in_array($mime,['application/pdf','image/png','image/jpeg','image/webp'],true),415);
+  return Storage::disk('local')->response($document->path,$document->original_name,[
+   'Content-Type'=>$mime,
+   'X-Content-Type-Options'=>'nosniff',
+   'Cache-Control'=>'private, no-store, max-age=0',
+   'Content-Security-Policy'=>"default-src 'none'; sandbox",
+  ],'inline');
+ }
+ public function destroy(Request $request,Document $document){
+  abort_unless($document->user_id===$request->user()->id,404);
+  abort_unless($this->belongsToOwner($request->user()->id,$document->entity_type,$document->entity_id),404);
+  $path=$document->path;
+  $document->delete();
+  Storage::disk('local')->delete($path);
+  return response()->noContent();
+ }
+}
