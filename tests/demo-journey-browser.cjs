@@ -65,11 +65,15 @@ const seed={
   // The overpayment attempt must be rejected, with no new payment recorded.
   await page.locator('.record[data-attach-entity="dues"]').first().locator('[data-do="pay"]').click();
   await page.locator('#editForm [name="amount"]').fill('100.00');
-  const rejectedDialogPromise=page.waitForEvent('dialog');
-  await page.locator('#editForm button[type="submit"]').click({noWaitAfter:true});
-  const rejectedDialog=await rejectedDialogPromise;
-  assert.match(rejectedDialog.message(),/المتبقي/);
-  await rejectedDialog.accept();
+  const rejectedDialogPromise=new Promise(resolve=>{
+    page.once('dialog',async dialog=>{
+      const message=dialog.message();
+      await dialog.accept();
+      resolve(message);
+    });
+  });
+  await page.locator('#editForm button[type="submit"]').click();
+  assert.match(await rejectedDialogPromise,/المتبقي/);
   page.on('dialog',dialog=>dialog.accept());
   assert.equal((await state()).payments.length,1);
   await page.locator('[data-do="close"]').click();
