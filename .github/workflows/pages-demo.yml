@@ -19,7 +19,7 @@ jobs:
   publish-demo:
     runs-on: ubuntu-latest
     environment:
-      name: github-pages
+      name: aqari-pages-preview
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
