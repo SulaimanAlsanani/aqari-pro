@@ -45,5 +45,12 @@ for file in "$db" "$docs"; do
     exit 1
   fi
 done
-echo "PASS: Encrypted DB and private attachments uploaded and listed on offsite backend"
+# Listing filenames is insufficient: verify remote bytes against the two local
+# encrypted artifacts by reading them back. --one-way allows older snapshots
+# to remain in the destination without failing this specific upload check.
+if ! rclone check "$work" "$remote" --include '*.age' --one-way --download; then
+  echo "FAIL: Remote encrypted snapshot content did not match local upload" >&2
+  exit 1
+fi
+echo "PASS: Encrypted DB and private attachments uploaded, listed and content-verified offsite"
 echo "PENDING: Independent decrypt/restore test, retention policy, backend IAM review and storage alerting"
