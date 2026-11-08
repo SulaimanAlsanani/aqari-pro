@@ -77,4 +77,10 @@ assert.equal(validateReceiptReference(' ABC-0003 ',[{reference:'ABC-0001'}]),'AB
 assert.throws(()=>validateReceiptReference(' abc-0001 ',[{reference:'ABC-0001'}]),/مستخدم سابقًا/);
 assert.throws(()=>validateReceiptReference('  ',[]),/مطلوب/);
 assert.throws(()=>validateReceiptReference('NEW',null),/غير صالحة/);
+const {validateUniqueExpense}=require('../demo-finance.js');
+const savedExpenses=[{propertyId:1,date:'2027-03-01',category:'صيانة',description:'إصلاح مضخة',amount:50.25}];
+assert.throws(()=>validateUniqueExpense({propertyId:'1',date:'2027-03-01',category:' صيانة ',description:'إصلاح مضخة',amount:'50.25'},savedExpenses),/مصروف مطابق/);
+assert.equal(validateUniqueExpense({propertyId:1,date:'2027-03-02',category:'صيانة',description:'إصلاح مضخة',amount:50.25},savedExpenses),true);
+assert.equal(validateUniqueExpense({propertyId:2,date:'2027-03-01',category:'صيانة',description:'إصلاح مضخة',amount:50.25},savedExpenses),true);
+assert.equal(validateUniqueExpense({propertyId:1,date:'2027-03-01',category:'صيانة',description:'إصلاح آخر',amount:50.25},savedExpenses),true);
 console.log('PASS: exact rent cents, calendar clamping, supported frequencies and input and payment and lease-period and collision-free ID validation');
