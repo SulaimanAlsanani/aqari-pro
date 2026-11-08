@@ -58,4 +58,21 @@ assert.equal(detailCsv.trimEnd().split('\r\n').length,4);
 assert.equal(exportAgingDetailsCsv([]).trimEnd().split('\r\n').length,1);
 assert.deepEqual(agingDetails(one,properties,linkedUnits,linkedContracts,tenants,dues).map(d=>d.propertyId),['1','1','1']);
 assert.throws(()=>agingDetails(report,properties,linkedUnits,linkedContracts,[],dues),/علاقات قسط/);
+// Exact bucket boundaries: 30/31, 60/61 and 90/91 days.
+const boundaryAges=[30,31,60,61,90,91];
+const dayMs=86400000;
+const asOfMs=Date.parse('2027-03-31T00:00:00.000Z');
+const boundaryDues=boundaryAges.map((age,index)=>({
+ id:100+index,contractId:111,
+ date:new Date(asOfMs-age*dayMs).toISOString().slice(0,10),amount:1
+}));
+const boundaryReport=agingReport(properties,units,contracts,boundaryDues,[],{asOf:'2027-03-31'});
+assert.deepEqual(boundaryReport.details.map(x=>[x.daysLate,x.bucket]),[
+ [30,'days1to30'],[31,'days31to60'],[60,'days31to60'],
+ [61,'days61to90'],[90,'days61to90'],[91,'over90']
+]);
+assert.deepEqual(boundaryReport.totals,{
+ days1to30:100,days31to60:200,days61to90:200,over90:100,totalCents:600
+});
+assert.equal(boundaryReport.rows.reduce((sum,row)=>sum+row.totalCents,0),600);
 console.log('PASS: aging buckets, cutoff, overpayment, property isolation and CSV safety');
