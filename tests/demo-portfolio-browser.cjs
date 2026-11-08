@@ -160,6 +160,36 @@ const fixture = {
     const allCsv=await readFile(await allFile.path(),'utf8');
     assert.equal(allCsv.trimEnd().split('\r\n').length,3,'Cleared filters must export both expenses');
 
+    // Date and amount ranges apply equally to screen, cent-based total and CSV.
+    await page.locator('#expenseFrom').fill('2027-02-04');
+    await page.locator('#expenseFrom').dispatchEvent('change');
+    assert.equal(await page.locator('.record[data-attach-entity="expenses"]').count(),0);
+    assert.match(await page.locator('#expenseFilteredSummary').innerText(),/0.*0/);
+    await page.locator('#expenseFrom').fill('2027-02-03');
+    await page.locator('#expenseFrom').dispatchEvent('change');
+    await page.locator('#expenseTo').fill('2027-02-03');
+    await page.locator('#expenseTo').dispatchEvent('change');
+    assert.equal(await page.locator('.record[data-attach-entity="expenses"]').count(),2);
+    assert.ok((await page.locator('#expenseFilteredSummary').innerText()).includes('20.5'));
+
+    await page.locator('#expenseMin').fill('10.26');
+    await page.locator('#expenseMin').dispatchEvent('change');
+    assert.equal(await page.locator('.record[data-attach-entity="expenses"]').count(),0);
+    await page.locator('#expenseMin').fill('10.25');
+    await page.locator('#expenseMin').dispatchEvent('change');
+    await page.locator('#expenseMax').fill('10.25');
+    await page.locator('#expenseMax').dispatchEvent('change');
+    assert.equal(await page.locator('.record[data-attach-entity="expenses"]').count(),2);
+    await page.locator('#expenseInvoiceFilter').fill('INV-2027-002');
+    assert.equal(await page.locator('.record[data-attach-entity="expenses"]').count(),1);
+    assert.ok((await page.locator('#expenseFilteredSummary').innerText()).includes('10.25'));
+    const boundedEvent=page.waitForEvent('download');
+    await page.locator('[data-do="expenseCsv"]').click();
+    const boundedFile=await boundedEvent;
+    const boundedCsv=await readFile(await boundedFile.path(),'utf8');
+    assert.equal(boundedCsv.trimEnd().split('\r\n').length,2);
+    assert.ok(boundedCsv.includes('INV-2027-002'));
+
     await page.locator('[data-page="reports"]').click();
     await page.locator('#propertyFilter').selectOption(String(propertyId));
     const reports = await page.locator('#content').innerText();
