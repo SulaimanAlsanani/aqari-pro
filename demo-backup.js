@@ -112,7 +112,7 @@
     for(const due of output.dues){
       if((paid.get(due.id)||0)>cents(due.amount,'الأقساط'))throw Error('تحصيل يتجاوز القسط '+due.id);
     }
-    const expenseSignatures=new Set();
+    const expenseSignatures=new Set(),invoiceReferences=new Set();
     const normalize=value=>typeof value==='string'?value.trim().toLowerCase().replace(/\s+/g,' '):'';
     for(const row of output.expenses){
       const amount=cents(row.amount,'المصروفات');
@@ -120,9 +120,18 @@
       if(!dateValid(row.date))throw Error('تاريخ مصروف غير صالح: '+row.id);
       const category=normalize(row.category),description=normalize(row.description);
       if(!category||!description)throw Error('تصنيف أو وصف المصروف مفقود: '+row.id);
-      const signature=JSON.stringify([Number(row.propertyId),row.date,category,description,amount]);
-      if(expenseSignatures.has(signature))throw Error('مصروف مكرر في النسخة: '+row.id);
-      expenseSignatures.add(signature);
+      if(row.invoiceReference!==undefined&&row.invoiceReference!==null&&typeof row.invoiceReference!=='string')
+        throw Error('مرجع فاتورة المصروف غير صالح: '+row.id);
+      const ref=normalize(row.invoiceReference);
+      if(ref){
+        const refKey=JSON.stringify([Number(row.propertyId),ref]);
+        if(invoiceReferences.has(refKey))throw Error('مرجع فاتورة مصروف مكرر في النسخة: '+row.id);
+        invoiceReferences.add(refKey);
+      }else{
+        const signature=JSON.stringify([Number(row.propertyId),row.date,category,description,amount]);
+        if(expenseSignatures.has(signature))throw Error('مصروف مكرر في النسخة: '+row.id);
+        expenseSignatures.add(signature);
+      }
     }
     return output;
   }
