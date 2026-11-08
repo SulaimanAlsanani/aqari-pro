@@ -20,4 +20,19 @@ assert.equal(csv.trimEnd().split('\r\n').length,3);
 assert.equal(buildExpenseCsv([],properties).trimEnd().split('\r\n').length,1);
 assert.throws(()=>buildExpenseCsv({},properties),/غير صالحة/);
 assert.throws(()=>buildExpenseCsv([{amount:Infinity}],properties),/غير صالح/);
+const {filterExpenseRows,sumExpenseCents}=require('../demo-csv.js');
+const expenses=[
+ {id:1,date:'2027-01-10',amount:10.25},
+ {id:2,date:'2027-02-10',amount:20.50},
+ {id:3,date:'2027-02-28',amount:30.01}
+];
+assert.deepEqual(filterExpenseRows(expenses,{from:'2027-02-10',to:'2027-02-28'}).map(x=>x.id),[2,3]);
+assert.deepEqual(filterExpenseRows(expenses,{min:'20.50',max:'30.01'}).map(x=>x.id),[2,3]);
+assert.deepEqual(filterExpenseRows(expenses,{from:'2027-02-10',to:'2027-02-28',min:'30.01'}).map(x=>x.id),[3]);
+assert.deepEqual(filterExpenseRows(expenses,{from:'2027-03-01',to:'2027-01-01'}),[]);
+assert.deepEqual(filterExpenseRows(expenses,{min:'30',max:'20'}),[]);
+assert.equal(sumExpenseCents(filterExpenseRows(expenses,{from:'2027-02-10'})),5051);
+assert.equal(sumExpenseCents([]),0);
+assert.throws(()=>filterExpenseRows(expenses,{min:'0.001'}),/مبلغ مالي/);
+assert.throws(()=>filterExpenseRows(expenses,{to:'bad-date'}),/نطاق التاريخ/);
 console.log('PASS: expense CSV escaping, UTF-8 BOM, invoice fields and formula sanitization');
