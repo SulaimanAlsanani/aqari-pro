@@ -41,3 +41,22 @@ test('multi-year contract supports distinct monthly dates',()=>{
  assert.equal(rows[23].date,'2027-12-31');
  assert.throws(()=>finance.schedule('2026-01-01','2400',24,'2026-12-31'));
 });
+
+test('aging report groups only unpaid halalas by overdue duration',()=>{
+ const asOf='2026-11-09';
+ const dues=[
+  {id:1,date:'2026-11-10',amount:200},
+  {id:2,date:'2026-11-01',amount:100},
+  {id:3,date:'2026-09-20',amount:70},
+  {id:4,date:'2026-08-15',amount:50},
+  {id:5,date:'2026-01-01',amount:25}
+ ];
+ const payments=[{dueId:2,amount:33.33},{dueId:3,amount:70},{dueId:5,amount:10}];
+ const result=finance.receivablesAging(dues,payments,asOf);
+ assert.equal(result.notDue,200);
+ assert.equal(result.days1to30,66.67);
+ assert.equal(result.days31to60,0);
+ assert.equal(result.days61to90,50);
+ assert.equal(result.days90plus,15);
+ assert.equal(Math.round(result.total*100),33167);
+});
