@@ -113,6 +113,14 @@ assert.deepEqual(febKpis.rows.map(x=>[x.propertyId,x.dueCents,x.collectedDueCent
  ['2',1010,505,505,50,-40]
 ]);
 assert.deepEqual([febKpis.totals.dueCents,febKpis.totals.collectedDueCents,febKpis.totals.arrearsCents,febKpis.totals.collectionRate],[4040,1515,2525,37.5]);
+// Portfolio collection rate is weighted by due amounts, not an average of property rates.
+assert.notEqual(febKpis.totals.collectionRate,
+  (febKpis.rows[0].collectionRate + febKpis.rows[1].collectionRate) / 2);
+assert.equal(febKpis.totals.collectionRate,37.5);
+assert.equal(febKpis.totals.arrearsCents,
+  febKpis.rows.reduce((sum,row)=>sum+row.arrearsCents,0));
+assert.equal(febKpis.totals.dueCents,
+  febKpis.rows.reduce((sum,row)=>sum+row.dueCents,0));
 const isolatedKpis=kpis({from:'2027-02-01',to:'2027-02-28',propertyId:'2'});
 assert.equal(isolatedKpis.rows.length,1);
 assert.equal(isolatedKpis.totals.arrearsCents,505);
