@@ -58,5 +58,33 @@
       return next;
     },0);
   }
-  return {buildExpenseCsv,filterExpenseRows,sumExpenseCents};
+  function groupExpenseByProperty(expenses, properties) {
+    if(!Array.isArray(expenses)||!Array.isArray(properties))throw Error('بيانات الملخص غير صالحة');
+    const names=new Map(properties.map(property=>[String(property.id),String(property.name??'')]));
+    const groups=new Map();
+    for(const expense of expenses){
+      const id=String(expense.propertyId),cents=toCents(expense.amount);
+      if(!names.has(id))throw Error('العقار المرتبط بالمصروف غير موجود');
+      if(!groups.has(id))groups.set(id,{propertyId:id,propertyName:names.get(id),count:0,totalCents:0});
+      const row=groups.get(id);
+      row.count++;
+      row.totalCents+=cents;
+      if(!Number.isSafeInteger(row.totalCents))throw Error('إجمالي العقار يتجاوز النطاق الآمن');
+    }
+    const result=[...groups.values()].sort((a,b)=>a.propertyName.localeCompare(b.propertyName,'ar')||a.propertyId.localeCompare(b.propertyId));
+    const totalCents=result.reduce((sum,row)=>{
+      const next=sum+row.totalCents;
+      if(!Number.isSafeInteger(next))throw Error('إجمالي المصروفات يتجاوز النطاق الآمن');
+      return next;
+    },0);
+    return {groups:result,count:expenses.length,totalCents};
+  }
+  function buildExpenseSummaryCsv(summary) {
+    if(!summary||!Array.isArray(summary.groups))throw Error('ملخص المصروفات غير صالح');
+    const lines=[['العقار','عدد المصروفات','الإجمالي (ر.س)'].map(cell).join(',')];
+    for(const row of summary.groups)lines.push([row.propertyName,row.count,(row.totalCents/100).toFixed(2)].map(cell).join(','));
+    lines.push(['الإجمالي الكلي',summary.count,(summary.totalCents/100).toFixed(2)].map(cell).join(','));
+    return '\uFEFF'+lines.join('\r\n')+'\r\n';
+  }
+  return {buildExpenseCsv,filterExpenseRows,sumExpenseCents,groupExpenseByProperty,buildExpenseSummaryCsv};
 });
