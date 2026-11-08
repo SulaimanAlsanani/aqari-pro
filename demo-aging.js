@@ -86,6 +86,24 @@
         propertyName:String(property.name??'')};
     }).sort((a,b)=>b.daysLate-a.daysLate||String(a.dueId).localeCompare(String(b.dueId)));
   }
+  function filterAgingDetails(details,{tenant='',unit='',bucket='all'}={}){
+    if(!Array.isArray(details))throw Error('قائمة الأقساط المتأخرة غير صالحة');
+    if(bucket!=='all'&&!buckets.includes(bucket))throw Error('فئة التأخير غير صالحة');
+    const norm=value=>String(value??'').trim().toLocaleLowerCase().replace(/\s+/g,' ');
+    const tenantQuery=norm(tenant),unitQuery=norm(unit);
+    return details.filter(detail=>(bucket==='all'||detail.bucket===bucket)
+      &&(!tenantQuery||norm(detail.tenantName).includes(tenantQuery))
+      &&(!unitQuery||norm(detail.unitCode).includes(unitQuery)));
+  }
+  function sumAgingDetailsCents(details){
+    if(!Array.isArray(details))throw Error('قائمة الأقساط المتأخرة غير صالحة');
+    return details.reduce((sum,detail)=>{
+      if(!Number.isSafeInteger(detail.outstandingCents)||detail.outstandingCents<=0)throw Error('رصيد قسط متأخر غير صالح');
+      const next=sum+detail.outstandingCents;
+      if(!Number.isSafeInteger(next))throw Error('إجمالي الأقساط المتأخرة غير آمن');
+      return next;
+    },0);
+  }
   function exportAgingDetailsCsv(details){
     if(!Array.isArray(details))throw Error('تفاصيل تقرير الأعمار غير صالحة');
     const lines=[['العقار','رقم العقد','الوحدة','المستأجر','تاريخ الاستحقاق','أيام التأخير','فئة التأخير','الرصيد المتأخر (ر.س)'].map(x=>csvCell(x)).join(',')];
@@ -100,5 +118,5 @@
     }
     return '\uFEFF'+lines.join('\r\n')+'\r\n';
   }
-  return {agingReport,exportAgingCsv,agingDetails,exportAgingDetailsCsv,labels,buckets};
+  return {agingReport,exportAgingCsv,agingDetails,filterAgingDetails,sumAgingDetailsCents,exportAgingDetailsCsv,labels,buckets};
 });
