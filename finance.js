@@ -59,5 +59,30 @@ function receivablesAging(dues,payments,asOf){
  for(const key of Object.keys(result))result[key]/=100;
  return result;
 }
-root.AqariFinance=Object.freeze({toHalalas,dateAfterMonths,schedule,remaining,receivablesAging});
+function collectionAlerts(dues,payments,today,windowDays=7){
+ const now=Date.parse(today+'T00:00:00Z');
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(today)||!Number.isFinite(now)||new Date(now).toISOString().slice(0,10)!==today||!Number.isInteger(windowDays)||windowDays<0)throw Error('Invalid alert window');
+ const map=new Map();
+ for(const p of payments){
+  const cents=toHalalas(p.amount);
+  if(cents===null)throw Error('Invalid payment');
+  const id=String(p.dueId);
+  map.set(id,(map.get(id)||0)+cents);
+ }
+ const alerts={overdue:[],upcoming:[],partial:[]};
+ for(const due of dues){
+  const cents=toHalalas(due.amount),date=Date.parse(due.date+'T00:00:00Z');
+  if(cents===null||!/^\d{4}-\d{2}-\d{2}$/.test(due.date)||!Number.isFinite(date)||new Date(date).toISOString().slice(0,10)!==due.date)throw Error('Invalid due');
+  const paidCents=map.get(String(due.id))||0,remainingCents=Math.max(0,cents-paidCents);
+  if(remainingCents===0)continue;
+  const item={id:due.id,date:due.date,remaining:remainingCents/100,days:Math.round((date-now)/86400000)};
+  if(item.days<0)alerts.overdue.push(item);
+  else if(item.days<=windowDays)alerts.upcoming.push(item);
+  if(paidCents>0)alerts.partial.push(item);
+ }
+ alerts.overdue.sort((a,b)=>a.days-b.days);
+ alerts.upcoming.sort((a,b)=>a.days-b.days);
+ return alerts;
+}
+root.AqariFinance=Object.freeze({toHalalas,dateAfterMonths,schedule,remaining,receivablesAging,collectionAlerts});
 })(typeof window!=='undefined'?window:globalThis);
