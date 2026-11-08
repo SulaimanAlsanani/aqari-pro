@@ -20,7 +20,7 @@ const payments=[
 ];
 const report=agingReport(properties,units,contracts,dues,payments,{asOf:'2027-03-31'});
 assert.deepEqual(report.totals,{
- days1to30:2600,days31to60:0,days61to90:0,over90:4000,totalCents:6600
+ days1to30:2600,days31to60:0,days61to90:4000,over90:0,totalCents:6600
 });
 assert.equal(report.details.length,3);
 assert.deepEqual(report.details.map(x=>[x.dueId,x.daysLate,x.outstandingCents]),[
