@@ -31,3 +31,13 @@ test('partial payments and invalid financial inputs',()=>{
  assert.throws(()=>finance.schedule('2026-01-01','0.01',2));
  assert.throws(()=>finance.schedule('2026-01-01','20.333',2));
 });
+
+test('multi-year contract supports distinct monthly dates',()=>{
+ const rows=finance.schedule('2026-01-31','24000',24,'2028-01-30');
+ assert.equal(rows.length,24);
+ assert.equal(new Set(rows.map(x=>x.date)).size,24);
+ assert.equal(rows[0].date,'2026-01-31');
+ assert.equal(rows[1].date,'2026-02-28');
+ assert.equal(rows[23].date,'2027-12-31');
+ assert.throws(()=>finance.schedule('2026-01-01','2400',24,'2026-12-31'));
+});
