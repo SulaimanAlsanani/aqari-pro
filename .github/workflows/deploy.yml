@@ -22,6 +22,7 @@ jobs:
       - name: Validate JavaScript syntax
         run: |
           node --check finance.js
+          node --check contracts.js
           node --check app.js
           node --check attachments.js
       - name: Test financial regression cases
