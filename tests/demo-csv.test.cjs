@@ -79,6 +79,22 @@ const one=compare({propertyId:'2',from:'2027-02-01',to:'2027-02-28'});
 assert.equal(one.rows.length,1);assert.equal(one.totals.netCents,-202);
 const empty=compare({from:'2029-01-01',to:'2029-12-31'});
 assert.equal(empty.totals.netCents,0);
+// Regression: inclusive date boundaries and property scoping must agree with cent-based totals.
+const firstDay=compare({from:'2027-02-01',to:'2027-02-01'});
+assert.deepEqual(firstDay.rows.map(x=>[x.propertyId,x.receiptsCents,x.expensesCents,x.netCents]),[
+ ['1',1010,0,1010],['2',0,0,0]
+]);
+const lastDay=compare({from:'2027-02-28',to:'2027-02-28'});
+assert.deepEqual(lastDay.totals,{receiptsCents:0,expensesCents:0,netCents:0});
+const march=compare({propertyId:'1',from:'2027-03-01',to:'2027-03-31'});
+assert.deepEqual(march.rows.map(x=>[x.propertyId,x.receiptsCents,x.expensesCents,x.netCents]),[
+ ['1',2020,0,2020]
+]);
+assert.deepEqual(march.totals,{receiptsCents:2020,expensesCents:0,netCents:2020});
+const propertyOne=compare({propertyId:'1',from:'2027-02-01',to:'2027-02-28'});
+assert.deepEqual(propertyOne.totals,{receiptsCents:1010,expensesCents:202,netCents:808});
+assert.ok(!buildCashFlowComparisonCsv(propertyOne).includes('عمارة باء'));
+assert.ok(buildCashFlowComparisonCsv(propertyOne).includes('"الإجمالي الكلي","10.10","2.02","8.08"'));
 const comparisonCsv=buildCashFlowComparisonCsv(feb);
 assert.ok(comparisonCsv.startsWith('\uFEFF'));
 assert.ok(comparisonCsv.includes('"عمارة ألف","10.10","2.02","8.08"'));
