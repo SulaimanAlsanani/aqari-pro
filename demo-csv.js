@@ -90,7 +90,7 @@
   function comparePropertyCashFlow(properties,units,contracts,dues,payments,expenses,bounds={}) {
     if(![properties,units,contracts,dues,payments,expenses].every(Array.isArray))throw Error('بيانات المقارنة غير صالحة');
     const from=bounds.from||'',to=bounds.to||'',selected=bounds.propertyId;
-    const validDate=d=>!d||(/^\\d{4}-\\d{2}-\\d{2}$/.test(d)&&!Number.isNaN(Date.parse(d)));
+    const validDate=d=>!d||(/^\d{4}-\d{2}-\d{2}$/.test(d)&&!Number.isNaN(Date.parse(d)));
     if(!validDate(from)||!validDate(to))throw Error('تاريخ المقارنة غير صالح');
     const selectedProperties=properties.filter(p=>selected===undefined||selected==='all'||String(p.id)===String(selected));
     const unitToProperty=new Map(units.map(u=>[String(u.id),String(u.propertyId)]));
