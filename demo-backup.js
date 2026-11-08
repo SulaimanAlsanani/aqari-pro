@@ -38,6 +38,20 @@
     relation(output.dues,'contractId',output.contracts,'العقد');
     relation(output.payments,'dueId',output.dues,'القسط');
     for(const key of ['expenses','tickets','documents','inspections'])relation(output[key],'propertyId',output.properties,'العقار',key==='documents');
+    relation(output.inspections,'unitId',output.units,'الوحدة');
+    for(const inspection of output.inspections){
+      const unit=output.units.find(x=>Number(x.id)===Number(inspection.unitId));
+      if(Number(unit.propertyId)!==Number(inspection.propertyId))
+        throw Error('محضر فحص يربط وحدة بعقار مختلف: '+inspection.id);
+    }
+    const codes=new Set();
+    for(const unit of output.units){
+      const code=String(unit.code??'').trim().toLowerCase();
+      if(!code)throw Error('رقم وحدة غير صالح: '+unit.id);
+      const uniqueKey=unit.propertyId+':'+code;
+      if(codes.has(uniqueKey))throw Error('رقم وحدة مكرر داخل العقار: '+unit.code);
+      codes.add(uniqueKey);
+    }
     function cents(value,label){
       const num=Number(value);
       if(!Number.isFinite(num)||num<0||Math.abs(Math.round(num*100)-num*100)>1e-6)
