@@ -102,4 +102,24 @@ assert.ok(comparisonCsv.includes('"عمارة باء","5.05","7.07","-2.02"'));
 assert.ok(comparisonCsv.includes('"الإجمالي الكلي","15.15","9.09","6.06"'));
 assert.equal(comparisonCsv.trimEnd().split('\r\n').length,4);
 assert.throws(()=>compare({from:'not-date'}),/تاريخ/);
+const {propertyCollectionKpis}=require('../demo-csv.js');
+const kpis=options=>propertyCollectionKpis(cProperties,cUnits,cContracts,[
+ {id:1111,contractId:111,date:'2027-02-01',amount:30.30},
+ {id:2222,contractId:222,date:'2027-02-15',amount:10.10}
+],cPayments,cExpenses,options);
+const febKpis=kpis({from:'2027-02-01',to:'2027-02-28'});
+assert.deepEqual(febKpis.rows.map(x=>[x.propertyId,x.dueCents,x.collectedDueCents,x.arrearsCents,x.collectionRate,x.operatingMargin]),[
+ ['1',3030,1010,2020,33.33,80],
+ ['2',1010,505,505,50,-40]
+]);
+assert.deepEqual([febKpis.totals.dueCents,febKpis.totals.collectedDueCents,febKpis.totals.arrearsCents,febKpis.totals.collectionRate],[4040,1515,2525,37.5]);
+const isolatedKpis=kpis({from:'2027-02-01',to:'2027-02-28',propertyId:'2'});
+assert.equal(isolatedKpis.rows.length,1);
+assert.equal(isolatedKpis.totals.arrearsCents,505);
+const zeroKpis=kpis({from:'2029-01-01',to:'2029-12-31'});
+assert.equal(zeroKpis.totals.collectionRate,null);
+assert.equal(zeroKpis.totals.operatingMargin,null);
+const latePaid=kpis({from:'2027-02-01',to:'2027-03-31'});
+assert.equal(latePaid.rows[0].collectedDueCents,3030);
+assert.equal(latePaid.rows[0].arrearsCents,0);
 console.log('PASS: expense CSV escaping, UTF-8 BOM, invoice fields and formula sanitization');
