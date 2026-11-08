@@ -295,7 +295,13 @@ const fixture = {
     assert.ok(kpiAll.includes('عقار منفصل'));
     assert.ok(kpiAll.includes('نسبة التحصيل'));
     assert.ok(kpiAll.includes('الرصيد غير المحصل'));
-    const comparisonDownloadEvent=page.waitForEvent('download');
+    const cashDiagnostics=await page.evaluate(key=>{
+      const db=JSON.parse(localStorage.getItem(key));
+      try{return {result:window.AqariDemoCsv.comparePropertyCashFlow(db.properties,db.units,db.contracts,db.dues,db.payments,db.expenses,{from:'2027-02-01',to:'2027-02-04',propertyId:'all'}).totals}}
+      catch(e){return {error:e.message}}
+    },KEY);
+    console.log('Cash flow diagnostic',JSON.stringify(cashDiagnostics),'pageErrors',JSON.stringify(pageErrors));
+    const comparisonDownloadEvent=page.waitForEvent('download',{timeout:6000});
     await page.locator('[data-do="cashFlowCsv"]').click();
     const comparisonDownload=await comparisonDownloadEvent;
     assert.equal(comparisonDownload.suggestedFilename(),'aqari-cash-flow-comparison.csv');
