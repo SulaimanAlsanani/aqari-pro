@@ -4,7 +4,7 @@ const {collections,validate}=require('../demo-backup.js');
 const blank=()=>Object.fromEntries(collections.map(key=>[key,[]]));
 const good=blank();good.owners=[{id:1,name:'Demo'}];
 good.properties=[{id:1,ownerId:1,name:'Building'}];
-good.units=[{id:1,propertyId:1}];
+good.units=[{id:1,propertyId:1,code:'101'}];
 good.tenants=[{id:1,name:'Demo tenant'}];
 good.contracts=[{id:1,unitId:1,tenantId:1,total:1000}];
 good.dues=[{id:1,contractId:1,amount:1000}];
