@@ -28,5 +28,35 @@
     }
     return '\uFEFF' + lines.join('\r\n') + '\r\n';
   }
-  return {buildExpenseCsv};
+  function toCents(amount) {
+    const str=String(amount ?? '').trim();
+    if(!/^(?:0|[1-9]\\d*)(?:\\.\\d{1,2})?$/.test(str))throw Error('مبلغ مالي غير صالح');
+    const [whole,fraction='']=str.split('.');
+    const cents=Number(whole)*100+Number(fraction.padEnd(2,'0'));
+    if(!Number.isSafeInteger(cents))throw Error('مبلغ مالي خارج النطاق');
+    return cents;
+  }
+  function filterExpenseRows(expenses, bounds={}) {
+    if(!Array.isArray(expenses))throw Error('سجل المصروفات غير صالح');
+    const {from='',to='',min='',max=''}=bounds;
+    const dateOk=date=>!date || /^\\d{4}-\\d{2}-\\d{2}$/.test(date);
+    if(!dateOk(from)||!dateOk(to))throw Error('نطاق التاريخ غير صالح');
+    const minCents=min===''?null:toCents(min),maxCents=max===''?null:toCents(max);
+    if(from&&to&&from>to)return [];
+    if(minCents!==null&&maxCents!==null&&minCents>maxCents)return [];
+    return expenses.filter(row=>{
+      const amount=toCents(row.amount);
+      return (!from||String(row.date)>=from)&&(!to||String(row.date)<=to)
+        &&(minCents===null||amount>=minCents)&&(maxCents===null||amount<=maxCents);
+    });
+  }
+  function sumExpenseCents(expenses) {
+    if(!Array.isArray(expenses))throw Error('سجل المصروفات غير صالح');
+    return expenses.reduce((total,row)=>{
+      const next=total+toCents(row.amount);
+      if(!Number.isSafeInteger(next))throw Error('إجمالي المصروفات يتجاوز النطاق الآمن');
+      return next;
+    },0);
+  }
+  return {buildExpenseCsv,filterExpenseRows,sumExpenseCents};
 });
