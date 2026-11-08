@@ -7,10 +7,10 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function() {
   'use strict';
   const headers = ['العقار', 'التاريخ', 'التصنيف', 'الوصف', 'المبلغ (ر.س)', 'مرجع الفاتورة'];
-  function cell(value) {
+  function cell(value, trustedNumeric=false) {
     const raw = String(value ?? '');
     // Excel may interpret attacker-provided cell text as a formula. Prefix risky values.
-    const safe = /^[\s]*[=+\-@]/.test(raw) || /^[\t\r\n]/.test(raw) ? "'" + raw : raw;
+    const safe = trustedNumeric && /^-?\d+\.\d{2}$/.test(raw) ? raw : (/^[\s]*[=+\-@]/.test(raw) || /^[\t\r\n]/.test(raw) ? "'" + raw : raw);
     return '"' + safe.replace(/"/g, '""') + '"';
   }
   function buildExpenseCsv(expenses, properties) {
@@ -127,8 +127,8 @@
     if(!comparison||!Array.isArray(comparison.rows)||!comparison.totals)throw Error('تقرير المقارنة غير صالح');
     const lines=[['العقار','المقبوضات (ر.س)','المصروفات (ر.س)','صافي التدفق (ر.س)'].map(cell).join(',')];
     const currency=cents=>(cents/100).toFixed(2);
-    for(const r of comparison.rows)lines.push([r.propertyName,currency(r.receiptsCents),currency(r.expensesCents),currency(r.netCents)].map(cell).join(','));
-    lines.push(['الإجمالي الكلي',currency(comparison.totals.receiptsCents),currency(comparison.totals.expensesCents),currency(comparison.totals.netCents)].map(cell).join(','));
+    for(const r of comparison.rows)lines.push([cell(r.propertyName),cell(currency(r.receiptsCents),true),cell(currency(r.expensesCents),true),cell(currency(r.netCents),true)].join(','));
+    lines.push([cell('الإجمالي الكلي'),cell(currency(comparison.totals.receiptsCents),true),cell(currency(comparison.totals.expensesCents),true),cell(currency(comparison.totals.netCents),true)].join(','));
     return '\uFEFF'+lines.join('\r\n')+'\r\n';
   }
   return {buildExpenseCsv,filterExpenseRows,sumExpenseCents,groupExpenseByProperty,buildExpenseSummaryCsv,comparePropertyCashFlow,buildCashFlowComparisonCsv};
