@@ -58,6 +58,34 @@
         throw Error('مبلغ مالي غير صالح في '+label);
       return Math.round(num*100);
     }
+    // Validate lease periods without requiring legacy demo fixtures to have every future due row.
+    const dateValid=value=>typeof value==='string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
+      && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0,10)===value;
+    const leasesByUnit=new Map(), duesByContract=new Map();
+    for(const contract of output.contracts){
+      if(!dateValid(contract.start)||!dateValid(contract.end)||contract.start>contract.end)
+        throw Error('تواريخ العقد غير صالحة: '+contract.id);
+      const unitId=Number(contract.unitId), prior=leasesByUnit.get(unitId)||[];
+      if(prior.some(other=>other.start<=contract.end&&contract.start<=other.end))
+        throw Error('تداخل عقود على الوحدة: '+unitId);
+      prior.push(contract);leasesByUnit.set(unitId,prior);
+    }
+    for(const due of output.dues){
+      const contract=output.contracts.find(x=>Number(x.id)===Number(due.contractId));
+      if(!dateValid(due.date)||due.date<contract.start||due.date>contract.end)
+        throw Error('تاريخ قسط خارج مدة العقد: '+due.id);
+      duesByContract.set(contract.id,[...(duesByContract.get(contract.id)||[]),due]);
+    }
+    for(const contract of output.contracts){
+      const dues=duesByContract.get(contract.id)||[];
+      const dueTotal=dues.reduce((sum,d)=>sum+cents(d.amount,'الأقساط'),0);
+      if(dueTotal>cents(contract.total,'العقود'))
+        throw Error('مجموع الأقساط يتجاوز قيمة العقد: '+contract.id);
+      if(Number.isInteger(contract.installments)&&dues.length>contract.installments)
+        throw Error('عدد الأقساط يتجاوز جدول العقد: '+contract.id);
+      if(dues.length===Number(contract.installments)&&dueTotal!==cents(contract.total,'العقود'))
+        throw Error('مجموع الأقساط لا يساوي قيمة العقد: '+contract.id);
+    }
     const paid=new Map();
     for(const row of output.dues)cents(row.amount,'الأقساط');
     for(const row of output.payments){
