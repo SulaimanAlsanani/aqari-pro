@@ -89,6 +89,25 @@ const fixture = {
     assert.equal(db.expenses.length,1);
     assert.equal(Number(db.expenses[0].propertyId),propertyId);
 
+    // Duplicating exactly the same expense must be rejected before it reaches localStorage.
+    await page.locator('[data-page="expenses"]').click();
+    await page.locator('[data-do="add"][data-kind="expenses"]').click();
+    const duplicateExpenseForm=page.locator('#editForm');
+    await duplicateExpenseForm.locator('[name="propertyId"]').selectOption(String(propertyId));
+    await duplicateExpenseForm.locator('[name="category"]').fill('صيانة');
+    await duplicateExpenseForm.locator('[name="description"]').fill('صيانة تجريبية');
+    await duplicateExpenseForm.locator('[name="amount"]').fill('10.25');
+    await duplicateExpenseForm.locator('[name="date"]').fill('2027-02-03');
+    const duplicateExpenseAlert=new Promise(resolve=>page.once('dialog',async dialog=>{
+      const message=dialog.message();
+      await dialog.accept();
+      resolve(message);
+    }));
+    await duplicateExpenseForm.locator('button[type="submit"]').click();
+    assert.match(await duplicateExpenseAlert,/مصروف مطابق/);
+    assert.equal((await state()).expenses.length,1);
+    await page.locator('#modal [data-do="close"]').click();
+
     await page.locator('[data-page="reports"]').click();
     await page.locator('#propertyFilter').selectOption(String(propertyId));
     const reports = await page.locator('#content').innerText();
