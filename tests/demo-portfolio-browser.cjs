@@ -237,6 +237,12 @@ const fixture = {
     assert.ok(compared.includes('20.5'));
     assert.ok(!compared.includes('8.5'), 'Expense after selected period leaked into comparison');
     assert.ok((await page.locator('#cashComparisonTotal').innerText()).includes('19.75'));
+    assert.equal(await page.locator('#propertyKpiPanel [data-kpi-property]').count(),2);
+    const kpiAll=await page.locator('#propertyKpiPanel').innerText();
+    assert.ok(kpiAll.includes('عمارة الاختبار'));
+    assert.ok(kpiAll.includes('عقار منفصل'));
+    assert.ok(kpiAll.includes('نسبة التحصيل'));
+    assert.ok(kpiAll.includes('الرصيد غير المحصل'));
     const comparisonDownloadEvent=page.waitForEvent('download');
     await page.locator('[data-do="cashFlowCsv"]').click();
     const comparisonDownload=await comparisonDownloadEvent;
@@ -247,6 +253,8 @@ const fixture = {
     assert.ok(comparisonCsv.includes('"عقار منفصل","0.00","0.00","0.00"'));
     await page.locator('#propertyFilter').selectOption(String(secondId));
     assert.equal(await page.locator('#cashComparisonPanel [data-cash-property]').count(),1);
+    assert.equal(await page.locator('#propertyKpiPanel [data-kpi-property]').count(),1);
+    assert.ok(!(await page.locator('#propertyKpiPanel').innerText()).includes('عمارة الاختبار'));
     assert.ok(!(await page.locator('#cashComparisonPanel').innerText()).includes('عمارة الاختبار'));
     await page.locator('#cashTo').fill('2027-02-05');
     await page.locator('#cashTo').dispatchEvent('change');
