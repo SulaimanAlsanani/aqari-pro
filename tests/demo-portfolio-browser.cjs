@@ -2,6 +2,7 @@
 // Isolated public-demo browser acceptance: owner -> property -> unit -> tenant
 // -> contract -> receipt -> expense -> filtered financial reports.
 const assert = require('node:assert/strict');
+const {readFile}=require('node:fs/promises');
 const { chromium } = require('playwright');
 const KEY = 'aqari-pro-gh-v1';
 const fixture = {
@@ -14,7 +15,7 @@ const fixture = {
 (async () => {
   const browser = await chromium.launch({headless:true,args:['--no-sandbox']});
   try {
-    const context = await browser.newContext();
+    const context = await browser.newContext({acceptDownloads:true});
     await context.addInitScript(({key,data}) => {
       if (!localStorage.getItem('aqari-portfolio-test-loaded')) {
         localStorage.setItem(key, JSON.stringify(data));
@@ -132,13 +133,32 @@ const fixture = {
     await page.locator('#expenseInvoiceFilter').fill('inv-2027-002');
     assert.equal(await page.locator('.record[data-attach-entity="expenses"]').count(),1);
     assert.ok((await page.locator('.record[data-attach-entity="expenses"]').innerText()).includes('INV-2027-002'));
+    const filteredDownloadEvent=page.waitForEvent('download');
+    await page.locator('[data-do="expenseCsv"]').click();
+    const filteredDownload=await filteredDownloadEvent;
+    assert.equal(filteredDownload.suggestedFilename(),'aqari-expenses.csv');
+    const filteredCsv=await readFile(await filteredDownload.path(),'utf8');
+    assert.ok(filteredCsv.startsWith('\uFEFF'));
+    assert.ok(filteredCsv.includes('عمارة الاختبار'));
+    assert.ok(filteredCsv.includes('INV-2027-002'));
+    assert.equal(filteredCsv.trimEnd().split('\r\n').length,2,'Invoice filter must export exactly one row');
     await page.locator('#findText').fill('صيانة تجريبية');
     assert.equal(await page.locator('.record[data-attach-entity="expenses"]').count(),1);
     await page.locator('#expenseInvoiceFilter').fill('INV-NOT-FOUND');
     assert.equal(await page.locator('.record[data-attach-entity="expenses"]').count(),0);
+    const zeroEvent=page.waitForEvent('download');
+    await page.locator('[data-do="expenseCsv"]').click();
+    const zeroFile=await zeroEvent;
+    const zeroCsv=await readFile(await zeroFile.path(),'utf8');
+    assert.equal(zeroCsv.trimEnd().split('\r\n').length,1,'Empty filtered result must contain only headers');
     await page.locator('#expenseInvoiceFilter').fill('');
     assert.equal(await page.locator('.record[data-attach-entity="expenses"]').count(),2);
     await page.locator('#findText').fill('');
+    const allEvent=page.waitForEvent('download');
+    await page.locator('[data-do="expenseCsv"]').click();
+    const allFile=await allEvent;
+    const allCsv=await readFile(await allFile.path(),'utf8');
+    assert.equal(allCsv.trimEnd().split('\r\n').length,3,'Cleared filters must export both expenses');
 
     await page.locator('[data-page="reports"]').click();
     await page.locator('#propertyFilter').selectOption(String(propertyId));
