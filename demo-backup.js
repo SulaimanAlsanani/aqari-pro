@@ -90,7 +90,7 @@
       if(dues.length===Number(contract.installments)&&dueTotal!==cents(contract.total,'العقود'))
         throw Error('مجموع الأقساط لا يساوي قيمة العقد: '+contract.id);
     }
-    const paid=new Map();
+    const paid=new Map(), usedReceiptReferences=new Set();
     for(const row of output.dues)cents(row.amount,'الأقساط');
     for(const row of output.payments){
       const value=cents(row.amount,'المقبوضات');
@@ -100,6 +100,10 @@
         throw Error('طريقة السداد مفقودة في السند: '+row.id);
       if(typeof row.reference!=='string'||!row.reference.trim())
         throw Error('مرجع السداد مفقود في السند: '+row.id);
+      const normalizedRef=row.reference.trim().toLowerCase();
+      if(usedReceiptReferences.has(normalizedRef))
+        throw Error('مرجع سند قبض مكرر في النسخة: '+row.reference);
+      usedReceiptReferences.add(normalizedRef);
       const dueId=Number(row.dueId);
       const current=paid.get(dueId)||0;
       if(!Number.isSafeInteger(current+value))throw Error('مجموع التحصيلات يتجاوز النطاق الآمن');
