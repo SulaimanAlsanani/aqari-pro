@@ -58,6 +58,14 @@
       throw Error('تاريخ استحقاق أحد الأقساط يتجاوز نهاية العقد؛ عدّل المدة أو عدد الأقساط');
     return installments;
   }
+  function validateReceiptReference(reference, previousPayments) {
+    if(typeof reference!=='string'||!reference.trim())throw Error('مرجع التحصيل مطلوب');
+    if(!Array.isArray(previousPayments))throw Error('بيانات المقبوضات السابقة غير صالحة');
+    const normalized=reference.trim().toLowerCase();
+    if(previousPayments.some(p=>String(p.reference??'').trim().toLowerCase()===normalized))
+      throw Error('مرجع سند القبض مستخدم سابقًا؛ أدخل مرجعًا فريدًا');
+    return reference.trim();
+  }
   function nextRecordId(records) {
     if (!Array.isArray(records)) throw Error('مجموعة السجلات غير صالحة');
     let maximum = 0;
@@ -94,5 +102,5 @@
     }
     return true;
   }
-  return { addMonthsClamped, createInstallments, createLeaseSchedule, toCents, validatePayment, nextRecordId, validateRecordRelation };
+  return { addMonthsClamped, createInstallments, createLeaseSchedule, toCents, validatePayment, validateReceiptReference, nextRecordId, validateRecordRelation };
 });
