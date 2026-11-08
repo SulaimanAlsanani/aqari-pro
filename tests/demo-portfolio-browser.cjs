@@ -297,10 +297,11 @@ const fixture = {
     assert.ok(kpiAll.includes('الرصيد غير المحصل'));
     const cashDiagnostics=await page.evaluate(key=>{
       const db=JSON.parse(localStorage.getItem(key));
-      try{return {result:window.AqariDemoCsv.comparePropertyCashFlow(db.properties,db.units,db.contracts,db.dues,db.payments,db.expenses,{from:'2027-02-01',to:'2027-02-04',propertyId:'all'}).totals}}
+      try{const report=window.AqariDemoCsv.comparePropertyCashFlow(db.properties,db.units,db.contracts,db.dues,db.payments,db.expenses,{from:'2027-02-01',to:'2027-02-04',propertyId:'all'});return {result:report.totals,csv:window.AqariDemoCsv.buildCashFlowComparisonCsv(report).slice(0,300)}}
       catch(e){return {error:e.message}}
     },KEY);
     console.log('Cash flow diagnostic',JSON.stringify(cashDiagnostics),'pageErrors',JSON.stringify(pageErrors));
+    page.once('dialog',async dialog=>{console.log('Cash flow alert:',dialog.message());await dialog.accept()});
     const comparisonDownloadEvent=page.waitForEvent('download',{timeout:6000});
     await page.locator('[data-do="cashFlowCsv"]').click();
     const comparisonDownload=await comparisonDownloadEvent;
