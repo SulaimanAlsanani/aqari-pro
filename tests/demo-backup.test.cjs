@@ -26,4 +26,11 @@ assert.throws(()=>validate(corrupted(x=>x.expenses[0].amount=5.001)),/مبلغ �
 assert.throws(()=>validate(corrupted(x=>x.owners.push({id:2,name:'Other'}))),/لمالك واحد/);
 assert.throws(()=>validate(corrupted(x=>delete x.dues)),/غير صالح/);
 assert.throws(()=>validate(JSON.parse('{"__proto__":{},"owners":[]}')),/غير صالح/);
+assert.throws(()=>validate(corrupted(x=>x.inspections[0].unitId=999)),/الوحدة/);
+assert.throws(()=>validate(corrupted(x=>{
+ x.properties.push({id:2,ownerId:1,name:'Building Two'});
+ x.units.push({id:2,propertyId:2,code:'202'});
+ x.inspections[0].unitId=2;
+})),/عقار مختلف/);
+assert.throws(()=>validate(corrupted(x=>x.units.push({id:2,propertyId:1,code:' 101  '}))),/رقم وحدة مكرر/);
 console.log('PASS: JSON demo restore validates owner scope, unique IDs, foreign keys and receipts');
