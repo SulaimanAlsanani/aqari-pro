@@ -72,4 +72,9 @@ assert.equal(validateRecordRelation('inspections',{propertyId:1,unitId:1},refere
 assert.throws(()=>validateRecordRelation('contracts',{unitId:999,tenantId:1},referenceFixture),/وحدة موجودة/);
 assert.throws(()=>validateRecordRelation('contracts',{unitId:1,tenantId:999},referenceFixture),/مستأجر موجود/);
 assert.throws(()=>validateRecordRelation('expenses',{propertyId:999},referenceFixture),/عقار موجود/);
+const { validateReceiptReference }=require('../demo-finance.js');
+assert.equal(validateReceiptReference(' ABC-0003 ',[{reference:'ABC-0001'}]),'ABC-0003');
+assert.throws(()=>validateReceiptReference(' abc-0001 ',[{reference:'ABC-0001'}]),/مستخدم سابقًا/);
+assert.throws(()=>validateReceiptReference('  ',[]),/مطلوب/);
+assert.throws(()=>validateReceiptReference('NEW',null),/غير صالحة/);
 console.log('PASS: exact rent cents, calendar clamping, supported frequencies and input and payment and lease-period and collision-free ID validation');
