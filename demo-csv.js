@@ -131,5 +131,40 @@
     lines.push([cell('الإجمالي الكلي'),cell(currency(comparison.totals.receiptsCents),true),cell(currency(comparison.totals.expensesCents),true),cell(currency(comparison.totals.netCents),true)].join(','));
     return '\uFEFF'+lines.join('\r\n')+'\r\n';
   }
-  return {buildExpenseCsv,filterExpenseRows,sumExpenseCents,groupExpenseByProperty,buildExpenseSummaryCsv,comparePropertyCashFlow,buildCashFlowComparisonCsv};
+  // Accrual KPIs use installment due dates and receipts applied by the period end.
+  // Operating margin is cash flow / actual receipts, NOT a property investment ROI.
+  function propertyCollectionKpis(properties,units,contracts,dues,payments,expenses,bounds={}) {
+    const comparison=comparePropertyCashFlow(properties,units,contracts,dues,payments,expenses,bounds);
+    const byProperty=new Map(comparison.rows.map(r=>[r.propertyId,{...r,dueCents:0,collectedDueCents:0,arrearsCents:0,collectionRate:null,operatingMargin:null}]));
+    const unitProperty=new Map(units.map(u=>[String(u.id),String(u.propertyId)]));
+    const contractProperty=new Map(contracts.map(c=>[String(c.id),unitProperty.get(String(c.unitId))]));
+    const paidByDue=new Map();
+    const asOf=bounds.to||'9999-12-31';
+    for(const p of payments){
+      if(String(p.date)>asOf)continue;
+      const id=String(p.dueId),next=(paidByDue.get(id)||0)+toCents(p.amount);
+      if(!Number.isSafeInteger(next))throw Error('إجمالي المقبوضات خارج النطاق');
+      paidByDue.set(id,next);
+    }
+    for(const due of dues){
+      if((bounds.from&&String(due.date)<bounds.from)||(bounds.to&&String(due.date)>bounds.to))continue;
+      const row=byProperty.get(contractProperty.get(String(due.contractId)));
+      if(!row)continue;
+      const amount=toCents(due.amount),collected=Math.min(amount,paidByDue.get(String(due.id))||0);
+      row.dueCents+=amount;row.collectedDueCents+=collected;
+      if(!Number.isSafeInteger(row.dueCents)||!Number.isSafeInteger(row.collectedDueCents))throw Error('إجمالي الاستحقاقات خارج النطاق');
+    }
+    const totals={dueCents:0,collectedDueCents:0,arrearsCents:0,receiptsCents:comparison.totals.receiptsCents,expensesCents:comparison.totals.expensesCents,netCents:comparison.totals.netCents,collectionRate:null,operatingMargin:null};
+    for(const row of byProperty.values()){
+      row.arrearsCents=row.dueCents-row.collectedDueCents;
+      row.collectionRate=row.dueCents===0?null:Math.round(row.collectedDueCents/row.dueCents*10000)/100;
+      row.operatingMargin=row.receiptsCents===0?null:Math.round(row.netCents/row.receiptsCents*10000)/100;
+      totals.dueCents+=row.dueCents;totals.collectedDueCents+=row.collectedDueCents;totals.arrearsCents+=row.arrearsCents;
+      if(![totals.dueCents,totals.collectedDueCents,totals.arrearsCents].every(Number.isSafeInteger))throw Error('إجمالي الاستحقاقات خارج النطاق');
+    }
+    totals.collectionRate=totals.dueCents===0?null:Math.round(totals.collectedDueCents/totals.dueCents*10000)/100;
+    totals.operatingMargin=totals.receiptsCents===0?null:Math.round(totals.netCents/totals.receiptsCents*10000)/100;
+    return {rows:[...byProperty.values()],totals};
+  }
+  return {buildExpenseCsv,filterExpenseRows,sumExpenseCents,groupExpenseByProperty,buildExpenseSummaryCsv,comparePropertyCashFlow,buildCashFlowComparisonCsv,propertyCollectionKpis};
 });
