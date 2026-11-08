@@ -66,6 +66,24 @@
       throw Error('مرجع سند القبض مستخدم سابقًا؛ أدخل مرجعًا فريدًا');
     return reference.trim();
   }
+  function expenseFingerprint(expense) {
+    const property=Number(expense?.propertyId);
+    const date=String(expense?.date??'').trim();
+    const category=String(expense?.category??'').trim().toLowerCase().replace(/\\s+/g,' ');
+    const description=String(expense?.description??'').trim().toLowerCase().replace(/\\s+/g,' ');
+    if(!Number.isSafeInteger(property)||property<=0||!/^(?:\\d{4})-\\d{2}-\\d{2}$/.test(date)
+      ||!category||!description)throw Error('بيانات المصروف غير مكتملة');
+    const amount=toCents(expense?.amount);
+    if(amount<=0)throw Error('قيمة المصروف يجب أن تكون أكبر من صفر');
+    return JSON.stringify([property,date,category,description,amount]);
+  }
+  function validateUniqueExpense(expense, previousExpenses) {
+    if(!Array.isArray(previousExpenses))throw Error('سجل المصروفات غير صالح');
+    const signature=expenseFingerprint(expense);
+    if(previousExpenses.some(previous=>expenseFingerprint(previous)===signature))
+      throw Error('يوجد مصروف مطابق مسجل مسبقًا لهذا العقار في اليوم نفسه');
+    return true;
+  }
   function nextRecordId(records) {
     if (!Array.isArray(records)) throw Error('مجموعة السجلات غير صالحة');
     let maximum = 0;
@@ -102,5 +120,5 @@
     }
     return true;
   }
-  return { addMonthsClamped, createInstallments, createLeaseSchedule, toCents, validatePayment, validateReceiptReference, nextRecordId, validateRecordRelation };
+  return { addMonthsClamped, createInstallments, createLeaseSchedule, toCents, validatePayment, validateReceiptReference, expenseFingerprint, validateUniqueExpense, nextRecordId, validateRecordRelation };
 });
