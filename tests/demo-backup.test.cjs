@@ -64,4 +64,13 @@ assert.equal(validate(corrupted(x=>x.payments[1].reference=' NEW-REFERENCE ')).p
 assert.throws(()=>validate(corrupted(x=>x.expenses.push({id:2,propertyId:1,amount:50.01,date:'2027-01-03',category:' صيانة ',description:'فاتورة مياه'}))),/مصروف مكرر/);
 assert.equal(validate(corrupted(x=>x.expenses.push({id:2,propertyId:1,amount:50.01,date:'2027-01-04',category:'صيانة',description:'فاتورة مياه'}))).expenses.length,2);
 assert.throws(()=>validate(corrupted(x=>delete x.expenses[0].category)),/تصنيف أو وصف/);
+assert.equal(validate(corrupted(x=>{
+ x.expenses[0].invoiceReference='INV-01';
+ x.expenses.push({...x.expenses[0],id:2,invoiceReference:'INV-02'});
+})).expenses.length,2);
+assert.throws(()=>validate(corrupted(x=>{
+ x.expenses[0].invoiceReference='INV-01';
+ x.expenses.push({...x.expenses[0],id:2,invoiceReference:' inv-01 '});
+})),/مرجع فاتورة مصروف مكرر/);
+assert.throws(()=>validate(corrupted(x=>x.expenses[0].invoiceReference=35)),/مرجع فاتورة المصروف غير صالح/);
 console.log('PASS: JSON demo restore validates owner scope, unique IDs, foreign keys and receipts');
