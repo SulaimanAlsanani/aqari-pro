@@ -108,6 +108,24 @@ const fixture = {
     assert.equal((await state()).expenses.length,1);
     await page.locator('#modal [data-do="close"]').click();
 
+    // Identical expense details with two independent invoice references are legitimate.
+    await add('expenses',{propertyId,category:'صيانة',description:'صيانة تجريبية',amount:'10.25',date:'2027-02-03',invoiceReference:'INV-2027-002'});
+    assert.equal((await state()).expenses.length,2);
+    await page.locator('[data-page="expenses"]').click();
+    await page.locator('[data-do="add"][data-kind="expenses"]').click();
+    const invoiceForm=page.locator('#editForm');
+    await invoiceForm.locator('[name="propertyId"]').selectOption(String(propertyId));
+    await invoiceForm.locator('[name="category"]').fill('صيانة');
+    await invoiceForm.locator('[name="description"]').fill('صيانة تجريبية');
+    await invoiceForm.locator('[name="amount"]').fill('10.25');
+    await invoiceForm.locator('[name="date"]').fill('2027-02-03');
+    await invoiceForm.locator('[name="invoiceReference"]').fill(' inv-2027-002 ');
+    const invoiceAlert=new Promise(resolve=>page.once('dialog',async d=>{const message=d.message();await d.accept();resolve(message)}));
+    await invoiceForm.locator('button[type="submit"]').click();
+    assert.match(await invoiceAlert,/مرجع فاتورة/);
+    assert.equal((await state()).expenses.length,2);
+    await page.locator('#modal [data-do="close"]').click();
+
     await page.locator('[data-page="reports"]').click();
     await page.locator('#propertyFilter').selectOption(String(propertyId));
     const reports = await page.locator('#content').innerText();
