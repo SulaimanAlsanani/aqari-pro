@@ -62,6 +62,21 @@ const seed={
   assert.equal(db.payments[0].dueId,dueId);
   assert.equal(Math.round(db.payments[0].amount*100),5001);
 
+  // A second receipt cannot reuse the first reference even for another installment.
+  await page.locator('[data-page="dues"]').click();
+  await page.locator('.record[data-attach-entity="dues"]').nth(1).locator('[data-do="pay"]').click();
+  await page.locator('#editForm [name="amount"]').fill('20.00');
+  await page.locator('#editForm [name="reference"]').fill(' e2e-rent ');
+  const duplicateWarning=new Promise(resolve=>page.once('dialog',async dialog=>{
+    const message=dialog.message();
+    await dialog.accept();
+    resolve(message);
+  }));
+  await page.locator('#editForm button[type="submit"]').click();
+  assert.match(await duplicateWarning,/مرجع سند القبض مستخدم سابقًا/);
+  assert.equal((await state()).payments.length,1);
+  await page.locator('[data-do="close"]').click();
+
   // The overpayment attempt must be rejected, with no new payment recorded.
   await page.locator('.record[data-attach-entity="dues"]').first().locator('[data-do="pay"]').click();
   await page.locator('#editForm [name="amount"]').fill('100.00');
