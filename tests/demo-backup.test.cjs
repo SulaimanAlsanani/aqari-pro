@@ -12,7 +12,7 @@ good.payments=[{id:1,dueId:1,amount:250},{id:2,dueId:1,amount:750}];
 good.expenses=[{id:1,propertyId:1,amount:50.01}];
 good.tickets=[{id:1,propertyId:1}];
 good.documents=[{id:1,propertyId:1}];
-good.inspections=[{id:1,propertyId:1}];
+good.inspections=[{id:1,propertyId:1,unitId:1}];
 assert.equal(validate(good).contracts.length,1);
 assert.equal(validate(good).payments.length,2);
 const corrupted=edit=>{const x=JSON.parse(JSON.stringify(good));edit(x);return x};
