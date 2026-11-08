@@ -86,5 +86,50 @@
     lines.push(['الإجمالي الكلي',summary.count,(summary.totalCents/100).toFixed(2)].map(cell).join(','));
     return '\uFEFF'+lines.join('\r\n')+'\r\n';
   }
-  return {buildExpenseCsv,filterExpenseRows,sumExpenseCents,groupExpenseByProperty,buildExpenseSummaryCsv};
+  // Income is assigned by the receipt date, not by the installment due date.
+  function comparePropertyCashFlow(properties,units,contracts,dues,payments,expenses,bounds={}) {
+    if(![properties,units,contracts,dues,payments,expenses].every(Array.isArray))throw Error('بيانات المقارنة غير صالحة');
+    const from=bounds.from||'',to=bounds.to||'',selected=bounds.propertyId;
+    const validDate=d=>!d||(/^\\d{4}-\\d{2}-\\d{2}$/.test(d)&&!Number.isNaN(Date.parse(d)));
+    if(!validDate(from)||!validDate(to))throw Error('تاريخ المقارنة غير صالح');
+    const selectedProperties=properties.filter(p=>selected===undefined||selected==='all'||String(p.id)===String(selected));
+    const unitToProperty=new Map(units.map(u=>[String(u.id),String(u.propertyId)]));
+    const leaseToProperty=new Map(contracts.map(c=>[String(c.id),unitToProperty.get(String(c.unitId))]));
+    const dueToProperty=new Map(dues.map(d=>[String(d.id),leaseToProperty.get(String(d.contractId))]));
+    const rows=new Map(selectedProperties.map(p=>[String(p.id),{propertyId:String(p.id),propertyName:String(p.name??''),receiptsCents:0,expensesCents:0,netCents:0}]));
+    const inRange=date=>(!from||date>=from)&&(!to||date<=to);
+    for(const payment of payments){
+      if(!inRange(payment.date))continue;
+      const row=rows.get(dueToProperty.get(String(payment.dueId)));
+      if(!row)continue;
+      row.receiptsCents+=toCents(payment.amount);
+      if(!Number.isSafeInteger(row.receiptsCents))throw Error('إجمالي المقبوضات خارج النطاق');
+    }
+    for(const expense of expenses){
+      if(!inRange(expense.date))continue;
+      const row=rows.get(String(expense.propertyId));
+      if(!row)continue;
+      row.expensesCents+=toCents(expense.amount);
+      if(!Number.isSafeInteger(row.expensesCents))throw Error('إجمالي المصروفات خارج النطاق');
+    }
+    const results=[...rows.values()].sort((a,b)=>a.propertyName.localeCompare(b.propertyName,'ar')||a.propertyId.localeCompare(b.propertyId));
+    const totals={receiptsCents:0,expensesCents:0,netCents:0};
+    for(const row of results){
+      row.netCents=row.receiptsCents-row.expensesCents;
+      totals.receiptsCents+=row.receiptsCents;
+      totals.expensesCents+=row.expensesCents;
+      totals.netCents+=row.netCents;
+      if(!Object.values(totals).every(Number.isSafeInteger))throw Error('إجمالي المقارنة خارج النطاق');
+    }
+    return {rows:results,totals,from,to};
+  }
+  function buildCashFlowComparisonCsv(comparison) {
+    if(!comparison||!Array.isArray(comparison.rows)||!comparison.totals)throw Error('تقرير المقارنة غير صالح');
+    const lines=[['العقار','المقبوضات (ر.س)','المصروفات (ر.س)','صافي التدفق (ر.س)'].map(cell).join(',')];
+    const currency=cents=>(cents/100).toFixed(2);
+    for(const r of comparison.rows)lines.push([r.propertyName,currency(r.receiptsCents),currency(r.expensesCents),currency(r.netCents)].map(cell).join(','));
+    lines.push(['الإجمالي الكلي',currency(comparison.totals.receiptsCents),currency(comparison.totals.expensesCents),currency(comparison.totals.netCents)].map(cell).join(','));
+    return '\\uFEFF'+lines.join('\\r\\n')+'\\r\\n';
+  }
+  return {buildExpenseCsv,filterExpenseRows,sumExpenseCents,groupExpenseByProperty,buildExpenseSummaryCsv,comparePropertyCashFlow,buildCashFlowComparisonCsv};
 });
