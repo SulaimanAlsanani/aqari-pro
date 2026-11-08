@@ -159,6 +159,18 @@ const fixture = {
     const allFile=await allEvent;
     const allCsv=await readFile(await allFile.path(),'utf8');
     assert.equal(allCsv.trimEnd().split('\r\n').length,3,'Cleared filters must export both expenses');
+    const ownerSummary=page.locator('#expenseGroupedSummary');
+    assert.equal(await ownerSummary.locator('[data-expense-property]').count(),1);
+    assert.match(await ownerSummary.innerText(),/عمارة الاختبار/);
+    assert.match(await ownerSummary.locator('#expenseGroupedTotal').innerText(),/20.5/);
+    const groupedDownloadEvent=page.waitForEvent('download');
+    await page.locator('[data-do="expenseSummaryCsv"]').click();
+    const groupedDownload=await groupedDownloadEvent;
+    assert.equal(groupedDownload.suggestedFilename(),'aqari-expenses-by-property.csv');
+    const groupedCsv=await readFile(await groupedDownload.path(),'utf8');
+    assert.ok(groupedCsv.startsWith('\uFEFF'));
+    assert.ok(groupedCsv.includes('"عمارة الاختبار","2","20.50"'));
+    assert.ok(groupedCsv.includes('"الإجمالي الكلي","2","20.50"'));
 
     // Date and amount ranges apply equally to screen, cent-based total and CSV.
     await page.locator('#expenseFrom').fill('2027-02-04');
@@ -189,6 +201,13 @@ const fixture = {
     const boundedCsv=await readFile(await boundedFile.path(),'utf8');
     assert.equal(boundedCsv.trimEnd().split('\r\n').length,2);
     assert.ok(boundedCsv.includes('INV-2027-002'));
+    assert.equal(await page.locator('#expenseGroupedSummary [data-expense-property]').count(),1);
+    assert.match(await page.locator('#expenseGroupedTotal').innerText(),/10.25/);
+    const oneGroupEvent=page.waitForEvent('download');
+    await page.locator('[data-do="expenseSummaryCsv"]').click();
+    const oneGroupFile=await oneGroupEvent;
+    const oneGroupCsv=await readFile(await oneGroupFile.path(),'utf8');
+    assert.ok(oneGroupCsv.includes('"الإجمالي الكلي","1","10.25"'));
 
     await page.locator('[data-page="reports"]').click();
     await page.locator('#propertyFilter').selectOption(String(propertyId));
