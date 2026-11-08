@@ -129,7 +129,7 @@
     const currency=cents=>(cents/100).toFixed(2);
     for(const r of comparison.rows)lines.push([r.propertyName,currency(r.receiptsCents),currency(r.expensesCents),currency(r.netCents)].map(cell).join(','));
     lines.push(['الإجمالي الكلي',currency(comparison.totals.receiptsCents),currency(comparison.totals.expensesCents),currency(comparison.totals.netCents)].map(cell).join(','));
-    return '\\uFEFF'+lines.join('\\r\\n')+'\\r\\n';
+    return '\uFEFF'+lines.join('\r\n')+'\r\n';
   }
   return {buildExpenseCsv,filterExpenseRows,sumExpenseCents,groupExpenseByProperty,buildExpenseSummaryCsv,comparePropertyCashFlow,buildCashFlowComparisonCsv};
 });
