@@ -56,4 +56,34 @@ assert.equal(summaryCsv.trimEnd().split('\r\n').length,4);
 assert.equal(buildExpenseSummaryCsv(groupExpenseByProperty([],portfolioProperties)).trimEnd().split('\r\n').length,2);
 assert.throws(()=>groupExpenseByProperty([{propertyId:999,amount:1}],portfolioProperties),/العقار/);
 assert.throws(()=>groupExpenseByProperty([{propertyId:1,amount:'0.001'}],portfolioProperties),/مبلغ مالي/);
+const {comparePropertyCashFlow,buildCashFlowComparisonCsv}=require('../demo-csv.js');
+const cProperties=[{id:1,name:'عمارة ألف'},{id:2,name:'عمارة باء'}];
+const cUnits=[{id:11,propertyId:1},{id:22,propertyId:2}];
+const cContracts=[{id:111,unitId:11},{id:222,unitId:22}];
+const cDues=[{id:1111,contractId:111},{id:2222,contractId:222}];
+const cPayments=[
+ {dueId:1111,date:'2027-02-01',amount:10.10},
+ {dueId:1111,date:'2027-03-01',amount:20.20},
+ {dueId:2222,date:'2027-02-15',amount:5.05}
+];
+const cExpenses=[
+ {propertyId:1,date:'2027-02-12',amount:2.02},
+ {propertyId:2,date:'2027-02-18',amount:7.07},
+ {propertyId:1,date:'2027-04-01',amount:50.00}
+];
+const compare=options=>comparePropertyCashFlow(cProperties,cUnits,cContracts,cDues,cPayments,cExpenses,options);
+const feb=compare({from:'2027-02-01',to:'2027-02-28'});
+assert.deepEqual(feb.rows.map(x=>[x.propertyId,x.receiptsCents,x.expensesCents,x.netCents]),[['1',1010,202,808],['2',505,707,-202]]);
+assert.deepEqual(feb.totals,{receiptsCents:1515,expensesCents:909,netCents:606});
+const one=compare({propertyId:'2',from:'2027-02-01',to:'2027-02-28'});
+assert.equal(one.rows.length,1);assert.equal(one.totals.netCents,-202);
+const empty=compare({from:'2029-01-01',to:'2029-12-31'});
+assert.equal(empty.totals.netCents,0);
+const comparisonCsv=buildCashFlowComparisonCsv(feb);
+assert.ok(comparisonCsv.startsWith('\uFEFF'));
+assert.ok(comparisonCsv.includes('"عمارة ألف","10.10","2.02","8.08"'));
+assert.ok(comparisonCsv.includes('"عمارة باء","5.05","7.07","-2.02"'));
+assert.ok(comparisonCsv.includes('"الإجمالي الكلي","15.15","9.09","6.06"'));
+assert.equal(comparisonCsv.trimEnd().split('\r\n').length,4);
+assert.throws(()=>compare({from:'not-date'}),/تاريخ/);
 console.log('PASS: expense CSV escaping, UTF-8 BOM, invoice fields and formula sanitization');
