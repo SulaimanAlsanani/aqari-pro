@@ -69,9 +69,9 @@
   function expenseFingerprint(expense) {
     const property=Number(expense?.propertyId);
     const date=String(expense?.date??'').trim();
-    const category=String(expense?.category??'').trim().toLowerCase().replace(/\\s+/g,' ');
-    const description=String(expense?.description??'').trim().toLowerCase().replace(/\\s+/g,' ');
-    if(!Number.isSafeInteger(property)||property<=0||!/^(?:\\d{4})-\\d{2}-\\d{2}$/.test(date)
+    const category=String(expense?.category??'').trim().toLowerCase().replace(/\s+/g,' ');
+    const description=String(expense?.description??'').trim().toLowerCase().replace(/\s+/g,' ');
+    if(!Number.isSafeInteger(property)||property<=0||!/^(?:\d{4})-\d{2}-\d{2}$/.test(date)
       ||!category||!description)throw Error('بيانات المصروف غير مكتملة');
     const amount=toCents(expense?.amount);
     if(amount<=0)throw Error('قيمة المصروف يجب أن تكون أكبر من صفر');
