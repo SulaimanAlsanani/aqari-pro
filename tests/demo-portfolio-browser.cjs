@@ -226,6 +226,19 @@ const fixture = {
     await page.locator('[data-page="reports"]').click();
     await page.locator('#propertyFilter').selectOption('all');
     assert.equal(await page.locator('#cashComparisonPanel [data-cash-property]').count(),2);
+    // Aging uses actual payments through the cutoff, not later receipts or future dues.
+    await page.locator('#agingAsOf').fill('2027-02-03');
+    await page.locator('#agingAsOf').dispatchEvent('change');
+    assert.equal(await page.locator('#agingReportPanel [data-aging-property]').count(),2);
+    assert.ok((await page.locator('#agingReportTotal').innerText()).includes('59.75'));
+    const agingExportEvent=page.waitForEvent('download');
+    await page.locator('[data-do="agingCsv"]').click();
+    const agingFile=await agingExportEvent;
+    assert.equal(agingFile.suggestedFilename(),'aqari-aging-report.csv');
+    const agingCsv=await readFile(await agingFile.path(),'utf8');
+    assert.ok(agingCsv.startsWith('\uFEFF'));
+    assert.ok(agingCsv.includes('"عمارة الاختبار","59.75","0.00","0.00","0.00","59.75"'));
+    assert.ok(agingCsv.includes('"عقار منفصل","0.00","0.00","0.00","0.00","0.00"'));
     await page.locator('#cashFrom').fill('2027-02-01');
     await page.locator('#cashFrom').dispatchEvent('change');
     await page.locator('#cashTo').fill('2027-02-04');
@@ -254,6 +267,8 @@ const fixture = {
     await page.locator('#propertyFilter').selectOption(String(secondId));
     assert.equal(await page.locator('#cashComparisonPanel [data-cash-property]').count(),1);
     assert.equal(await page.locator('#propertyKpiPanel [data-kpi-property]').count(),1);
+    assert.equal(await page.locator('#agingReportPanel [data-aging-property]').count(),1);
+    assert.ok(!(await page.locator('#agingReportPanel').innerText()).includes('عمارة الاختبار'));
     assert.ok(!(await page.locator('#propertyKpiPanel').innerText()).includes('عمارة الاختبار'));
     assert.ok(!(await page.locator('#cashComparisonPanel').innerText()).includes('عمارة الاختبار'));
     await page.locator('#cashTo').fill('2027-02-05');
