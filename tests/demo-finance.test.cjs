@@ -83,4 +83,9 @@ assert.throws(()=>validateUniqueExpense({propertyId:'1',date:'2027-03-01',catego
 assert.equal(validateUniqueExpense({propertyId:1,date:'2027-03-02',category:'صيانة',description:'إصلاح مضخة',amount:50.25},savedExpenses),true);
 assert.equal(validateUniqueExpense({propertyId:2,date:'2027-03-01',category:'صيانة',description:'إصلاح مضخة',amount:50.25},savedExpenses),true);
 assert.equal(validateUniqueExpense({propertyId:1,date:'2027-03-01',category:'صيانة',description:'إصلاح آخر',amount:50.25},savedExpenses),true);
+const invoiceBase={propertyId:1,date:'2027-03-01',category:'صيانة',description:'إصلاح مضخة',amount:50.25,invoiceReference:'INV-001'};
+assert.equal(validateUniqueExpense({...invoiceBase,invoiceReference:'INV-002'},[invoiceBase]),true);
+assert.throws(()=>validateUniqueExpense({...invoiceBase,invoiceReference:' inv-001 '},[invoiceBase]),/مرجع فاتورة/);
+assert.equal(validateUniqueExpense({...invoiceBase,propertyId:2},[invoiceBase]),true);
+assert.equal(validateUniqueExpense({...invoiceBase,invoiceReference:''},[invoiceBase]),true);
 console.log('PASS: exact rent cents, calendar clamping, supported frequencies and input and payment and lease-period and collision-free ID validation');
