@@ -35,4 +35,25 @@ assert.equal(sumExpenseCents(filterExpenseRows(expenses,{from:'2027-02-10'})),50
 assert.equal(sumExpenseCents([]),0);
 assert.throws(()=>filterExpenseRows(expenses,{min:'0.001'}),/مبلغ مالي/);
 assert.throws(()=>filterExpenseRows(expenses,{to:'bad-date'}),/نطاق التاريخ/);
+const {groupExpenseByProperty,buildExpenseSummaryCsv}=require('../demo-csv.js');
+const portfolioProperties=[{id:1,name:'عمارة ألف'},{id:2,name:'عمارة باء'}];
+const sample=[
+ {propertyId:2,amount:0.01},{propertyId:1,amount:0.10},
+ {propertyId:1,amount:0.20},{propertyId:2,amount:1.99}
+];
+const grouped=groupExpenseByProperty(sample,portfolioProperties);
+assert.equal(grouped.count,4);
+assert.equal(grouped.totalCents,230);
+assert.deepEqual(grouped.groups.map(g=>[g.propertyName,g.count,g.totalCents]),[
+ ['عمارة ألف',2,30],['عمارة باء',2,200]
+]);
+const summaryCsv=buildExpenseSummaryCsv(grouped);
+assert.ok(summaryCsv.startsWith('\uFEFF'));
+assert.ok(summaryCsv.includes('"عمارة ألف","2","0.30"'));
+assert.ok(summaryCsv.includes('"عمارة باء","2","2.00"'));
+assert.ok(summaryCsv.includes('"الإجمالي الكلي","4","2.30"'));
+assert.equal(summaryCsv.trimEnd().split('\r\n').length,4);
+assert.equal(buildExpenseSummaryCsv(groupExpenseByProperty([],portfolioProperties)).trimEnd().split('\r\n').length,2);
+assert.throws(()=>groupExpenseByProperty([{propertyId:999,amount:1}],portfolioProperties),/العقار/);
+assert.throws(()=>groupExpenseByProperty([{propertyId:1,amount:'0.001'}],portfolioProperties),/مبلغ مالي/);
 console.log('PASS: expense CSV escaping, UTF-8 BOM, invoice fields and formula sanitization');
