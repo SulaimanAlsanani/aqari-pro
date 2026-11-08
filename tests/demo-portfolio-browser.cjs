@@ -224,6 +224,7 @@ const fixture = {
     const secondId = db.properties[1].id;
     await add('expenses',{propertyId:secondId,category:'خدمات',description:'فاتورة ثانية',amount:'8.50',date:'2027-02-05'});
     await page.locator('[data-page="reports"]').click();
+    await page.locator('#propertyFilter').selectOption('all');
     assert.equal(await page.locator('#cashComparisonPanel [data-cash-property]').count(),2);
     await page.locator('#cashFrom').fill('2027-02-01');
     await page.locator('#cashFrom').dispatchEvent('change');
