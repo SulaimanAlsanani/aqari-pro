@@ -60,3 +60,21 @@ test('aging report groups only unpaid halalas by overdue duration',()=>{
  assert.equal(result.days90plus,15);
  assert.equal(Math.round(result.total*100),33167);
 });
+
+test('collection reminders distinguish overdue, upcoming, and partial settlements',()=>{
+ const dues=[
+  {id:1,date:'2026-11-08',amount:100},
+  {id:2,date:'2026-11-09',amount:50},
+  {id:3,date:'2026-11-16',amount:80},
+  {id:4,date:'2026-11-17',amount:40},
+  {id:5,date:'2026-11-01',amount:60}
+ ];
+ const payments=[{dueId:1,amount:20.01},{dueId:5,amount:60},{dueId:4,amount:10}];
+ const alerts=finance.collectionAlerts(dues,payments,'2026-11-09',7);
+ assert.deepEqual(Array.from(alerts.overdue,x=>x.id),[1]);
+ assert.deepEqual(Array.from(alerts.upcoming,x=>x.id),[2,3]);
+ assert.deepEqual(Array.from(alerts.partial,x=>x.id),[1,4]);
+ assert.equal(alerts.overdue[0].remaining,79.99);
+ assert.equal(alerts.upcoming[1].days,7);
+ assert.throws(()=>finance.collectionAlerts(dues,payments,'2026-02-30'));
+});
