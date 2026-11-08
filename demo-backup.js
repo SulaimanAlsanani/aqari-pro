@@ -53,10 +53,13 @@
       codes.add(uniqueKey);
     }
     function cents(value,label){
-      const num=Number(value);
-      if(!Number.isFinite(num)||num<0||Math.abs(Math.round(num*100)-num*100)>1e-6)
+      if(value===null||value===undefined||typeof value==='boolean'||String(value).trim()==='')
+        throw Error('مبلغ مالي مفقود في '+label);
+      const num=Number(value), scaled=num*100;
+      if(!Number.isFinite(num)||num<0||!Number.isSafeInteger(Math.round(scaled))
+        ||Math.abs(Math.round(scaled)-scaled)>1e-6)
         throw Error('مبلغ مالي غير صالح في '+label);
-      return Math.round(num*100);
+      return Math.round(scaled);
     }
     // Validate lease periods without requiring legacy demo fixtures to have every future due row.
     const dateValid=value=>typeof value==='string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
@@ -91,14 +94,26 @@
     for(const row of output.payments){
       const value=cents(row.amount,'المقبوضات');
       if(value===0)throw Error('دفعة صفرية في النسخة');
+      if(!dateValid(row.date))throw Error('تاريخ قبض غير صالح في السند: '+row.id);
+      if(typeof row.method!=='string'||!row.method.trim())
+        throw Error('طريقة السداد مفقودة في السند: '+row.id);
+      if(typeof row.reference!=='string'||!row.reference.trim())
+        throw Error('مرجع السداد مفقود في السند: '+row.id);
       const dueId=Number(row.dueId);
-      paid.set(dueId,(paid.get(dueId)||0)+value);
+      const current=paid.get(dueId)||0;
+      if(!Number.isSafeInteger(current+value))throw Error('مجموع التحصيلات يتجاوز النطاق الآمن');
+      paid.set(dueId,current+value);
     }
     for(const due of output.dues){
       if((paid.get(due.id)||0)>cents(due.amount,'الأقساط'))throw Error('تحصيل يتجاوز القسط '+due.id);
     }
-    for(const row of output.contracts)cents(row.total,'العقود');
-    for(const row of output.expenses)cents(row.amount,'المصروفات');
+    for(const row of output.contracts){
+      if(cents(row.total,'العقود')===0)throw Error('قيمة عقد صفرية: '+row.id);
+    }
+    for(const row of output.expenses){
+      cents(row.amount,'المصروفات');
+      if(!dateValid(row.date))throw Error('تاريخ مصروف غير صالح: '+row.id);
+    }
     return output;
   }
   return {collections,validate};
