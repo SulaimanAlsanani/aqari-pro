@@ -80,8 +80,15 @@
   function validateUniqueExpense(expense, previousExpenses) {
     if(!Array.isArray(previousExpenses))throw Error('سجل المصروفات غير صالح');
     const signature=expenseFingerprint(expense);
-    if(previousExpenses.some(previous=>expenseFingerprint(previous)===signature))
+    const ref=String(expense.invoiceReference??'').trim().toLowerCase();
+    if(ref){
+      if(previousExpenses.some(previous=>Number(previous.propertyId)===Number(expense.propertyId)
+        && String(previous.invoiceReference??'').trim().toLowerCase()===ref))
+        throw Error('مرجع فاتورة المصروف مستخدم سابقًا في هذا العقار');
+    }else if(previousExpenses.some(previous=>!String(previous.invoiceReference??'').trim()
+      && expenseFingerprint(previous)===signature)){
       throw Error('يوجد مصروف مطابق مسجل مسبقًا لهذا العقار في اليوم نفسه');
+    }
     return true;
   }
   function nextRecordId(records) {
