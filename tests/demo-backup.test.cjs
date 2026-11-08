@@ -9,7 +9,7 @@ good.tenants=[{id:1,name:'Demo tenant'}];
 good.contracts=[{id:1,unitId:1,tenantId:1,start:'2027-01-01',end:'2027-12-31',total:1000,installments:1}];
 good.dues=[{id:1,contractId:1,date:'2027-01-01',amount:1000}];
 good.payments=[{id:1,dueId:1,amount:250,date:'2027-01-01',method:'bank_transfer',reference:'DEMO-1'},{id:2,dueId:1,amount:750,date:'2027-01-02',method:'cash',reference:'DEMO-2'}];
-good.expenses=[{id:1,propertyId:1,amount:50.01,date:'2027-01-03'}];
+good.expenses=[{id:1,propertyId:1,amount:50.01,date:'2027-01-03',category:'صيانة',description:'فاتورة مياه'}];
 good.tickets=[{id:1,propertyId:1}];
 good.documents=[{id:1,propertyId:1}];
 good.inspections=[{id:1,propertyId:1,unitId:1}];
@@ -61,4 +61,7 @@ assert.throws(()=>validate(corrupted(x=>x.contracts[0].total=0)),/قيمة عق�
 assert.throws(()=>validate(corrupted(x=>x.expenses[0].amount='999999999999999999999')),/مبلغ مالي غير صالح/);
 assert.throws(()=>validate(corrupted(x=>x.payments[1].reference=' demo-1 ')),/مرجع سند قبض مكرر/);
 assert.equal(validate(corrupted(x=>x.payments[1].reference=' NEW-REFERENCE ')).payments.length,2);
+assert.throws(()=>validate(corrupted(x=>x.expenses.push({id:2,propertyId:1,amount:50.01,date:'2027-01-03',category:' صيانة ',description:'فاتورة مياه'}))),/مصروف مكرر/);
+assert.equal(validate(corrupted(x=>x.expenses.push({id:2,propertyId:1,amount:50.01,date:'2027-01-04',category:'صيانة',description:'فاتورة مياه'}))).expenses.length,2);
+assert.throws(()=>validate(corrupted(x=>delete x.expenses[0].category)),/تصنيف أو وصف/);
 console.log('PASS: JSON demo restore validates owner scope, unique IDs, foreign keys and receipts');
