@@ -126,6 +126,20 @@ const fixture = {
     assert.equal((await state()).expenses.length,2);
     await page.locator('#modal [data-do="close"]').click();
 
+    // Invoice field must be visible, and invoice-specific filtering must not conflate similar expenses.
+    await page.locator('[data-page="expenses"]').click();
+    assert.equal(await page.locator('.record[data-attach-entity="expenses"]').count(),2);
+    await page.locator('#expenseInvoiceFilter').fill('inv-2027-002');
+    assert.equal(await page.locator('.record[data-attach-entity="expenses"]').count(),1);
+    assert.ok((await page.locator('.record[data-attach-entity="expenses"]').innerText()).includes('INV-2027-002'));
+    await page.locator('#findText').fill('صيانة تجريبية');
+    assert.equal(await page.locator('.record[data-attach-entity="expenses"]').count(),1);
+    await page.locator('#expenseInvoiceFilter').fill('INV-NOT-FOUND');
+    assert.equal(await page.locator('.record[data-attach-entity="expenses"]').count(),0);
+    await page.locator('#expenseInvoiceFilter').fill('');
+    assert.equal(await page.locator('.record[data-attach-entity="expenses"]').count(),2);
+    await page.locator('#findText').fill('');
+
     await page.locator('[data-page="reports"]').click();
     await page.locator('#propertyFilter').selectOption(String(propertyId));
     const reports = await page.locator('#content').innerText();
