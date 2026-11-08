@@ -59,4 +59,6 @@ assert.throws(()=>validate(corrupted(x=>delete x.payments[0].reference)),/مرج
 assert.throws(()=>validate(corrupted(x=>x.expenses[0].date='invalid')),/تاريخ مصروف/);
 assert.throws(()=>validate(corrupted(x=>x.contracts[0].total=0)),/قيمة عقد صفرية/);
 assert.throws(()=>validate(corrupted(x=>x.expenses[0].amount='999999999999999999999')),/مبلغ مالي غير صالح/);
+assert.throws(()=>validate(corrupted(x=>x.payments[1].reference=' demo-1 ')),/مرجع سند قبض مكرر/);
+assert.equal(validate(corrupted(x=>x.payments[1].reference=' NEW-REFERENCE ')).payments.length,2);
 console.log('PASS: JSON demo restore validates owner scope, unique IDs, foreign keys and receipts');
