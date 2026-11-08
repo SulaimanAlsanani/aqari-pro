@@ -130,4 +130,23 @@ assert.equal(zeroKpis.totals.operatingMargin,null);
 const latePaid=kpis({from:'2027-02-01',to:'2027-03-31'});
 assert.equal(latePaid.rows[0].collectedDueCents,3030);
 assert.equal(latePaid.rows[0].arrearsCents,0);
+// A receipt recorded after the report cutoff must not reduce period arrears.
+const delayedPaymentKpis=propertyCollectionKpis(cProperties,cUnits,cContracts,[
+ {id:1111,contractId:111,date:'2027-02-01',amount:30.30}
+],[
+ {dueId:1111,date:'2027-03-01',amount:30.30}
+],[],{propertyId:'1',from:'2027-02-01',to:'2027-02-28'});
+assert.equal(delayedPaymentKpis.totals.collectedDueCents,0);
+assert.equal(delayedPaymentKpis.totals.arrearsCents,3030);
+assert.equal(delayedPaymentKpis.totals.collectionRate,0);
+// A receipt larger than the due must be capped for collection KPI calculations.
+const overpaymentKpis=propertyCollectionKpis(cProperties,cUnits,cContracts,[
+ {id:1111,contractId:111,date:'2027-02-01',amount:30.30}
+],[
+ {dueId:1111,date:'2027-02-02',amount:99.99}
+],[],{propertyId:'1',from:'2027-02-01',to:'2027-02-28'});
+assert.equal(overpaymentKpis.totals.dueCents,3030);
+assert.equal(overpaymentKpis.totals.collectedDueCents,3030);
+assert.equal(overpaymentKpis.totals.arrearsCents,0);
+assert.equal(overpaymentKpis.totals.collectionRate,100);
 console.log('PASS: expense CSV escaping, UTF-8 BOM, invoice fields and formula sanitization');
