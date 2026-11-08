@@ -112,9 +112,17 @@
     for(const due of output.dues){
       if((paid.get(due.id)||0)>cents(due.amount,'الأقساط'))throw Error('تحصيل يتجاوز القسط '+due.id);
     }
+    const expenseSignatures=new Set();
+    const normalize=value=>typeof value==='string'?value.trim().toLowerCase().replace(/\s+/g,' '):'';
     for(const row of output.expenses){
-      cents(row.amount,'المصروفات');
+      const amount=cents(row.amount,'المصروفات');
+      if(amount===0)throw Error('مصروف بقيمة صفرية: '+row.id);
       if(!dateValid(row.date))throw Error('تاريخ مصروف غير صالح: '+row.id);
+      const category=normalize(row.category),description=normalize(row.description);
+      if(!category||!description)throw Error('تصنيف أو وصف المصروف مفقود: '+row.id);
+      const signature=JSON.stringify([Number(row.propertyId),row.date,category,description,amount]);
+      if(expenseSignatures.has(signature))throw Error('مصروف مكرر في النسخة: '+row.id);
+      expenseSignatures.add(signature);
     }
     return output;
   }
