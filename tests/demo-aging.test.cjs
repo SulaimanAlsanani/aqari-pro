@@ -75,4 +75,15 @@ assert.deepEqual(boundaryReport.totals,{
  days1to30:100,days31to60:200,days61to90:200,over90:100,totalCents:600
 });
 assert.equal(boundaryReport.rows.reduce((sum,row)=>sum+row.totalCents,0),600);
+const {filterAgingDetails,sumAgingDetailsCents}=require('../demo-aging.js');
+assert.deepEqual(filterAgingDetails(linked,{tenant:' sum(a1:a2) '}).map(x=>x.dueId),[4,2,1]);
+assert.deepEqual(filterAgingDetails(linked,{unit:'u-101'}).map(x=>x.dueId),[4,2,1]);
+assert.deepEqual(filterAgingDetails(linked,{bucket:'days1to30'}).map(x=>x.dueId),[2,1]);
+assert.deepEqual(filterAgingDetails(linked,{bucket:'days61to90'}).map(x=>x.dueId),[4]);
+assert.deepEqual(filterAgingDetails(linked,{tenant:'missing'}),[]);
+assert.equal(sumAgingDetailsCents(filterAgingDetails(linked,{bucket:'days1to30'})),2600);
+assert.equal(sumAgingDetailsCents([]),0);
+assert.equal(exportAgingDetailsCsv(filterAgingDetails(linked,{tenant:'missing'})).trimEnd().split('\\r\\n').length,1);
+assert.throws(()=>filterAgingDetails(linked,{bucket:'unknown'}),/فئة/);
+assert.throws(()=>sumAgingDetailsCents([{outstandingCents:0}]),/رصيد/);
 console.log('PASS: aging buckets, cutoff, overpayment, property isolation and CSV safety');
