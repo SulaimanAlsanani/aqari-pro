@@ -118,17 +118,34 @@ const fixture = {
     assert.equal((await state()).units.length,1);
     await page.locator('#modal [data-do="close"]').click();
 
-    // Cross-property inspection must not be recorded for a unit in another building.
+    // Inspection form filters units by property; no cross-property option is available.
     await page.locator('[data-page="inspections"]').click();
     await page.locator('[data-do="add"][data-kind="inspections"]').click();
     await page.locator('#editForm [name="propertyId"]').selectOption(String(secondId));
-    await page.locator('#editForm [name="unitId"]').selectOption(String(unitId));
-    await page.locator('#editForm [name="date"]').fill('2027-02-04');
-    await page.locator('#editForm [name="status"]').fill('تجربة');
-    await page.locator('#editForm [name="notes"]').fill('فحص تجريبي غير صالح');
-    await page.locator('#editForm button[type="submit"]').click();
-    assert.ok(errors.some(message=>message.includes('لا تتبع')));
+    assert.equal(await page.locator('#editForm [name="unitId"]').isDisabled(),true);
+    assert.deepEqual(await page.locator('#editForm [name="unitId"] option').evaluateAll(options=>options.map(x=>x.value)),['']);
     assert.equal((await state()).inspections.length,0);
+    await page.locator('#editForm [name="propertyId"]').selectOption(String(propertyId));
+    assert.equal(await page.locator('#editForm [name="unitId"]').isEnabled(),true);
+    assert.deepEqual(await page.locator('#editForm [name="unitId"] option').evaluateAll(options=>options.map(x=>x.value)),[String(unitId)]);
+    await page.locator('#modal [data-do="close"]').click();
+
+    // Contract form scopes its units to the selected property too.
+    await page.locator('[data-page="contracts"]').click();
+    await page.locator('[data-do="add"][data-kind="contracts"]').click();
+    await page.locator('#editForm [name="contractPropertyId"]').selectOption(String(secondId));
+    assert.equal(await page.locator('#editForm [name="unitId"]').isDisabled(),true);
+    await page.locator('#editForm [name="contractPropertyId"]').selectOption(String(propertyId));
+    assert.deepEqual(await page.locator('#editForm [name="unitId"] option').evaluateAll(options=>options.map(x=>x.value)),[String(unitId)]);
+    await page.locator('#modal [data-do="close"]').click();
+
+    // Add a unit to the second property and check both forms offer only that unit.
+    await add('units',{propertyId:secondId,type:'شقة',code:'B-201',floor:'الثاني',area:90});
+    const secondUnitId=(await state()).units[1].id;
+    await page.locator('[data-page="inspections"]').click();
+    await page.locator('[data-do="add"][data-kind="inspections"]').click();
+    await page.locator('#editForm [name="propertyId"]').selectOption(String(secondId));
+    assert.deepEqual(await page.locator('#editForm [name="unitId"] option').evaluateAll(options=>options.map(x=>x.value)),[String(secondUnitId)]);
     await page.locator('#modal [data-do="close"]').click();
 
     await page.locator('[data-page="reports"]').click();
