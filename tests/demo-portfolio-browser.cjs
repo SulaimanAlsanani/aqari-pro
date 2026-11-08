@@ -131,8 +131,8 @@ const fixture = {
     const reports = await page.locator('#content').innerText();
     assert.ok(reports.includes('1,200'), 'Rent dues total missing');
     assert.ok(reports.includes('40.25'), 'Receipt missing');
-    assert.ok(reports.includes('10.25'), 'Expense missing');
-    assert.ok(reports.includes('30'), 'Net cash flow missing');
+    assert.ok(reports.includes('20.5'), 'Two independently referenced expenses missing');
+    assert.ok(reports.includes('19.75'), 'Net cash flow missing');
 
     // A different property must not show the first property's financial results.
     await add('properties',{name:'عقار منفصل',city:'جدة',district:'الروضة',type:'سكني'});
