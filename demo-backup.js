@@ -80,6 +80,7 @@
       duesByContract.set(contract.id,[...(duesByContract.get(contract.id)||[]),due]);
     }
     for(const contract of output.contracts){
+      if(cents(contract.total,'العقود')===0)throw Error('قيمة عقد صفرية: '+contract.id);
       const dues=duesByContract.get(contract.id)||[];
       const dueTotal=dues.reduce((sum,d)=>sum+cents(d.amount,'الأقساط'),0);
       if(dueTotal>cents(contract.total,'العقود'))
@@ -106,9 +107,6 @@
     }
     for(const due of output.dues){
       if((paid.get(due.id)||0)>cents(due.amount,'الأقساط'))throw Error('تحصيل يتجاوز القسط '+due.id);
-    }
-    for(const row of output.contracts){
-      if(cents(row.total,'العقود')===0)throw Error('قيمة عقد صفرية: '+row.id);
     }
     for(const row of output.expenses){
       cents(row.amount,'المصروفات');
