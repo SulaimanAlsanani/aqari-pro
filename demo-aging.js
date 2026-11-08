@@ -66,5 +66,39 @@
     lines.push(format({...report.totals,propertyName:'الإجمالي الكلي'}));
     return '\uFEFF'+lines.join('\r\n')+'\r\n';
   }
-  return {agingReport,exportAgingCsv,labels,buckets};
+  function agingDetails(report,properties,units,contracts,tenants,dues){
+    if(!report||!Array.isArray(report.details)||![properties,units,contracts,tenants,dues].every(Array.isArray))
+      throw Error('بيانات تفاصيل الأعمار غير صالحة');
+    const propertyById=new Map(properties.map(x=>[String(x.id),x]));
+    const unitsById=new Map(units.map(x=>[String(x.id),x]));
+    const contractsById=new Map(contracts.map(x=>[String(x.id),x]));
+    const tenantsById=new Map(tenants.map(x=>[String(x.id),x]));
+    const duesById=new Map(dues.map(x=>[String(x.id),x]));
+    return report.details.map(detail=>{
+      const due=duesById.get(String(detail.dueId));
+      const contract=contractsById.get(String(due?.contractId));
+      const unit=unitsById.get(String(contract?.unitId));
+      const tenant=tenantsById.get(String(contract?.tenantId));
+      const property=propertyById.get(detail.propertyId);
+      if(!due||!contract||!unit||!tenant||!property||String(unit.propertyId)!==detail.propertyId)
+        throw Error('علاقات قسط متأخر غير مكتملة: '+detail.dueId);
+      return {...detail,contractId:contract.id,unitCode:String(unit.code??''),tenantName:String(tenant.name??''),
+        propertyName:String(property.name??'')};
+    }).sort((a,b)=>b.daysLate-a.daysLate||String(a.dueId).localeCompare(String(b.dueId)));
+  }
+  function exportAgingDetailsCsv(details){
+    if(!Array.isArray(details))throw Error('تفاصيل تقرير الأعمار غير صالحة');
+    const lines=[['العقار','رقم العقد','الوحدة','المستأجر','تاريخ الاستحقاق','أيام التأخير','فئة التأخير','الرصيد المتأخر (ر.س)'].map(x=>csvCell(x)).join(',')];
+    for(const d of details){
+      if(!Number.isSafeInteger(d.daysLate)||d.daysLate<1||!Number.isSafeInteger(d.outstandingCents)||d.outstandingCents<=0)
+        throw Error('قسط متأخر غير صالح للتصدير');
+      const label=labels[buckets.indexOf(d.bucket)];
+      if(!label)throw Error('فئة تقادم غير صالحة');
+      lines.push([csvCell(d.propertyName),csvCell(d.contractId),csvCell(d.unitCode),csvCell(d.tenantName),
+        csvCell(d.dueDate),csvCell(d.daysLate),csvCell(label),
+        csvCell((d.outstandingCents/100).toFixed(2),true)].join(','));
+    }
+    return '\uFEFF'+lines.join('\r\n')+'\r\n';
+  }
+  return {agingReport,exportAgingCsv,agingDetails,exportAgingDetailsCsv,labels,buckets};
 });
