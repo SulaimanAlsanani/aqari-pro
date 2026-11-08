@@ -17,12 +17,15 @@ function dateAfterMonths(start,months){
  const last=new Date(Date.UTC(first.getUTCFullYear(),first.getUTCMonth()+1,0)).getUTCDate();
  return new Date(Date.UTC(first.getUTCFullYear(),first.getUTCMonth(),Math.min(day,last))).toISOString().slice(0,10);
 }
-function schedule(start,total,installments){
+function schedule(start,total,installments,end){
  const cents=toHalalas(total);
  if(cents===null||cents<=0||!Number.isInteger(installments)||installments<1||installments>120||cents<installments)throw Error('Invalid installment schedule');
+ const monthSlots=end?Array.from({length:121},(_,i)=>i).filter(i=>dateAfterMonths(start,i)<=end).length:12;
+ if(end&&(!/^\d{4}-\d{2}-\d{2}$/.test(end)||end<start||dateAfterMonths(start,0)>end))throw Error('Invalid contract end date');
+ if(monthSlots<installments||monthSlots>120)throw Error('Too many installments for the contract duration');
  const base=Math.floor(cents/installments),remainder=cents%installments;
  return Array.from({length:installments},(_,i)=>({
-  date:dateAfterMonths(start,Math.round(i*12/installments)),
+  date:dateAfterMonths(start,Math.floor(i*monthSlots/installments)),
   amount:(base+(i<remainder?1:0))/100
  }));
 }
