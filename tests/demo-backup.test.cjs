@@ -45,6 +45,7 @@ assert.throws(()=>validate(corrupted(x=>x.dues[0].amount=1000.01)),/يتجاوز
 assert.throws(()=>validate(corrupted(x=>x.dues[0].amount=999.99)),/لا يساوي قيمة العقد/);
 assert.throws(()=>validate(corrupted(x=>{
  x.contracts[0].installments=2;
+ x.dues[0].amount=800;
  x.dues.push({id:2,contractId:1,date:'2027-07-01',amount:100});
  x.dues.push({id:3,contractId:1,date:'2027-10-01',amount:100});
 })),/يتجاوز جدول العقد/);
