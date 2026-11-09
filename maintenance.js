@@ -44,5 +44,25 @@ function performance(data,propertyId='all'){
  const list=(map,key)=>Array.from(map,([id,amount])=>({id,amount:amount/100})).sort((a,b)=>b.amount-a.amount||a.id.localeCompare(b.id));
  return {spent:total/100,properties:data.properties.filter(x=>include(x.id)).map(p=>({id:p.id,name:p.name,spent:(costs.get(String(p.id))||0)/100,tickets:tickets.get(String(p.id))||0,estimated:(estimated.get(String(p.id))||0)/100})),byUnit:list(unitCosts),byVendor:list(vendorCosts),byCategory:list(categoryCosts)};
 }
-root.AqariMaintenance=Object.freeze({cents,recordError,performance});
+const statuses=['مفتوح','مسند','قيد التنفيذ','مكتمل','مغلق'];
+function transition(ticket,next){
+ const current=String(ticket.status||'مفتوح');
+ const nextIndex=statuses.indexOf(next),currentIndex=statuses.indexOf(current);
+ if(nextIndex<0||currentIndex<0)return 'حالة أمر الصيانة غير معروفة';
+ if(nextIndex!==currentIndex+1)return 'يجب تغيير الحالة وفق تسلسل دورة الصيانة';
+ if(next==='مسند'&&!ticket.vendorId)return 'يجب إسناد مورد قبل بدء التنفيذ';
+ return null;
+}
+function expenseForTicket(ticket,expenses){
+ return expenses.find(x=>String(x.ticketId)===String(ticket.id));
+}
+function linkedExpenseError(ticket,expense,data){
+ if(!ticket)return 'بلاغ الصيانة غير موجود';
+ if(String(expense.propertyId)!==String(ticket.propertyId))return 'العقار لا يطابق بلاغ الصيانة';
+ if(ticket.unitId&&String(expense.unitId)!==String(ticket.unitId))return 'الوحدة لا تطابق بلاغ الصيانة';
+ if(ticket.vendorId&&String(expense.vendorId)!==String(ticket.vendorId))return 'المورد لا يطابق بلاغ الصيانة';
+ if(expenseForTicket(ticket,data.expenses))return 'تم تسجيل مصروف فعلي لهذا البلاغ مسبقًا';
+ return recordError(expense,data,'expense');
+}
+root.AqariMaintenance=Object.freeze({cents,recordError,performance,statuses,transition,expenseForTicket,linkedExpenseError});
 })(typeof window!=='undefined'?window:globalThis);
