@@ -21,10 +21,10 @@ class PropertyIsolationTest extends TestCase
     {
         $alice = User::factory()->create();
         $bob = User::factory()->create();
-        $aliceOwner = Owner::query()->create(['user_id' => $alice->id, 'name' => 'Owner A']);
-        $bobOwner = Owner::query()->create(['user_id' => $bob->id, 'name' => 'Owner B']);
-        $own = Property::query()->create(['owner_id' => $aliceOwner->id, 'name' => 'A property', 'city' => 'Riyadh']);
-        $other = Property::query()->create(['owner_id' => $bobOwner->id, 'name' => 'B property', 'city' => 'Jeddah']);
+        $aliceOwner = Owner::query()->forceCreate(['user_id' => $alice->id, 'name' => 'Owner A']);
+        $bobOwner = Owner::query()->forceCreate(['user_id' => $bob->id, 'name' => 'Owner B']);
+        $own = $aliceOwner->properties()->create(['name' => 'A property', 'city' => 'Riyadh']);
+        $other = $bobOwner->properties()->create(['name' => 'B property', 'city' => 'Jeddah']);
 
         $this->actingAs($alice)
             ->getJson('/api/v1/properties')
@@ -42,8 +42,8 @@ class PropertyIsolationTest extends TestCase
     {
         $alice = User::factory()->create();
         $bob = User::factory()->create();
-        $aliceOwner = Owner::query()->create(['user_id' => $alice->id, 'name' => 'Owner A']);
-        $bobOwner = Owner::query()->create(['user_id' => $bob->id, 'name' => 'Owner B']);
+        $aliceOwner = Owner::query()->forceCreate(['user_id' => $alice->id, 'name' => 'Owner A']);
+        $bobOwner = Owner::query()->forceCreate(['user_id' => $bob->id, 'name' => 'Owner B']);
 
         $this->actingAs($alice)
             ->postJson('/api/v1/properties', [
