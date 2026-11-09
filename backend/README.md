@@ -23,6 +23,9 @@ This directory contains **source files for a new Laravel 12 backend**, not a wor
 
 - `database/migrations/2026_11_09_000001_create_owner_portfolio_tables.php`: baseline relational schema.
 - `app/Models/Owner.php`, `app/Models/Property.php`, `app/Http/Controllers/Api/PropertyController.php`: first owner-scoped property endpoint.
+- `app/Models/Unit.php`, `app/Models/Tenant.php`, `app/Http/Controllers/Api/UnitController.php`, `app/Http/Controllers/Api/TenantController.php`: authenticated nested units and owner-scoped tenants.
+- `tests/Feature/PortfolioIsolationTest.php`: cross-owner access, parent validation, and ownership-injection regression tests.
+- Units are created only beneath a verified owner property; tenant `owner_id` is generated from the authenticated user. No delete endpoints are exposed yet.
 - `routes/api.php`: authenticated API resource registration.
 - `tests/Feature/PropertyIsolationTest.php`: isolated-user authorization regression tests.
 
