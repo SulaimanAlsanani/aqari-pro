@@ -23,3 +23,27 @@ test('does not double count ticket estimates as expenses',()=>{
  assert.equal(b.spent,40);
  assert.equal(b.properties.length,1);
 });
+
+test('ticket workflow requires assigned vendor and sequential state changes',()=>{
+ const ticket={id:10,propertyId:1,status:'مفتوح'};
+ assert.match(m.transition(ticket,'مسند'),/مورد/);
+ ticket.vendorId=4;
+ assert.equal(m.transition(ticket,'مسند'),null);
+ ticket.status='مسند';
+ assert.match(m.transition(ticket,'مغلق'),/تسلسل/);
+ assert.equal(m.transition(ticket,'قيد التنفيذ'),null);
+ ticket.status='قيد التنفيذ';
+ assert.equal(m.transition(ticket,'مكتمل'),null);
+ ticket.status='مكتمل';
+ assert.equal(m.transition(ticket,'مغلق'),null);
+});
+test('linked expense must match ticket and cannot be duplicated',()=>{
+ const ticket={id:10,propertyId:1,unitId:10,vendorId:4};
+ const expense={propertyId:1,unitId:10,vendorId:4,amount:'99.50',date:'2026-11-09'};
+ assert.equal(m.linkedExpenseError(ticket,expense,data),null);
+ assert.match(m.linkedExpenseError(ticket,{...expense,propertyId:2},data),/العقار/);
+ assert.match(m.linkedExpenseError(ticket,{...expense,unitId:20},data),/الوحدة/);
+ const existing={...data,expenses:[...data.expenses,{id:99,ticketId:10,amount:99.50}]};
+ assert.match(m.linkedExpenseError(ticket,expense,existing),/مسبقًا/);
+ assert.equal(m.expenseForTicket(ticket,existing).id,99);
+});
