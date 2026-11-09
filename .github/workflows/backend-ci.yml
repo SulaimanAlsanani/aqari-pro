@@ -1,0 +1,56 @@
+name: Backend Laravel Integration Tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backend-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: aqari_test
+          POSTGRES_USER: aqari
+          POSTGRES_PASSWORD: integration_only_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U aqari -d aqari_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+      DB_DATABASE: aqari_test
+      DB_USERNAME: aqari
+      DB_PASSWORD: integration_only_password
+      SESSION_DRIVER: array
+      CACHE_STORE: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: log
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up PHP and Composer
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_pgsql, pgsql, mbstring, xml, curl, zip, intl
+          tools: composer:v2
+          coverage: none
+      - name: Run Laravel integration suite against PostgreSQL
+        run: bash backend/scripts/ci-test.sh
