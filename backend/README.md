@@ -25,6 +25,9 @@ This directory contains **source files for a new Laravel 12 backend**, not a wor
 - `app/Models/Owner.php`, `app/Models/Property.php`, `app/Http/Controllers/Api/PropertyController.php`: first owner-scoped property endpoint.
 - `app/Models/Unit.php`, `app/Models/Tenant.php`, `app/Http/Controllers/Api/UnitController.php`, `app/Http/Controllers/Api/TenantController.php`: authenticated nested units and owner-scoped tenants.
 - `tests/Feature/PortfolioIsolationTest.php`: cross-owner access, parent validation, and ownership-injection regression tests.
+- `app/Models/Contract.php`, `app/Models/Due.php`, `app/Services/InstallmentSchedule.php`, `app/Http/Controllers/Api/ContractController.php`: owner-scoped contracts and atomic monthly installment creation; rejects overlapping date windows and uses integer halalas for precise allocation.
+- `tests/Feature/ContractCreationTest.php`: tests cross-owner access, overlap conflicts, rollback safety, monthly date anchors and exact cents.
+- Contract creation uses a PostgreSQL row lock on the unit to serialize concurrent writers; after authentication, the client can call `POST /api/v1/contracts` with `unit_id`, `tenant_id`, `start_date`, `end_date`, `total`, and `installments`. This is still a staging-only foundation, not an Ejar integration.
 - Units are created only beneath a verified owner property; tenant `owner_id` is generated from the authenticated user. No delete endpoints are exposed yet.
 - `routes/api.php`: authenticated API resource registration.
 - `tests/Feature/PropertyIsolationTest.php`: isolated-user authorization regression tests.
