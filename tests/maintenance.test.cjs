@@ -45,5 +45,5 @@ test('linked expense must match ticket and cannot be duplicated',()=>{
  assert.match(m.linkedExpenseError(ticket,{...expense,unitId:20},data),/الوحدة/);
  const existing={...data,expenses:[...data.expenses,{id:99,ticketId:10,amount:99.50}]};
  assert.match(m.linkedExpenseError(ticket,expense,existing),/مسبقًا/);
- assert.equal(m.expenseForTicket(ticket,existing).id,99);
+ assert.equal(m.expenseForTicket(ticket,existing.expenses).id,99);
 });
