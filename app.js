@@ -73,7 +73,7 @@ tenants:{title:'المستأجرون',fields:[['name','الاسم'],['phone','ا
 contracts:{title:'العقود',fields:[['unitId','الوحدة','units'],['tenantId','المستأجر','tenants'],['start','بداية العقد','date'],['end','نهاية العقد','date'],['total','القيمة الإجمالية','number'],['installments','عدد الأقساط','number'],['deposit','التأمين','number']]},
 expenses:{title:'المصروفات',fields:[['propertyId','العقار','properties'],['category','التصنيف'],['description','الوصف'],['amount','المبلغ','number'],['date','التاريخ','date'],['unitId','الوحدة','optionalUnit'],['vendorId','المورد','optionalVendor']]},
 vendors:{title:'الموردون',fields:[['name','اسم المورد'],['phone','رقم التواصل'],['service','نوع الخدمة']]},
-tickets:{title:'طلبات الصيانة',fields:[['propertyId','العقار','properties'],['title','وصف البلاغ'],['priority','الأولوية'],['status','الحالة'],['cost','التكلفة التقديرية','number'],['unitId','الوحدة','optionalUnit'],['vendorId','المورد','optionalVendor']]},
+tickets:{title:'طلبات الصيانة',fields:[['propertyId','العقار','properties'],['title','وصف البلاغ'],['priority','الأولوية'],['cost','التكلفة التقديرية','number'],['unitId','الوحدة','optionalUnit'],['vendorId','المورد','optionalVendor']]},
 documents:{title:'الوثائق',fields:[['propertyId','العقار','properties'],['title','اسم الوثيقة'],['kind','نوع الوثيقة'],['expiry','تاريخ الانتهاء','date']]},
 inspections:{title:'الفحص والتسليم',fields:[['propertyId','العقار','properties'],['unitId','الوحدة','units'],['date','التاريخ','date'],['status','حالة التسليم'],['notes','الملاحظات']]},
 tasks:{title:'المهام والتنبيهات',fields:[['title','المهمة'],['date','الموعد','date'],['status','الحالة']]},
