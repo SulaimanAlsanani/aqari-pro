@@ -25,7 +25,7 @@ cp "$REPO_ROOT/backend/bootstrap/app.php" "$RUNTIME/bootstrap/app.php"
   cd "$RUNTIME"
   php artisan migrate --force --no-interaction
   php artisan route:list --path=api
-  php artisan test --filter=PropertyIsolationTest
+  php artisan test --filter='(PropertyIsolationTest|PortfolioIsolationTest)'
 )
 
 echo "Laravel 12 owner-isolation integration suite finished."
