@@ -25,6 +25,7 @@ jobs:
           node --check contracts.js
           node --check followups.js
           node --check statements.js
+          node --check receipts.js
           node --check app.js
           node --check attachments.js
       - name: Test financial regression cases
