@@ -84,16 +84,17 @@ class PaymentPostingTest extends TestCase
         [$userA] = $this->fixture();
         [$userB, $dueB] = $this->fixture();
 
-        $this->actingAs($userB)->postJson("/api/v1/dues/{$dueB->id}/payments", [
+        $response = $this->actingAs($userB)->postJson("/api/v1/dues/{$dueB->id}/payments", [
             'amount' => '25', 'received_at' => '2026-01-02',
             'method' => 'bank', 'reference' => 'B',
-        ])->assertCreated()->assertJsonPath('data.id', 1);
+        ])->assertCreated();
+        $paymentId = $response->json('data.id');
 
         $this->actingAs($userA);
         $this->postJson("/api/v1/dues/{$dueB->id}/payments", [
             'amount' => '25', 'received_at' => '2026-01-02', 'method' => 'cash',
         ])->assertNotFound();
-        $this->getJson('/api/v1/payments/1')->assertNotFound();
+        $this->getJson('/api/v1/payments/'.$paymentId)->assertNotFound();
         $this->getJson('/api/v1/payments')->assertOk()->assertJsonCount(0, 'data');
     }
 
