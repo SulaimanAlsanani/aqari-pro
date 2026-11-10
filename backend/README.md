@@ -32,6 +32,17 @@ This directory contains **source files for a new Laravel 12 backend**, not a wor
 - `routes/api.php`: authenticated API resource registration.
 - `tests/Feature/PropertyIsolationTest.php`: isolated-user authorization regression tests.
 
+## Session authentication and staging frontend connector
+
+- `POST /login` uses Laravel's web session guard, returns a minimal user profile, rotates the session ID after successful login, and is throttled to five attempts per minute.
+- `POST /logout` invalidates the authenticated web session and regenerates its CSRF token.
+- `GET /api/v1/me` requires `auth:sanctum` and returns only basic user and owner identifiers, never password hashes or session tokens.
+- `backend/frontend/api-session.js` is an **opt-in staging-only** client with credentialed requests and a configured CSRF-token reader. It is not shipped in the public GitHub Pages bundle or wired into the existing local-storage demo.
+
+For a browser-based first-party SPA, host the UI and Laravel API on the **same site** under HTTPS, configure `SANCTUM_STATEFUL_DOMAINS`, session cookie domain, secure/SameSite cookie settings and exact trusted CORS origins. Obtain `/sanctum/csrf-cookie` before login. Pass a `csrfToken` function that reads only the URL-encoded `XSRF-TOKEN` cookie for the `X-XSRF-TOKEN` header. Do not store user passwords, Laravel session cookies, or API tokens in localStorage. The standalone github.io page is a different site from a custom Saudi domain, so do not treat cross-site cookie login there as production-ready.
+
+User provisioning/registration, password reset, email verification, MFA, production session storage, secure-domain deployment and full user/permission management are **not implemented yet**. The session controller is a foundation for deployment on a properly configured first-party site, not a claim of production-ready identity management.
+
 ## Secure payment posting — staging API
 
 Authenticated endpoints:
