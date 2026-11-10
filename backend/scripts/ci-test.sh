@@ -19,13 +19,14 @@ cp -R "$REPO_ROOT/backend/app/." "$RUNTIME/app/"
 cp -R "$REPO_ROOT/backend/database/migrations/." "$RUNTIME/database/migrations/"
 cp -R "$REPO_ROOT/backend/tests/Feature/." "$RUNTIME/tests/Feature/"
 cp "$REPO_ROOT/backend/routes/api.php" "$RUNTIME/routes/api.php"
+cp "$REPO_ROOT/backend/routes/web.php" "$RUNTIME/routes/web.php"
 cp "$REPO_ROOT/backend/bootstrap/app.php" "$RUNTIME/bootstrap/app.php"
 
 (
   cd "$RUNTIME"
   php artisan migrate --force --no-interaction
   php artisan route:list --path=api
-  php artisan test --filter='(PropertyIsolationTest|PortfolioIsolationTest|ContractCreationTest|PaymentPostingTest|ReceivablesReversalTest)'
+  php artisan test --filter='(PropertyIsolationTest|PortfolioIsolationTest|ContractCreationTest|PaymentPostingTest|ReceivablesReversalTest|SessionAuthenticationTest)'
 )
 
 echo "Laravel 12 owner-isolation integration suite finished."
