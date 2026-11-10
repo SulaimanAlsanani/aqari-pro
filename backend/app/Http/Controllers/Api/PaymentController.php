@@ -77,14 +77,15 @@ class PaymentController extends Controller
             throw ValidationException::withMessages(['amount' => ['المبلغ يجب أن يكون أكبر من صفر.']]);
         }
 
-        $payment = DB::transaction(function () use ($owner, $due, $data, $amountCents) {
+        $requestUserId = $request->user()->getAuthIdentifier();
+        $payment = DB::transaction(function () use ($owner, $due, $data, $amountCents, $requestUserId) {
             // Lock the due before computing the balance. Concurrent requests
             // for one installment are serialized on PostgreSQL.
             $locked = $this->scopedDues($owner)
                 ->whereKey($due->id)
                 ->lockForUpdate()->firstOrFail();
 
-            $existing = Payment::query()->where('due_id', $locked->id)->get();
+            $existing = Payment::query()->where('due_id', $locked->id)->whereNull('reversed_at')->get();
 
             $reference = trim((string) ($data['reference'] ?? ''));
             $method = trim($data['method']);
@@ -107,14 +108,55 @@ class PaymentController extends Controller
                 throw ValidationException::withMessages(['amount' => ['المبلغ يتجاوز الرصيد المتبقي.']]);
             }
 
-            return $locked->payments()->create([
+            $payment = $locked->payments()->create([
                 'amount' => $data['amount'],
                 'received_at' => $data['received_at'],
                 'method' => $method,
                 'reference' => $reference !== '' ? $reference : null,
             ]);
+            $payment->events()->create([
+                'actor_user_id' => $requestUserId,
+                'action' => 'posted',
+                'details' => ['amount' => $data['amount'], 'reference' => $reference],
+            ]);
+            return $payment;
         }, 3);
 
         return response()->json(['data' => $payment], 201);
     }
+    public function reverse(Request $request, Payment $payment): JsonResponse
+    {
+        $owner = $this->owner($request);
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'min:5', 'max:500'],
+        ]);
+
+        $record = DB::transaction(function () use ($owner, $payment, $data, $request) {
+            // Lock due first: the same lock order used by receipt posting.
+            $due = Due::query()->whereKey($payment->due_id)->lockForUpdate()->firstOrFail();
+            $this->scopedDues($owner)->whereKey($due->id)->firstOrFail();
+            $locked = Payment::query()->whereKey($payment->id)->lockForUpdate()->firstOrFail();
+
+            if ($locked->reversed_at !== null) {
+                throw ValidationException::withMessages(['payment' => ['تم عكس هذا السند مسبقًا.']]);
+            }
+
+            $locked->forceFill([
+                'reversed_at' => now(),
+                'reversed_by' => $request->user()->getAuthIdentifier(),
+                'reversal_reason' => trim($data['reason']),
+            ])->save();
+
+            $locked->events()->create([
+                'actor_user_id' => $request->user()->getAuthIdentifier(),
+                'action' => 'reversed',
+                'details' => ['reason' => trim($data['reason'])],
+            ]);
+
+            return $locked->refresh()->load('events');
+        }, 3);
+
+        return response()->json(['data' => $record]);
+    }
+
 }
