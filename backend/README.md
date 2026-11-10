@@ -32,4 +32,15 @@ This directory contains **source files for a new Laravel 12 backend**, not a wor
 - `routes/api.php`: authenticated API resource registration.
 - `tests/Feature/PropertyIsolationTest.php`: isolated-user authorization regression tests.
 
+## Secure payment posting — staging API
+
+Authenticated endpoints:
+- `GET /api/v1/payments` lists receipts for the current owner only.
+- `GET /api/v1/payments/{payment}` returns receipt details with the owning contract, property, and tenant, scoped by owner.
+- `POST /api/v1/dues/{due}/payments` posts a receipt with `amount`, `received_at`, `method`, and an optional `reference`. Ownership derives from the authenticated principal, never from client-provided identifiers.
+
+For each posted payment the API locks the due row within a PostgreSQL transaction, totals existing receipts in integer halalas, rejects overpayments, and rejects duplicate nonblank payment references for the same due and method (case-insensitively). The response provides the receipt record. This is an internal receipt, not an Ejar or ZATCA tax document. Integration tests cover balances, duplicate references, cross-owner access and invalid amounts.
+
+Payment creation currently has no refund, reversal, or idempotency-key workflow; those controls must be designed before real financial processing. The public GitHub Pages demo remains local-only and is not connected to these endpoints.
+
 This is **foundation work**, not a promise that complete authentication, tenancy, documents, payments, or production infrastructure are implemented.
