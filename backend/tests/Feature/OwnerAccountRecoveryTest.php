@@ -144,6 +144,7 @@ class OwnerAccountRecoveryTest extends TestCase
         config()->set('mail.default', 'log');
 
         // Simulate non-test runtime; never send recovery secrets to server logs.
+        $this->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class);
         $this->app['env'] = 'staging';
         try {
             $this->postJson('/forgot-password', ['email' => 'owner@example.test'])
