@@ -13,6 +13,7 @@ on:
       - 'backend/tests/browser/**'
       - 'backend/deploy/staging/**'
       - 'backend/deploy/local/**'
+      - '.devcontainer/**'
       - '.dockerignore'
       - '.github/workflows/staging-smoke.yml'
   workflow_dispatch:
@@ -58,6 +59,48 @@ jobs:
           assert services["app"]["environment"]["SESSION_SECURE_COOKIE"]=="false", "Loopback HTTP cookie must not require HTTPS"
           assert services["app"]["environment"]["MAIL_MAILER"]=="log", "Local mail must remain non-delivering"
           print("Local-only Docker Compose safety checks passed.")
+          '
+
+      - name: Validate GitHub Codespaces private HTTPS origin and startup
+        env:
+          AQARI_CODESPACES_HOST: aqari-ci-8080.app.github.dev
+          AQARI_CODESPACES_APP_URL: https://aqari-ci-8080.app.github.dev
+        run: |
+          set -euo pipefail
+          bash -n .devcontainer/start-codespace.sh
+          bash -n backend/deploy/local/start.sh
+          python3 - <<'PY'
+          import json
+          with open('.devcontainer/devcontainer.json', encoding='utf-8') as f:
+              c = json.load(f)
+          assert c['forwardPorts'] == [8080]
+          assert any('docker-in-docker' in name for name in c['features'])
+          assert c['postStartCommand'] == 'bash .devcontainer/start-codespace.sh'
+          assert c['portsAttributes']['8080']['protocol'] == 'http'
+          print('Codespaces devcontainer syntax and Docker feature validated.')
+          PY
+          if bash .devcontainer/start-codespace.sh > /dev/null 2>&1; then
+            echo 'Codespaces launcher must reject running outside Codespaces' >&2
+            exit 1
+          fi
+          docker compose --env-file backend/deploy/staging/.env.staging \
+            -f backend/deploy/local/compose.yaml \
+            -f .devcontainer/compose.codespaces.yaml config --quiet
+          docker compose --env-file backend/deploy/staging/.env.staging \
+            -f backend/deploy/local/compose.yaml \
+            -f .devcontainer/compose.codespaces.yaml config --format json \
+            | python3 -c '
+          import json,sys
+          services=json.load(sys.stdin)["services"]
+          for name in ["app","migrate"]:
+              env=services[name]["environment"]
+              assert env["APP_URL"]=="https://aqari-ci-8080.app.github.dev"
+              assert env["SANCTUM_STATEFUL_DOMAINS"]=="aqari-ci-8080.app.github.dev"
+              assert env["SESSION_SECURE_COOKIE"]=="true"
+          assert not services["db"].get("ports")
+          p=services["app"]["ports"]
+          assert len(p)==1 and p[0].get("host_ip")=="127.0.0.1"
+          print("Private Codespaces HTTPS session and database isolation validated.")
           '
 
       - name: Validate Compose and HTTPS proxy syntax
