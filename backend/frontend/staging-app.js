@@ -12,6 +12,7 @@
   let properties = [];
   let busy = false;
   let editTarget = null;
+  let finance = null;
 
   function status(message, error=false) {
     $('status').textContent = message;
@@ -77,6 +78,7 @@
     properties = [];
     for (const id of ['propertyList','unitList','tenantList','unitProperty','propertyPager','unitPager','tenantPager']) $(id).replaceChildren();
     pages.property = pages.unit = pages.tenant = 1;
+    if (finance) finance.reset();
   }
   async function refreshProperties() {
     const selected = $('unitProperty').value;
@@ -114,7 +116,7 @@
   async function refreshAll() {
     const profile = await api.me();
     showSession(profile);
-    await Promise.all([refreshProperties(), refreshTenants()]);
+    await Promise.all([refreshProperties(), refreshTenants(), finance.refresh()]);
     status('متصل ببيئة Staging — البيانات من Laravel API');
   }
   function field(label, name, value, required=false) {
@@ -168,8 +170,10 @@
           buttons[1].disabled = !match || pages[resource] >= Number(match[1]);
         }
       }
+      if (finance) finance.syncControls();
     }
   }
+  finance = window.AqariFinanceStaging.create({api, task, status, document});
   $('loginForm').addEventListener('submit', e => {
     e.preventDefault();
     task(async () => {
@@ -195,6 +199,7 @@
       await api.createProperty(fromForm(e.target));
       e.target.reset();
       await refreshProperties();
+      await finance.refreshChoices();
       status('تم حفظ العقار على الخادم');
     });
   });
@@ -204,6 +209,7 @@
       await api.createUnit($('unitProperty').value, fromForm(e.target));
       e.target.reset();
       await refreshUnits();
+      await finance.refreshChoices();
       status('تم حفظ الوحدة على الخادم');
     });
   });
@@ -213,6 +219,7 @@
       await api.createTenant(fromForm(e.target));
       e.target.reset();
       await refreshTenants();
+      await finance.refreshChoices();
       status('تم حفظ المستأجر على الخادم');
     });
   });
