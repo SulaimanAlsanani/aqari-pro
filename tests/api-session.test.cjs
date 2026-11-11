@@ -19,7 +19,7 @@ test('user profile and property requests are credentialed and scoped',async()=>{
  const calls=[];
  const client=create({fetch:async(...args)=>{calls.push(args);return json;}});
  await client.me();await client.properties();await client.tenants();await client.receivables('5');await client.logout();
- assert.deepEqual(calls.map(c=>c[0]),['/api/v1/me','/api/v1/properties','/api/v1/tenants','/api/v1/reports/receivables?property_id=5','/logout']);
+ assert.deepEqual(calls.map(c=>c[0]),['/api/v1/me','/api/v1/properties?page=1','/api/v1/tenants?page=1','/api/v1/reports/receivables?property_id=5','/logout']);
  assert.equal(calls.every(c=>c[1].credentials==='include'),true);
 });
 test('API failures preserve HTTP status and validation errors',async()=>{
@@ -44,8 +44,19 @@ test('staging property, unit, tenant writes use expected endpoints and CSRF',asy
   ['/api/v1/properties/6','PATCH'],
   ['/api/v1/properties/6/units/10','PATCH'],
   ['/api/v1/tenants/8','PATCH'],
-  ['/api/v1/properties/6/units','GET']
+  ['/api/v1/properties/6/units?page=1','GET']
  ]);
  assert.equal(calls.every(c=>c[1].credentials==='include'),true);
  assert.equal(calls.slice(0,6).every(c=>c[1].headers['X-XSRF-TOKEN']==='csrf/token'),true);
+});
+
+test('pagination requests retain the exact resource and encode requested page',async()=>{
+ const calls=[];
+ const client=create({fetch:async(...args)=>{calls.push(args);return json;}});
+ await client.properties(3);await client.units(12,4);await client.tenants(2);
+ assert.deepEqual(calls.map(x=>x[0]),[
+  '/api/v1/properties?page=3',
+  '/api/v1/properties/12/units?page=4',
+  '/api/v1/tenants?page=2'
+ ]);
 });
