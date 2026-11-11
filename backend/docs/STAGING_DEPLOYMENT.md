@@ -75,6 +75,12 @@ docker compose --env-file .env.staging -f compose.yaml exec -T app php artisan a
 
 Do not publish the Postgres port; do not bind `app` to a public host port. Keep the Caddy container as the only public ingress.
 
+## Extended synthetic document and accounting test
+
+The browser test now also posts a **synthetic** receipt and then reverses it, confirming that the owner receivables report returns the entire installment amount to the outstanding balance and excludes the reversed receipt from collected revenue. It also uploads a fixed, harmless synthetic PNG through the first-party form, downloads it, checks the bytes, inspects the owner-only upload/download audit trail, and verifies that the private document becomes inaccessible after logout.
+
+**Scanner limitation:** CI uses `tests/browser/ci-scanner-stub.sh` — a deliberately restricted **test double** that accepts only a fixed SHA-256 synthetic PNG. It is mounted into a disposable CI container through `AQARI_CI_SCANNER_BINARY` and is not part of the production Docker image. It does **not** test real malware detection or ClamAV signatures. The normal deployment defaults to `/usr/bin/clamscan`, which must have updated signature databases before accepting real documents. Never configure the test stub on a reachable Staging or production server.
+
 ## Automated browser test over private CI HTTPS
 
 The dedicated staging workflow now has a **real Chromium/Playwright browser path**, in addition to API-level integration tests. CI provisions two **synthetic** owners inside the temporary PostgreSQL container, starts an additional Caddy process on **127.0.0.1:18443** with a disposable internal certificate authority, and tests the actual first-party UI. A short-lived `SANCTUM_STATEFUL_DOMAINS` port suffix is used only in CI; production uses its real HTTPS host without a nonstandard port.
