@@ -50,7 +50,7 @@ ul{list-style:none;padding:0}li{border-bottom:1px solid #e4eaee;padding:10px 0;d
 <label>المستأجر<select id="contractTenant" name="tenant_id" required></select></label>
 <label>تاريخ البداية<input type="date" name="start_date" required></label>
 <label>تاريخ النهاية<input type="date" name="end_date" required></label>
-<label>قيمة العقد (ر.س)<input name="total" type="text" inputmode="decimal" pattern="[0-9]+(\\.[0-9]{1,2})?" placeholder="12000.00" required></label>
+<label>قيمة العقد (ر.س)<input name="total" type="text" inputmode="decimal" pattern="[0-9]+([.][0-9]{1,2})?" placeholder="12000.00" required></label>
 <label>عدد الأقساط الشهرية<input name="installments" type="number" min="1" max="120" value="12" required></label>
 <button type="submit">إنشاء العقد والأقساط</button>
 <button type="button" id="refreshContractOptions">تحديث قوائم العقارات والمستأجرين</button>
@@ -64,7 +64,7 @@ ul{list-style:none;padding:0}li{border-bottom:1px solid #e4eaee;padding:10px 0;d
 <section class="panel" id="postPaymentPanel" hidden>
 <h2>تسجيل تحصيل على قسط <span id="chosenDueId"></span></h2>
 <form id="postPaymentForm">
-<label>المبلغ (ر.س)<input name="amount" type="text" inputmode="decimal" pattern="[0-9]+(\\.[0-9]{1,2})?" required></label>
+<label>المبلغ (ر.س)<input name="amount" type="text" inputmode="decimal" pattern="[0-9]+([.][0-9]{1,2})?" required></label>
 <label>تاريخ التحصيل<input name="received_at" type="date" required></label>
 <label>طريقة السداد<select name="method"><option value="bank">تحويل بنكي</option><option value="cash">نقد</option><option value="card">بطاقة</option></select></label>
 <label>المرجع البنكي أو رقم العملية<input name="reference" maxlength="120"></label>
