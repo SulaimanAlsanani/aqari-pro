@@ -69,13 +69,13 @@ trap 'rm -rf -- "$scratch"' EXIT
 # GNU find/sha256sum -z preserve unusual attachment filenames without parsing lines.
 (
   cd "$source"
-  find . -type f -print0 | LC_ALL=C sort -z | xargs -0 -r sha256sum --zero
-) > "$scratch/files.sha256z"
-chmod 600 "$scratch/files.sha256z"
+  find . -type f -print0 | LC_ALL=C sort -z | xargs -0 -r sha256sum
+) > "$scratch/files.sha256"
+chmod 600 "$scratch/files.sha256"
 
 ciphertext="$scratch/attachments.tar.age"
 tar -C "$source" --sort=name --numeric-owner --owner=0 --group=0 -cf - . \
-  -C "$scratch" files.sha256z | age -e -r "$AQARI_BACKUP_RECIPIENT" -o "$ciphertext"
+  -C "$scratch" files.sha256 | age -e -r "$AQARI_BACKUP_RECIPIENT" -o "$ciphertext"
 [[ -s "$ciphertext" ]] || { echo "Empty encrypted archive." >&2; exit 1; }
 chmod 600 "$ciphertext"
 
