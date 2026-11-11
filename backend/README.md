@@ -31,6 +31,20 @@ New **staging/recovery** scripts and CLI checks:
 
 See [Backup and recovery runbook](docs/BACKUP_RECOVERY_RUNBOOK.md) for prerequisites and commands. **A PostgreSQL dump excludes all private attachment bytes.** Private storage backups, encryption, external retention, scheduled backup jobs, live restore drills and RPO/RTO monitoring have not been deployed.
 
+## Owner account self-service and secure password recovery
+
+Staging now provides owner-only account display and profile editing (name/contact phone), password change after verifying the current password, and a self-service recovery screen using Laravel's expiring, single-use `password_reset_tokens`. Reset URLs carry tokens in same-origin fragments that are cleared immediately by the browser. API operations are protected by Sanctum, cookie authentication and CSRF; recovery routes have rate limits and identical responses for known/unknown emails.
+
+**Password recovery email is deliberately disabled with the default `MAIL_MAILER=log`**, to avoid exposing recovery secrets in server logs. Configure an authenticated TLS/SMTPS mail provider on the private server before enabling it. Existing owner provisioning remains operator-only; no unauthenticated signup is created. Successful password changes and resets revoke that owner's database sessions.
+
+Read [owner account and recovery operations](docs/OWNER_ACCOUNT_RECOVERY.md). MFA, verification on email changes, secure invitations and a production mail provider remain pending.
+
+## Real S3 recovery verification — gated private-host procedure
+
+The `scripts/verify-real-s3-recovery.sh` tool is a **manual, credential-gated verification procedure** for a real private S3 bucket: it downloads completed encrypted database and attachment exports, checks the corresponding ciphertext SHA-256 markers, decrypts with an offline recovery identity, restores into a pre-existing empty `aqari_restore_*` database, and runs `aqari:verify-attachment-export` against recovered records. It does not restore to production or expose data in GitHub Pages.
+
+See [real S3 recovery checklist](docs/REAL_S3_RECOVERY_CHECKLIST.md). **No real bucket, recovery identity, or separate recovery server has been connected or tested in this repository session.** CI validates syntax/fail-closed behavior and separately uses mock S3; this cannot be reported as a successful live storage test.
+
 ## Reproducible first-party HTTPS staging stack
 
 The `deploy/staging/` directory now contains a **buildable Laravel 12 + Sanctum Docker image**, Docker Compose definitions for a private PostgreSQL 16 container, one-shot migrations, persistent attachment volume and Caddy automatic HTTPS, plus a first-party copy of the complete staging frontend. Only the HTTPS proxy publishes host ports. The app, PostgreSQL and private document volumes remain on the internal Docker network.
