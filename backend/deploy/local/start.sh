@@ -54,6 +54,10 @@ if [[ "$mode" == "--codespaces" ]]; then
     echo "GitHub Codespaces environment is missing or invalid." >&2
     exit 2
   fi
+  if [[ "$port" != "8080" ]]; then
+    echo "Codespaces is configured to forward port 8080; set AQARI_LOCAL_PORT=8080." >&2
+    exit 2
+  fi
   export AQARI_CODESPACES_HOST="${CODESPACE_NAME}-${port}.${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN}"
   export AQARI_CODESPACES_APP_URL="https://${AQARI_CODESPACES_HOST}"
   compose_files+=(-f "$here/../../../.devcontainer/compose.codespaces.yaml")
