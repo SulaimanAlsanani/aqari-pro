@@ -88,8 +88,21 @@ ul{list-style:none;padding:0}li{border-bottom:1px solid #e4eaee;padding:10px 0;d
 <div id="receivablesSummary" class="report-grid" aria-live="polite"></div>
 <p id="receivablesDate"><small></small></p>
 </section>
+
+<section class="panel" id="attachmentsPanel">
+<h2>مرفقات العقارات والعقود (تخزين خاص)</h2>
+<p><small>الملفات المسموحة: PDF، JPG، PNG — بحد أقصى 10 ميجابايت. لا تُنشر الروابط أو الملفات على GitHub Pages.</small></p>
+<form id="attachmentForm">
+<label>نوع السجل<select id="attachmentType"><option value="property">عقار</option><option value="contract">عقد</option></select></label>
+<label>السجل<select id="attachmentParent" required></select></label>
+<label>ملف المرفق<input id="attachmentFile" name="file" type="file" accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg" required></label>
+<button type="submit">رفع إلى التخزين الخاص</button>
+</form>
+<ul id="attachmentList"></ul>
+<div id="attachmentPager" class="pager" aria-label="صفحات المرفقات"></div>
+</section>
 </div>
 <dialog id="editDialog" class="dialog"><h2 id="editTitle">تعديل السجل</h2><form id="editForm"><div id="editFields"></div><menu><button type="submit">حفظ التغييرات</button><button id="cancelEdit" type="button">إلغاء</button></menu></form></dialog>
-<script src="api-session.js"></script><script src="finance-staging.js"></script><script src="staging-app.js"></script>
+<script src="api-session.js"></script><script src="finance-staging.js"></script><script src="attachment-staging.js"></script><script src="staging-app.js"></script>
 </body>
 </html>
