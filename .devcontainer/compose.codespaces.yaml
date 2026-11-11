@@ -1,0 +1,15 @@
+# Only used when start.sh --codespaces runs in GitHub Codespaces.
+# HTTPS is terminated by the private GitHub port-forwarding service.
+services:
+  migrate:
+    environment:
+      APP_NAME: "Aqari Pro Codespaces"
+      APP_URL: "${AQARI_CODESPACES_APP_URL:?Run in an active GitHub Codespace}"
+      SESSION_SECURE_COOKIE: "true"
+      SANCTUM_STATEFUL_DOMAINS: "${AQARI_CODESPACES_HOST:?Run in an active GitHub Codespace}"
+  app:
+    environment:
+      APP_NAME: "Aqari Pro Codespaces"
+      APP_URL: "${AQARI_CODESPACES_APP_URL:?Run in an active GitHub Codespace}"
+      SESSION_SECURE_COOKIE: "true"
+      SANCTUM_STATEFUL_DOMAINS: "${AQARI_CODESPACES_HOST:?Run in an active GitHub Codespace}"
