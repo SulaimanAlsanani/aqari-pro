@@ -1,0 +1,11 @@
+[Unit]
+Description=Schedule Aqari Pro encrypted private attachment backup
+
+[Timer]
+OnCalendar=*-*-* 02:45:00
+Persistent=true
+RandomizedDelaySec=15min
+Unit=aqari-attachment-backup.service
+
+[Install]
+WantedBy=timers.target
