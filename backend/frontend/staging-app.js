@@ -14,6 +14,10 @@
   let editTarget = null;
   let finance = null;
   let attachments = null;
+  const recovery = new URLSearchParams(window.location.hash.startsWith('#reset=') ? window.location.hash.slice(1) : '');
+  let recoveryToken = recovery.get('reset') || null;
+  let recoveryEmail = recovery.get('email') || null;
+  if (recoveryToken) window.history.replaceState(null, '', window.location.pathname + window.location.search);
 
   function status(message, error=false) {
     $('status').textContent = message;
@@ -68,14 +72,18 @@
   function showSession(profile) {
     $('workspace').hidden = false;
     $('loginPanel').hidden = true;
+    $('resetPanel').hidden = true;
     $('ownerLabel').textContent = (profile.owner?.name || 'حساب مالك غير مهيأ') + ' — ' + (profile.user?.email || '');
   }
   function logoutView() {
     if ($('editDialog').open) $('editDialog').close();
     editTarget = null;
     $('workspace').hidden = true;
-    $('loginPanel').hidden = false;
+    $('loginPanel').hidden = Boolean(recoveryToken);
+    $('resetPanel').hidden = !recoveryToken;
+    $('resetEmailLabel').textContent = recoveryEmail || '';
     $('loginForm').reset();
+    $('changePasswordForm').reset();
     properties = [];
     for (const id of ['propertyList','unitList','tenantList','unitProperty','propertyPager','unitPager','tenantPager']) $(id).replaceChildren();
     pages.property = pages.unit = pages.tenant = 1;
@@ -115,10 +123,16 @@
     for (const tenant of (response.data || [])) row($('tenantList'), tenant, tenant.name, tenant.phone || '', 'tenant');
     pager($('tenantPager'), 'tenant', response, refreshTenants);
   }
+  async function refreshAccount() {
+    const result = await api.account();
+    $('accountForm').elements.name.value = result.data.name || '';
+    $('accountForm').elements.phone.value = result.data.phone || '';
+    $('accountEmail').value = result.data.email || '';
+  }
   async function refreshAll() {
     const profile = await api.me();
     showSession(profile);
-    await Promise.all([refreshProperties(), refreshTenants(), finance.refresh(), attachments.refresh()]);
+    await Promise.all([refreshProperties(), refreshTenants(), finance.refresh(), attachments.refresh(), refreshAccount()]);
     status('متصل ببيئة Staging — البيانات من Laravel API');
   }
   function field(label, name, value, required=false) {
@@ -179,6 +193,57 @@
   attachments = window.AqariAttachmentStaging.create({api, task, status, document});
   finance = window.AqariFinanceStaging.create({api, task, status, document,
     onContractCreated: () => attachments.refreshChoices()});
+  $('forgotForm').addEventListener('submit', e => {
+    e.preventDefault();
+    task(async () => {
+      const email = e.target.elements.email.value;
+      const result = await api.requestPasswordReset(email);
+      e.target.reset();
+      status(result.message || 'إذا كان البريد مسجلًا، فستصلك رسالة استعادة كلمة المرور.');
+    });
+  });
+  $('resetForm').addEventListener('submit', e => {
+    e.preventDefault();
+    if (!recoveryToken || !recoveryEmail) return status('رابط الاستعادة غير صالح.', true);
+    task(async () => {
+      const data = fromForm(e.target);
+      const result = await api.resetPassword({
+        token: recoveryToken,
+        email: recoveryEmail,
+        password: data.password,
+        password_confirmation: data.password_confirmation
+      });
+      recoveryToken = recoveryEmail = null;
+      e.target.reset();
+      logoutView();
+      status(result.message || 'تم تعيين كلمة المرور. سجّل الدخول مجددًا.');
+    });
+  });
+  $('cancelReset').addEventListener('click', () => {
+    recoveryToken = recoveryEmail = null;
+    $('resetForm').reset();
+    logoutView();
+    status('يمكنك تسجيل الدخول أو طلب رابط استعادة جديد.');
+  });
+  $('accountForm').addEventListener('submit', e => {
+    e.preventDefault();
+    task(async () => {
+      await api.updateAccount(fromForm(e.target));
+      await refreshAccount();
+      const profile = await api.me();
+      showSession(profile);
+      status('تم حفظ بيانات حساب المالك.');
+    });
+  });
+  $('changePasswordForm').addEventListener('submit', e => {
+    e.preventDefault();
+    task(async () => {
+      const result = await api.changePassword(fromForm(e.target));
+      e.target.reset();
+      logoutView();
+      status(result.message || 'تم تغيير كلمة المرور. سجّل الدخول مجددًا.');
+    });
+  });
   $('loginForm').addEventListener('submit', e => {
     e.preventDefault();
     task(async () => {
