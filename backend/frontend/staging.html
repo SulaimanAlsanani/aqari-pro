@@ -16,6 +16,7 @@ button{background:#192734;color:white;cursor:pointer;border:0}button[disabled]{o
 ul{list-style:none;padding:0}li{border-bottom:1px solid #e4eaee;padding:10px 0;display:flex;justify-content:space-between;gap:12px;align-items:center}
 [hidden]{display:none!important}.notice{background:#fff3de;border:1px solid #dcc38a;padding:12px;border-radius:10px}
 #status{padding:12px 0;color:#235e79}small{color:#516873}.pager{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:12px 0}.pager button{padding:7px 13px}.row-actions{display:flex;gap:8px}.row-actions button{background:#1a89a7}.dialog{border:1px solid #bdced6;border-radius:14px;max-width:530px;width:calc(100% - 36px);padding:24px}.dialog::backdrop{background:#192734aa}.dialog form{display:grid;gap:14px}.dialog menu{display:flex;gap:8px;margin:0;padding:0}.dialog menu button[type=button]{background:#657d89}
+ .report-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-top:14px}.stat{border:1px solid #e4ebef;border-radius:10px;padding:12px;background:#f7fafb}.stat strong{display:block;font-size:1.1rem;margin-top:5px}.stat small{display:block}#dueList li{align-items:start}#contractDetailSummary{color:#4a6673} 
 </style>
 </head>
 <body>
@@ -39,8 +40,56 @@ ul{list-style:none;padding:0}li{border-bottom:1px solid #e4eaee;padding:10px 0;d
 <section class="panel"><h2>المستأجرون</h2>
 <form id="tenantForm"><label>اسم المستأجر<input name="name" maxlength="180" required></label><label>رقم التواصل<input name="phone" maxlength="30"></label><button type="submit">إضافة مستأجر</button></form><ul id="tenantList"></ul><div id="tenantPager" class="pager" aria-label="صفحات المستأجرين"></div>
 </section>
+
+<section class="panel" id="contractsPanel">
+<h2>العقود الإيجارية وجدولة الأقساط</h2>
+<p><small>إنشاء عقد مسودة وجدول استحقاقات شهرية في PostgreSQL. حدد وحدة ومستأجرًا تابعين لنفس المالك.</small></p>
+<form id="contractForm">
+<label>العقار<select id="contractProperty" name="property_selector" required></select></label>
+<label>الوحدة<select id="contractUnit" name="unit_id" required></select></label>
+<label>المستأجر<select id="contractTenant" name="tenant_id" required></select></label>
+<label>تاريخ البداية<input type="date" name="start_date" required></label>
+<label>تاريخ النهاية<input type="date" name="end_date" required></label>
+<label>قيمة العقد (ر.س)<input name="total" type="text" inputmode="decimal" pattern="[0-9]+(\\.[0-9]{1,2})?" placeholder="12000.00" required></label>
+<label>عدد الأقساط الشهرية<input name="installments" type="number" min="1" max="120" value="12" required></label>
+<button type="submit">إنشاء العقد والأقساط</button>
+<button type="button" id="refreshContractOptions">تحديث قوائم العقارات والمستأجرين</button>
+</form>
+<ul id="contractList"></ul><div id="contractPager" class="pager"></div>
+</section>
+<section class="panel" id="contractDetailPanel" hidden>
+<h2>جدول استحقاقات العقد <span id="contractDetailNumber"></span></h2>
+<p id="contractDetailSummary"></p><ul id="dueList"></ul>
+</section>
+<section class="panel" id="postPaymentPanel" hidden>
+<h2>تسجيل تحصيل على قسط <span id="chosenDueId"></span></h2>
+<form id="postPaymentForm">
+<label>المبلغ (ر.س)<input name="amount" type="text" inputmode="decimal" pattern="[0-9]+(\\.[0-9]{1,2})?" required></label>
+<label>تاريخ التحصيل<input name="received_at" type="date" required></label>
+<label>طريقة السداد<select name="method"><option value="bank">تحويل بنكي</option><option value="cash">نقد</option><option value="card">بطاقة</option></select></label>
+<label>المرجع البنكي أو رقم العملية<input name="reference" maxlength="120"></label>
+<button type="submit">حفظ التحصيل</button>
+<button type="button" id="cancelPayment">إلغاء</button>
+</form>
+</section>
+<section class="panel" id="paymentsPanel">
+<h2>سندات القبض</h2>
+<p><small>السندات المعكوسة تبقى ضمن سجل التدقيق ولا تدخل في صافي المقبوضات.</small></p>
+<ul id="paymentList"></ul><div id="paymentPager" class="pager"></div>
+<form id="reversePaymentForm" hidden>
+<label>سبب عكس السند <span id="reversePaymentId"></span><input name="reason" minlength="5" maxlength="500" required></label>
+<button type="submit">تأكيد عكس السند</button>
+<button type="button" id="cancelReverse">إلغاء</button>
+</form>
+</section>
+<section class="panel" id="receivablesPanel">
+<h2>تقرير الذمم والتحصيل</h2>
+<label>تصفية التقرير بحسب العقار<select id="reportProperty"><option value="">جميع العقارات</option></select></label>
+<div id="receivablesSummary" class="report-grid" aria-live="polite"></div>
+<p id="receivablesDate"><small></small></p>
+</section>
 </div>
 <dialog id="editDialog" class="dialog"><h2 id="editTitle">تعديل السجل</h2><form id="editForm"><div id="editFields"></div><menu><button type="submit">حفظ التغييرات</button><button id="cancelEdit" type="button">إلغاء</button></menu></form></dialog>
-<script src="api-session.js"></script><script src="staging-app.js"></script>
+<script src="api-session.js"></script><script src="finance-staging.js"></script><script src="staging-app.js"></script>
 </body>
 </html>
