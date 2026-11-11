@@ -1,0 +1,33 @@
+{
+  "name": "Aqari Pro — Laravel 12 + PostgreSQL 16",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "moby": true
+    }
+  },
+  "forwardPorts": [
+    8080
+  ],
+  "portsAttributes": {
+    "8080": {
+      "label": "Aqari Pro — private staging",
+      "onAutoForward": "openBrowser",
+      "protocol": "http"
+    }
+  },
+  "postStartCommand": "bash .devcontainer/start-codespace.sh",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "remote.autoForwardPorts": true
+      }
+    },
+    "codespaces": {
+      "openFiles": [
+        ".devcontainer/README.md"
+      ]
+    }
+  },
+  "remoteUser": "vscode"
+}
