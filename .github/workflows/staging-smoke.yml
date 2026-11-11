@@ -138,6 +138,26 @@ jobs:
           AQARI_E2E_PASSWORD: "SyntheticOnlyPass!2026"
         run: node backend/tests/browser/staging-flow.cjs
 
+      - name: Boot the actual localhost stack with disposable PostgreSQL
+        run: |
+          set -euo pipefail
+          docker compose --env-file backend/deploy/staging/.env.staging \
+            -f backend/deploy/local/compose.yaml up --detach --build --wait db migrate app
+          curl --noproxy '*' --fail --silent --show-error http://127.0.0.1:8080/up >/dev/null
+          curl --noproxy '*' --fail --silent --show-error http://127.0.0.1:8080/staging/ \
+            | grep -q 'عقاري برو'
+          code="$(curl --noproxy '*' --silent --output /dev/null \
+            --write-out '%{http_code}' --header 'Accept: application/json' \
+            http://127.0.0.1:8080/api/v1/properties)"
+          test "$code" = 401
+          echo 'Localhost Docker service, first-party UI and guest access isolation passed.'
+
+      - name: Remove disposable localhost stack
+        if: always()
+        run: |
+          docker compose --env-file backend/deploy/staging/.env.staging \
+            -f backend/deploy/local/compose.yaml down --volumes --remove-orphans || true
+
       - name: Inspect container status on failure
         if: failure()
         run: |
