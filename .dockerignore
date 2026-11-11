@@ -1,0 +1,15 @@
+.git
+.gitignore
+**/.env
+**/.env.*
+!backend/deploy/staging/.env.staging.example
+!backend/deploy/local/.env.local.example
+node_modules
+**/node_modules
+**/vendor
+**/storage/logs
+*.tar.age
+*.sql
+*.dump
+*.pem
+*.key
