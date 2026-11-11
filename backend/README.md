@@ -2,6 +2,14 @@
 
 This directory contains **source files for a new Laravel 12 backend**, not a working deployed API. The GitHub Pages demo remains unchanged. Do not collect real customer data until this service is installed, configured, audited, backed up, and tested.
 
+## Encrypted attachment backups and freshness monitoring
+
+`scripts/offsite-attachments.sh` is the primary owner-data attachment backup for both local and S3 records referenced by PostgreSQL. In addition, `scripts/offsite-local-attachments.sh` can encrypt a supplemental snapshot of only the local private storage directory, including a per-file SHA-256 manifest and strict symlink rejection. The latter does **not** cover S3-backed files.
+
+`scripts/check-backup-freshness.sh` fails if the latest **completed** encrypted PostgreSQL backup or primary all-attachments backup is missing, stale, or inaccessible (default: 30 hours). Templates in `deploy/systemd/aqari-backup-monitor.service` and `.timer` allow a host operator to run this check every six hours; they are **not enabled or connected to any notification provider**. Backup stream prefixes and access permissions must be configured on the private server.
+
+See [backup monitoring and attachment snapshots](docs/BACKUP_MONITORING.md). CI tests simulate local attachment recovery, missing/stale backups and storage outages using mock S3. This is **not** evidence that production backups, buckets, credentials, monitoring alerts or customer-file recovery have been configured.
+
 ## Opt-in encrypted off-site PostgreSQL backup scheduler
 
 The `scripts/offsite-backup.sh` tool now creates a temporary private PostgreSQL snapshot, bundles its dump/checksum/manifest, encrypts it **before upload** using a public `age` recipient, removes the plaintext snapshot, and uploads only an encrypted `.tar.age` object into a private S3-compatible bucket. The script requests SSE-AES256, verifies the remote object size, and cleans up on success or failure.
