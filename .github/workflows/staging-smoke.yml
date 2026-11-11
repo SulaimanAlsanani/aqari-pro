@@ -34,6 +34,7 @@ jobs:
             echo 'AQARI_DB_PASSWORD=ci_disposable_staging_password_43'
             printf 'AQARI_APP_KEY=base64:%s\n' "$(openssl rand -base64 32)"
             echo 'AQARI_STATEFUL_PORT_SUFFIX=:18443'
+            echo 'AQARI_CI_SCANNER_BINARY=/tmp/aqari-ci-clamscan'
           } > backend/deploy/staging/.env.staging
 
       - name: Validate Compose and HTTPS proxy syntax
@@ -96,6 +97,16 @@ jobs:
         run: |
           npm install --no-save --ignore-scripts playwright@1.57.0
           npx playwright install --with-deps chromium
+
+      - name: Install isolated CI-only synthetic file scanner
+        run: |
+          docker compose --env-file backend/deploy/staging/.env.staging \
+            -f backend/deploy/staging/compose.yaml \
+            cp backend/tests/browser/ci-scanner-stub.sh app:/tmp/aqari-ci-clamscan
+          docker compose --env-file backend/deploy/staging/.env.staging \
+            -f backend/deploy/staging/compose.yaml \
+            exec -T -u root app chmod 755 /tmp/aqari-ci-clamscan
+          echo 'This synthetic scanner is permitted ONLY in disposable CI; ClamAV is required on the real host.'
 
       - name: Browser E2E — authenticated owner contract-to-cash journey
         env:
