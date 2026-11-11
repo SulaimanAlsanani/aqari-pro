@@ -27,7 +27,7 @@
     return Math.max(0, cents(due.amount) - posted);
   }
 
-  function create({api, task, status, document: doc}) {
+  function create({api, task, status, document: doc, onContractCreated}) {
     const $ = id => doc.getElementById(id);
     const pages = {contract: 1, payment: 1};
     const totalPages = {contract: 1, payment: 1};
@@ -264,6 +264,7 @@
         pages.contract = 1;
         await refreshContracts();
         await loadContract(result.data.id);
+        if (onContractCreated) await onContractCreated();
         e.target.reset();
         await refreshUnits();
         status('تم إنشاء مسودة العقد وجدول الأقساط على الخادم');
