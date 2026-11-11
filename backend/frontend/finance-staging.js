@@ -251,6 +251,8 @@
     }
 
     $('contractProperty').addEventListener('change', () => task(refreshUnits));
+    $('contractUnit').addEventListener('change', syncControls);
+    $('contractTenant').addEventListener('change', syncControls);
     $('reportProperty').addEventListener('change', () => task(refreshReport));
     $('refreshContractOptions').addEventListener('click', () => task(refreshChoices));
     $('contractForm').addEventListener('submit', e => {
