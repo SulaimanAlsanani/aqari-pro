@@ -12,7 +12,11 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
-    ->withCommands([\App\Console\Commands\VerifyAttachmentStorage::class])
+    ->withCommands([
+        \App\Console\Commands\VerifyAttachmentStorage::class,
+        \App\Console\Commands\ExportPrivateAttachments::class,
+        \App\Console\Commands\VerifyAttachmentExport::class,
+    ])
     ->withMiddleware(function (Middleware $middleware): void {
         // Required for stateful first-party SPA requests using Sanctum.
         // CORS, session cookies and trusted frontend origins still require deployment configuration.
