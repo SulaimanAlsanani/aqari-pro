@@ -40,7 +40,10 @@ if [[ "$operation" == "put-object" ]]; then
   [[ "$encryption" == "AES256" && "$checksum" == "SHA256" ]] || exit 23
   [[ -s "$body" ]] || exit 24
   if [[ "$key" == *.ok ]]; then
-    grep -Eq '^ciphertext_sha256=[0-9a-f]{64}
+    grep -Eq '^ciphertext_sha256=[0-9a-f]{64}$' "$body" || exit 25
+  else
+    head -c 80 "$body" | grep -aq 'age-encryption.org/v1' || exit 25
+  fi
   [[ ! -e "$destination" ]] || exit 26
   mkdir -p "$(dirname "$destination")"
   cp -- "$body" "$destination"
