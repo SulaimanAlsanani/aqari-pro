@@ -57,7 +57,7 @@ class AttachmentStorageVerificationTest extends TestCase
     {
         Storage::fake('local');
         $record = $this->attachment();
-        Storage::disk('local')->put($record->storage_path, 'truncated');
+        Storage::disk('local')->put($record->storage_path, 'x');
 
         $this->artisan('aqari:verify-attachments')->assertExitCode(1);
     }
