@@ -13,6 +13,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withCommands([
+        \App\Console\Commands\ProvisionOwner::class,
         \App\Console\Commands\VerifyAttachmentStorage::class,
         \App\Console\Commands\ExportPrivateAttachments::class,
         \App\Console\Commands\VerifyAttachmentExport::class,
