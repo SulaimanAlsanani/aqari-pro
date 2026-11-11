@@ -106,6 +106,51 @@ if find "$root/work" -mindepth 1 -print -quit | grep -q .; then
   exit 1
 fi
 
+# The local private attachment backup is independent of the database backup.
+mkdir -p "$root/private-documents/owner-documents/1" "$root/attachment-restore"
+printf 'sample tenant document\n' > "$root/private-documents/owner-documents/1/document.pdf"
+printf 'other binary content\n' > "$root/private-documents/owner-documents/1/photo.png"
+export AQARI_PRIVATE_ATTACHMENTS_DIR="$root/private-documents"
+export AQARI_ATTACHMENT_BACKUP_PREFIX="aqari/local-attachments"
+
+bash "$repo/backend/scripts/offsite-local-attachments.sh"
+attachment_archive="$(find "$root/objects" -type f -path '*/local-attachments/*.tar.age' -print -quit)"
+[[ -n "$attachment_archive" && -s "$attachment_archive" ]] || {
+  echo "Encrypted local attachments archive missing." >&2
+  exit 1
+}
+marker="$attachment_archive.ok"
+[[ -f "$marker" ]] || { echo "Missing attachment completion marker." >&2; exit 1; }
+[[ "$(sed -n 's/^ciphertext_sha256=//p' "$marker")" == "$(sha256sum "$attachment_archive" | cut -d ' ' -f 1)" ]] || exit 1
+age -d -i "$root/ci-age-key.txt" "$attachment_archive" |
+  tar --no-same-owner -C "$root/attachment-restore" -xf -
+(
+  cd "$root/attachment-restore"
+  sha256sum -c --status --zero files.sha256z
+)
+cmp "$root/private-documents/owner-documents/1/document.pdf" \
+  "$root/attachment-restore/owner-documents/1/document.pdf"
+
+[[ "$(find "$root/objects" -type f | wc -l)" -eq 4 ]] || {
+  echo "Unexpected number of completed encrypted archives or markers." >&2
+  exit 1
+}
+if AQARI_MOCK_FAIL=1 bash "$repo/backend/scripts/offsite-local-attachments.sh" >/dev/null 2>&1; then
+  echo "Attachment upload outage unexpectedly passed." >&2
+  exit 1
+fi
+if find "$root/work" -mindepth 1 -print -quit | grep -q .; then
+  echo "Attachment backup failure left temporary files." >&2
+  exit 1
+fi
+[[ "$(find "$root/objects" -type f | wc -l)" -eq 4 ]] || exit 1
+ln -s /etc/passwd "$root/private-documents/owner-documents/1/untrusted-link"
+if bash "$repo/backend/scripts/offsite-local-attachments.sh" >/dev/null 2>&1; then
+  echo "Symlink in private attachments unexpectedly permitted." >&2
+  exit 1
+fi
+[[ "$(find "$root/objects" -type f | wc -l)" -eq 4 ]] || exit 1
+
 echo "CI age archive, mock S3 upload, integrity, and failure cleanup passed."
  "$body" || exit 25
   else
