@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Aqari Pro — Staging API</title>
+<style>
+:root{font-family:system-ui,Tahoma,Arial,sans-serif;color:#1c3441;background:#f4f7f9}
+body{max-width:1100px;margin:32px auto;padding:0 16px}
+header,.panel{background:white;border:1px solid #dbe4e9;border-radius:14px;padding:22px;margin:16px 0}
+h1,h2{margin:0 0 12px}h1{color:#192734}h2{font-size:1.15rem}
+form{display:flex;flex-wrap:wrap;gap:10px;align-items:end}
+label{display:flex;flex-direction:column;gap:5px;font-weight:600;font-size:.9rem}
+input,select,button{font:inherit;padding:9px 12px;border:1px solid #a4b7c1;border-radius:8px;max-width:100%}
+button{background:#192734;color:white;cursor:pointer;border:0}button[disabled]{opacity:.5;cursor:not-allowed}
+ul{list-style:none;padding:0}li{border-bottom:1px solid #e4eaee;padding:10px 0;display:flex;justify-content:space-between;gap:12px;align-items:center}
+[hidden]{display:none!important}.notice{background:#fff3de;border:1px solid #dcc38a;padding:12px;border-radius:10px}
+#status{padding:12px 0;color:#235e79}small{color:#516873}
+</style>
+</head>
+<body>
+<header>
+<h1>عقاري برو — بيئة Staging</h1>
+<p class="notice">هذه واجهة اختبار منفصلة عن GitHub Pages. تتصل بقاعدة البيانات عبر Laravel API عند استضافتها مع الخادم على نفس الموقع. لا تستخدم بيانات عملاء حقيقية قبل اكتمال تأمين ونشر الخادم.</p>
+<p id="status" role="status" aria-live="polite">غير متصل</p>
+</header>
+<section class="panel" id="loginPanel">
+<h2>تسجيل الدخول</h2>
+<form id="loginForm"><label>البريد الإلكتروني<input name="email" type="email" autocomplete="username" required></label><label>كلمة المرور<input name="password" type="password" autocomplete="current-password" required></label><button type="submit">دخول</button></form>
+</section>
+<div id="workspace" hidden>
+<section class="panel"><h2>حساب المالك</h2><p id="ownerLabel"></p><button type="button" id="logout">تسجيل الخروج</button><button type="button" id="refresh">تحديث البيانات</button></section>
+<section class="panel"><h2>العقارات</h2>
+<form id="propertyForm"><label>اسم العقار<input name="name" maxlength="180" required></label><label>المدينة<input name="city" maxlength="100" required></label><label>الحي<input name="district" maxlength="100"></label><button type="submit">إضافة عقار</button></form><ul id="propertyList"></ul>
+</section>
+<section class="panel"><h2>الوحدات</h2>
+<label>العقار<select id="unitProperty"></select></label>
+<form id="unitForm"><label>رمز الوحدة<input name="code" maxlength="60" required></label><label>نوع الوحدة<input name="type" maxlength="60"></label><label>المساحة (م²)<input name="area" type="number" min="0" step=".01"></label><button type="submit">إضافة وحدة</button></form><ul id="unitList"></ul></section>
+<section class="panel"><h2>المستأجرون</h2>
+<form id="tenantForm"><label>اسم المستأجر<input name="name" maxlength="180" required></label><label>رقم التواصل<input name="phone" maxlength="30"></label><button type="submit">إضافة مستأجر</button></form><ul id="tenantList"></ul>
+</section>
+</div>
+<script src="api-session.js"></script><script src="staging-app.js"></script>
+</body>
+</html>
