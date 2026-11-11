@@ -3,6 +3,7 @@
  */
 const assert = require('node:assert/strict');
 const {chromium} = require('playwright');
+const fs = require('node:fs/promises');
 
 const origin = 'https://staging.example.test:18443';
 const password = process.env.AQARI_E2E_PASSWORD;
@@ -102,6 +103,60 @@ function retryStatus(page, expected, timeout = 25000) {
     assert.match(await page.locator('#paymentList').innerText(), /40\.00/);
     assert.match(await page.locator('#receivablesSummary').innerText(), /40\.00/);
 
+    // A reversed receipt remains auditable but no longer counts as collected.
+    await page.locator('#paymentList li').first().getByRole('button', {name: 'عكس السند'}).click();
+    await page.locator('#reversePaymentForm input[name=reason]').fill('CI reversal of synthetic receipt');
+    await page.locator('#reversePaymentForm button[type=submit]').click();
+    await retryStatus(page, 'تم عكس السند');
+    assert.match(await page.locator('#paymentList').innerText(), /معكوس/);
+    const reversedReport = await page.evaluate(async () => {
+      const response = await fetch('/api/v1/reports/receivables', {
+        credentials: 'include', headers: {'Accept': 'application/json'}
+      });
+      return {status: response.status, body: await response.json()};
+    });
+    assert.equal(reversedReport.status, 200);
+    assert.equal(reversedReport.body.amounts.collected, '0.00');
+    assert.equal(reversedReport.body.amounts.outstanding, '1200.00');
+
+    // The test scanner is installed only inside the disposable CI container.
+    // Production file scanning still requires real ClamAV signatures and service.
+    await page.locator('#attachmentType').selectOption('property');
+    await page.locator('#attachmentParent').selectOption({label: 'E2E Building — Riyadh'});
+    const syntheticPng = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZsAAAAASUVORK5CYII=',
+      'base64'
+    );
+    await page.locator('#attachmentFile').setInputFiles({
+      name: 'synthetic-document.png',
+      mimeType: 'image/png',
+      buffer: syntheticPng
+    });
+    await page.locator('#attachmentForm button[type=submit]').click();
+    await retryStatus(page, 'تم رفع المرفق');
+    assert.match(await page.locator('#attachmentList').innerText(), /synthetic-document\.png/);
+
+    const downloadLink = page.locator('#attachmentList a').first();
+    const downloadUrl = await downloadLink.getAttribute('href');
+    assert.match(downloadUrl, /^\/api\/v1\/attachments\/\d+\/download$/);
+    const fileId = Number(downloadUrl.match(/attachments\/(\d+)/)[1]);
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      downloadLink.click(),
+    ]);
+    assert.equal(download.suggestedFilename(), 'synthetic-document.png');
+    assert.deepEqual(await fs.readFile(await download.path()), syntheticPng);
+
+    const audit = await page.evaluate(async id => {
+      const response = await fetch('/api/v1/attachments/' + id + '/events', {
+        credentials: 'include', headers: {'Accept': 'application/json'}
+      });
+      return {status: response.status, events: (await response.json()).data};
+    }, fileId);
+    assert.equal(audit.status, 200);
+    assert.ok(audit.events.some(e => e.action === 'uploaded'));
+    assert.ok(audit.events.some(e => e.action === 'download_requested'));
+
     await page.locator('#logout').click();
     await retryStatus(page, 'تم تسجيل الخروج');
     assert.equal(await page.locator('#workspace').isVisible(), false);
@@ -112,8 +167,15 @@ function retryStatus(page, expected, timeout = 25000) {
       return response.status;
     });
     assert.equal(afterLogout, 401, 'Logout must invalidate authenticated API access');
+    const documentAfterLogout = await page.evaluate(async id => {
+      const response = await fetch('/api/v1/attachments/' + id + '/download', {
+        credentials: 'include', headers: {'Accept': 'application/json'}
+      });
+      return response.status;
+    }, fileId);
+    assert.equal(documentAfterLogout, 401, 'Private files must be inaccessible after logout');
     assert.deepEqual(pageErrors, [], 'No browser exceptions or server 5xx responses');
-    console.log('Browser E2E passed: login, CSRF, owner isolation, property, unit, tenant, contract, 12 dues, payment, report, logout.');
+    console.log('Browser E2E passed: login, CSRF, tenant isolation, property, unit, tenant, 12 dues, payment, reversal, receivables, private PNG upload/download, audit and logout.');
   } finally {
     await browser.close();
   }
