@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Models\Attachment;
 use App\Models\Contract;
 use App\Models\Owner;
+use App\Services\AttachmentScanner;
+use Illuminate\Validation\ValidationException;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -14,6 +16,20 @@ use Tests\TestCase;
 class PrivateAttachmentsTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Feature tests control the scanning result; no real ClamAV daemon
+        // or executable is required in the ephemeral CI runner.
+        $this->app->instance(AttachmentScanner::class, new class extends AttachmentScanner {
+            public function assertClean(UploadedFile $file): void
+            {
+                // Test double: clean scan result.
+            }
+        });
+    }
 
     private function fixture(): array
     {
@@ -60,13 +76,24 @@ class PrivateAttachmentsTest extends TestCase
         $this->assertNull($attachment->contract_id);
         $this->assertStringStartsWith('owner-documents/'.$owner->id.'/', $attachment->storage_path);
         Storage::disk('local')->assertExists($attachment->storage_path);
+        $this->assertSame('local', $attachment->storage_disk);
+        $this->assertDatabaseHas('attachment_events', [
+            'attachment_id' => $attachment->id, 'actor_user_id' => $user->id, 'action' => 'uploaded',
+        ]);
 
         $this->getJson("/api/v1/properties/{$property->id}/attachments")
             ->assertOk()->assertJsonCount(1, 'data')
-            ->assertJsonMissingPath('data.0.storage_path');
+            ->assertJsonMissingPath('data.0.storage_path')
+            ->assertJsonMissingPath('data.0.storage_disk');
         $this->get("/api/v1/attachments/{$attachment->id}/download")
             ->assertOk()
             ->assertHeader('X-Content-Type-Options', 'nosniff');
+        $this->getJson("/api/v1/attachments/{$attachment->id}/events")
+            ->assertOk()
+            ->assertJsonCount(2, 'data');
+        $this->assertDatabaseHas('attachment_events', [
+            'attachment_id' => $attachment->id, 'action' => 'download_requested',
+        ]);
     }
 
     public function test_contract_documents_are_private_and_inaccessible_to_another_owner(): void
@@ -135,4 +162,85 @@ class PrivateAttachmentsTest extends TestCase
 
         $this->get("/api/v1/attachments/{$attachment->id}/download")->assertNotFound();
     }
+
+    public function test_scan_outage_returns_503_without_writing_document_or_metadata(): void
+    {
+        Storage::fake('local');
+        [$user, , $property] = $this->fixture();
+
+        // The real scanner's executable path does not exist: upload must fail closed.
+        $this->app->forgetInstance(AttachmentScanner::class);
+        config()->set('aqari_documents.clamav_binary', '/nonexistent/aqari-clamscan');
+        $this->actingAs($user)->withHeader('Accept', 'application/json')
+            ->post("/api/v1/properties/{$property->id}/attachments", [
+                'file' => $this->image('unverified.png'),
+            ])->assertStatus(503);
+
+        $this->assertDatabaseCount('attachments', 0);
+        $this->assertDatabaseCount('attachment_events', 0);
+        $this->assertCount(0, Storage::disk('local')->allFiles());
+    }
+
+    public function test_detected_malware_cannot_be_stored_or_listed(): void
+    {
+        Storage::fake('local');
+        [$user, , $property] = $this->fixture();
+
+        $this->app->instance(AttachmentScanner::class, new class extends AttachmentScanner {
+            public function assertClean(UploadedFile $file): void
+            {
+                throw ValidationException::withMessages([
+                    'file' => ['تم رفض الملف بسبب نتيجة الفحص الأمني.'],
+                ]);
+            }
+        });
+
+        $this->actingAs($user)->withHeader('Accept', 'application/json')
+            ->post("/api/v1/properties/{$property->id}/attachments", [
+                'file' => $this->image('infected.png'),
+            ])->assertUnprocessable()->assertJsonValidationErrors('file');
+
+        $this->assertDatabaseCount('attachments', 0);
+        $this->assertDatabaseCount('attachment_events', 0);
+        $this->assertCount(0, Storage::disk('local')->allFiles());
+    }
+
+    public function test_configured_s3_private_disk_is_used_and_retained_in_metadata_only(): void
+    {
+        Storage::fake('s3');
+        config()->set('aqari_documents.disk', 's3');
+        [$user, , $property] = $this->fixture();
+
+        $response = $this->actingAs($user)->withHeader('Accept', 'application/json')
+            ->post("/api/v1/properties/{$property->id}/attachments", [
+                'file' => $this->image('contract.png'),
+            ])->assertCreated()
+            ->assertJsonMissingPath('data.storage_disk')
+            ->assertJsonMissingPath('data.storage_path');
+
+        $record = Attachment::query()->findOrFail($response->json('data.id'));
+        $this->assertSame('s3', $record->storage_disk);
+        Storage::disk('s3')->assertExists($record->storage_path);
+
+        $this->get("/api/v1/attachments/{$record->id}/download")
+            ->assertOk()->assertHeader('Cache-Control', 'private, no-store');
+    }
+
+    public function test_audit_endpoint_is_owner_only_and_refuses_cross_owner_requests(): void
+    {
+        Storage::fake('local');
+        [$alice] = $this->fixture();
+        [$bob, , $propertyB] = $this->fixture();
+
+        $uploaded = $this->actingAs($bob)->withHeader('Accept', 'application/json')
+            ->post("/api/v1/properties/{$propertyB->id}/attachments", [
+                'file' => $this->image('report.png'),
+            ])->assertCreated();
+        $attachmentId = $uploaded->json('data.id');
+
+        $this->actingAs($alice)->getJson("/api/v1/attachments/{$attachmentId}/events")
+            ->assertNotFound();
+        $this->assertDatabaseCount('attachment_events', 1);
+    }
+
 }
