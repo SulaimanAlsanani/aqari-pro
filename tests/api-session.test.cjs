@@ -26,3 +26,26 @@ test('API failures preserve HTTP status and validation errors',async()=>{
  const client=create({fetch:async()=>({ok:false,status:422,json:async()=>({message:'Invalid request',errors:{email:['Invalid']}})})});
  await assert.rejects(client.me(),e=>e.status===422&&e.errors.email[0]==='Invalid');
 });
+
+test('staging property, unit, tenant writes use expected endpoints and CSRF',async()=>{
+ const calls=[];
+ const client=create({fetch:async(...args)=>{calls.push(args);return json;},csrfToken:()=>'csrf%2Ftoken'});
+ await client.createProperty({name:'Building',city:'Riyadh',owner_id:999});
+ await client.createUnit(6,{code:'101',property_id:999});
+ await client.createTenant({name:'Tenant',owner_id:999});
+ await client.updateProperty(6,{name:'Changed'});
+ await client.updateUnit(6,10,{code:'102'});
+ await client.updateTenant(8,{name:'Changed'});
+ await client.units(6);
+ assert.deepEqual(calls.map(c=>[c[0],c[1].method]),[
+  ['/api/v1/properties','POST'],
+  ['/api/v1/properties/6/units','POST'],
+  ['/api/v1/tenants','POST'],
+  ['/api/v1/properties/6','PATCH'],
+  ['/api/v1/properties/6/units/10','PATCH'],
+  ['/api/v1/tenants/8','PATCH'],
+  ['/api/v1/properties/6/units','GET']
+ ]);
+ assert.equal(calls.every(c=>c[1].credentials==='include'),true);
+ assert.equal(calls.slice(0,6).every(c=>c[1].headers['X-XSRF-TOKEN']==='csrf/token'),true);
+});
