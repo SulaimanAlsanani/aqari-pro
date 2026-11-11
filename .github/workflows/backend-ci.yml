@@ -60,11 +60,22 @@ jobs:
           fi
           pg_dump --version
           pg_restore --version
-      - name: Install age encryption CLI
+      - name: Install verified age CLI without relying on Ubuntu apt mirrors
         run: |
-          sudo apt-get update
-          sudo apt-get install -y age
-          age --version
+          set -euo pipefail
+          mkdir -p "$HOME/.local/bin"
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+          curl --fail --location --retry 3 --connect-timeout 15 --max-time 150 \
+            --output "$tmp/age.tar.gz" \
+            https://github.com/FiloSottile/age/releases/download/v1.3.2/age-v1.3.2-linux-amd64.tar.gz
+          printf '%s  %s\n' \
+            'cbe24006683f8eb669266162894b9a522a1af52f2665fbc63a4bb032ed26ac10' "$tmp/age.tar.gz" | sha256sum --check
+          tar -C "$tmp" -xzf "$tmp/age.tar.gz"
+          install -m 0755 "$tmp/age/age" "$HOME/.local/bin/age"
+          install -m 0755 "$tmp/age/age-keygen" "$HOME/.local/bin/age-keygen"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          "$HOME/.local/bin/age" --version
       - name: Run Laravel integration suite and isolated restore rehearsal
         run: bash backend/scripts/ci-test.sh
       - name: Verify encrypted off-site backup with mock S3
