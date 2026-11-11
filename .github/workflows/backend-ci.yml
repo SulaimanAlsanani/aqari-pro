@@ -60,5 +60,12 @@ jobs:
           fi
           pg_dump --version
           pg_restore --version
+      - name: Install age encryption CLI
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y age
+          age --version
       - name: Run Laravel integration suite and isolated restore rehearsal
         run: bash backend/scripts/ci-test.sh
+      - name: Verify encrypted off-site backup with mock S3
+        run: bash backend/scripts/ci-encrypted-backup.sh
