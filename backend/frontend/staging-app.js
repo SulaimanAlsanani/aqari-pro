@@ -13,6 +13,7 @@
   let busy = false;
   let editTarget = null;
   let finance = null;
+  let attachments = null;
 
   function status(message, error=false) {
     $('status').textContent = message;
@@ -79,6 +80,7 @@
     for (const id of ['propertyList','unitList','tenantList','unitProperty','propertyPager','unitPager','tenantPager']) $(id).replaceChildren();
     pages.property = pages.unit = pages.tenant = 1;
     if (finance) finance.reset();
+    if (attachments) attachments.reset();
   }
   async function refreshProperties() {
     const selected = $('unitProperty').value;
@@ -116,7 +118,7 @@
   async function refreshAll() {
     const profile = await api.me();
     showSession(profile);
-    await Promise.all([refreshProperties(), refreshTenants(), finance.refresh()]);
+    await Promise.all([refreshProperties(), refreshTenants(), finance.refresh(), attachments.refresh()]);
     status('متصل ببيئة Staging — البيانات من Laravel API');
   }
   function field(label, name, value, required=false) {
@@ -171,9 +173,12 @@
         }
       }
       if (finance) finance.syncControls();
+      if (attachments) attachments.syncControls();
     }
   }
-  finance = window.AqariFinanceStaging.create({api, task, status, document});
+  attachments = window.AqariAttachmentStaging.create({api, task, status, document});
+  finance = window.AqariFinanceStaging.create({api, task, status, document,
+    onContractCreated: () => attachments.refreshChoices()});
   $('loginForm').addEventListener('submit', e => {
     e.preventDefault();
     task(async () => {
@@ -200,6 +205,7 @@
       e.target.reset();
       await refreshProperties();
       await finance.refreshChoices();
+      await attachments.refreshChoices();
       status('تم حفظ العقار على الخادم');
     });
   });
