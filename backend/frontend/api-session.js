@@ -41,6 +41,26 @@
       return result;
     }
 
+    async function upload(path, file) {
+      const body = config.formDataFactory ? config.formDataFactory() : new FormData();
+      body.append('file', file);
+      const headers = {Accept: 'application/json'};
+      const csrf = config.csrfToken ? config.csrfToken() : null;
+      if (csrf) headers['X-XSRF-TOKEN'] = decodeURIComponent(csrf);
+      // Never set Content-Type on multipart: browser must add its boundary.
+      const response = await fetcher(url(path), {
+        method: 'POST', credentials: 'include', headers, body,
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok) {
+        const error = new Error(result?.message || 'فشل رفع الملف');
+        error.status = response.status;
+        error.errors = result?.errors || {};
+        throw error;
+      }
+      return result;
+    }
+
     return Object.freeze({
       async login(email, password) {
         await send('/sanctum/csrf-cookie', 'GET');
@@ -65,6 +85,21 @@
       reversePayment(id, reason) { return send('/api/v1/payments/' + encodeURIComponent(id) + '/reverse', 'POST', {reason}); },
       receivables(propertyId) {
         return send('/api/v1/reports/receivables' + (propertyId ? '?property_id=' + encodeURIComponent(propertyId) : ''), 'GET');
+      },
+      propertyAttachments(propertyId, page=1) {
+        return send('/api/v1/properties/' + encodeURIComponent(propertyId) + '/attachments?page=' + encodeURIComponent(page), 'GET');
+      },
+      contractAttachments(contractId, page=1) {
+        return send('/api/v1/contracts/' + encodeURIComponent(contractId) + '/attachments?page=' + encodeURIComponent(page), 'GET');
+      },
+      uploadPropertyAttachment(propertyId, file) {
+        return upload('/api/v1/properties/' + encodeURIComponent(propertyId) + '/attachments', file);
+      },
+      uploadContractAttachment(contractId, file) {
+        return upload('/api/v1/contracts/' + encodeURIComponent(contractId) + '/attachments', file);
+      },
+      attachmentDownloadUrl(id) {
+        return url('/api/v1/attachments/' + encodeURIComponent(id) + '/download');
       },
       logout() { return send('/logout', 'POST'); },
     });
