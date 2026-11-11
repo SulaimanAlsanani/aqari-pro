@@ -1,0 +1,120 @@
+name: aqari-staging
+
+x-laravel-env: &laravel-env
+  APP_NAME: "Aqari Pro Staging"
+  APP_ENV: staging
+  APP_DEBUG: "false"
+  APP_KEY: "${AQARI_APP_KEY:?Set AQARI_APP_KEY in .env.staging}"
+  APP_URL: "https://${AQARI_DOMAIN:?Set AQARI_DOMAIN in .env.staging}"
+  LOG_CHANNEL: stderr
+  DB_CONNECTION: pgsql
+  DB_HOST: db
+  DB_PORT: "5432"
+  DB_DATABASE: aqari_staging
+  DB_USERNAME: aqari
+  DB_PASSWORD: "${AQARI_DB_PASSWORD:?Set AQARI_DB_PASSWORD}"
+  SESSION_DRIVER: database
+  SESSION_LIFETIME: "120"
+  SESSION_SECURE_COOKIE: "true"
+  SESSION_SAME_SITE: lax
+  SANCTUM_STATEFUL_DOMAINS: "${AQARI_DOMAIN:?Set AQARI_DOMAIN}"
+  CACHE_STORE: database
+  QUEUE_CONNECTION: sync
+  MAIL_MAILER: log
+  FILESYSTEM_DISK: local
+  AQARI_ATTACHMENT_DISK: local
+  AQARI_CLAMAV_BINARY: /usr/bin/clamscan
+  AQARI_CLAMAV_TIMEOUT_SECONDS: "120"
+
+x-app-image: &app-image
+  image: aqari-staging-laravel:local
+  build:
+    context: ../../..
+    dockerfile: backend/deploy/staging/Dockerfile
+
+services:
+  db:
+    image: postgres:16-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: aqari_staging
+      POSTGRES_USER: aqari
+      POSTGRES_PASSWORD: "${AQARI_DB_PASSWORD:?Set AQARI_DB_PASSWORD}"
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - private
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aqari -d aqari_staging"]
+      interval: 10s
+      timeout: 4s
+      retries: 10
+    security_opt:
+      - no-new-privileges:true
+
+  migrate:
+    <<: *app-image
+    restart: "no"
+    environment: *laravel-env
+    command: ["php", "artisan", "migrate", "--force", "--no-interaction"]
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - private_attachments:/var/www/html/storage/app/private
+    networks:
+      - private
+    security_opt:
+      - no-new-privileges:true
+
+  app:
+    <<: *app-image
+    restart: unless-stopped
+    environment: *laravel-env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    volumes:
+      - private_attachments:/var/www/html/storage/app/private
+      - clamav_signatures:/var/lib/clamav
+    networks:
+      - private
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1/up >/dev/null"]
+      interval: 20s
+      timeout: 5s
+      start_period: 60s
+      retries: 6
+
+  proxy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    environment:
+      AQARI_DOMAIN: "${AQARI_DOMAIN:?Set AQARI_DOMAIN}"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      app:
+        condition: service_healthy
+    networks:
+      - private
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  private:
+
+volumes:
+  postgres_data:
+  private_attachments:
+  clamav_signatures:
+  caddy_data:
+  caddy_config:
