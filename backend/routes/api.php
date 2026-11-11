@@ -45,4 +45,5 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('/v1/contracts/{contract}/attachments', [AttachmentController::class, 'contractIndex']);
     Route::post('/v1/contracts/{contract}/attachments', [AttachmentController::class, 'contractStore']);
     Route::get('/v1/attachments/{attachment}/download', [AttachmentController::class, 'download']);
+    Route::get('/v1/attachments/{attachment}/events', [AttachmentController::class, 'events']);
 });
