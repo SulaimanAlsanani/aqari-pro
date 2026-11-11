@@ -1,0 +1,22 @@
+[Unit]
+Description=Aqari Pro encrypted database and attachment backup freshness check
+Wants=network-online.target
+After=network-online.target
+ConditionPathExists=/etc/aqari/backup.env
+
+[Service]
+Type=oneshot
+User=aqari-backup
+Group=aqari-backup
+EnvironmentFile=/etc/aqari/backup.env
+WorkingDirectory=/opt/aqari-pro
+ExecStart=/usr/bin/bash /opt/aqari-pro/backend/scripts/check-backup-freshness.sh
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+UMask=0077
+TimeoutStartSec=5min
+StandardOutput=journal
+StandardError=journal
