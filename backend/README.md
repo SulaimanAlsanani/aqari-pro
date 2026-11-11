@@ -31,6 +31,14 @@ New **staging/recovery** scripts and CLI checks:
 
 See [Backup and recovery runbook](docs/BACKUP_RECOVERY_RUNBOOK.md) for prerequisites and commands. **A PostgreSQL dump excludes all private attachment bytes.** Private storage backups, encryption, external retention, scheduled backup jobs, live restore drills and RPO/RTO monitoring have not been deployed.
 
+## Reproducible first-party HTTPS staging stack
+
+The `deploy/staging/` directory now contains a **buildable Laravel 12 + Sanctum Docker image**, Docker Compose definitions for a private PostgreSQL 16 container, one-shot migrations, persistent attachment volume and Caddy automatic HTTPS, plus a first-party copy of the complete staging frontend. Only the HTTPS proxy publishes host ports. The app, PostgreSQL and private document volumes remain on the internal Docker network.
+
+To deploy on your own private host, see [Staging deployment and security checklist](docs/STAGING_DEPLOYMENT.md). Create a server-only `.env.staging` based on the included example, provision a real staging DNS record and then use Docker Compose. An initial account can be created with the **interactive** `php artisan aqari:provision-owner` command, which does not accept passwords as CLI arguments.
+
+The GitHub [Staging Container Integration](../../.github/workflows/staging-smoke.yml) job builds the image and runs PostgreSQL migrations, health checks, anonymous API access isolation and a staging HTML smoke test using temporary containers. It also checks Caddy syntax; it does **not** obtain a real public TLS certificate or deploy a reachable customer service. The GitHub Pages demo is not this backend.
+
 ## Install into a fresh Laravel 12 application
 
 1. Provision a **private** HTTPS application server and managed PostgreSQL database.
