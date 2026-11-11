@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\ContractController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\ReceivablesController;
 use App\Http\Controllers\Api\AttachmentController;
+use App\Http\Controllers\Api\OwnerAccountController;
 use Illuminate\Support\Facades\Route;
 
 // Requires Laravel Sanctum to be installed and configured in the Laravel app.
@@ -16,6 +17,9 @@ Route::middleware('auth:sanctum')->group(function (): void {
         $owner = \App\Models\Owner::query()->where('user_id', $user->getAuthIdentifier())->first();
         return response()->json(['user' => $user->only(['id', 'name', 'email']), 'owner' => $owner?->only(['id', 'name'])]);
     });
+    Route::get('/v1/account', [OwnerAccountController::class, 'show']);
+    Route::patch('/v1/account', [OwnerAccountController::class, 'update']);
+    Route::post('/v1/account/change-password', [OwnerAccountController::class, 'changePassword']);
     Route::get('/v1/properties', [PropertyController::class, 'index']);
     Route::post('/v1/properties', [PropertyController::class, 'store']);
     Route::get('/v1/properties/{property}', [PropertyController::class, 'show']);
