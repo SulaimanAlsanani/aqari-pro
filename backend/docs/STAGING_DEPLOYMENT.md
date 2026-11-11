@@ -75,6 +75,14 @@ docker compose --env-file .env.staging -f compose.yaml exec -T app php artisan a
 
 Do not publish the Postgres port; do not bind `app` to a public host port. Keep the Caddy container as the only public ingress.
 
+## Automated browser test over private CI HTTPS
+
+The dedicated staging workflow now has a **real Chromium/Playwright browser path**, in addition to API-level integration tests. CI provisions two **synthetic** owners inside the temporary PostgreSQL container, starts an additional Caddy process on **127.0.0.1:18443** with a disposable internal certificate authority, and tests the actual first-party UI. A short-lived `SANCTUM_STATEFUL_DOMAINS` port suffix is used only in CI; production uses its real HTTPS host without a nonstandard port.
+
+The browser flow checks login/CSRF cookie handling, a cross-owner property 404, explicit CSRF rejection on unsigned writes, creation of a property, unit and tenant, creation of a 12-installment draft contract, receipt posting, receivables display, logout, and revocation of API access. It also detects uncaught JavaScript errors and HTTP 5xx responses. All accounts and records are temporary and the workflow deletes the containers and volumes after each run.
+
+CI's `Caddyfile.ci` is solely for internal tests; **never deploy its `tls internal` directive or synthetic credentials to the internet-facing staging domain**. The existing production Caddyfile remains responsible for requesting public certificates when a real domain and host are provided.
+
 ## CI verification
 
 The dedicated `Staging Container Integration` GitHub workflow creates a disposable configuration, validates Docker Compose and Caddy configuration, builds the image, runs a temporary database/migrations/app stack, checks `/up`, verifies the UI HTML and asserts `401` for an anonymous property request. It then destroys the temporary containers, volumes and sample secrets.
