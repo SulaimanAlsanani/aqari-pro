@@ -23,7 +23,7 @@ x-laravel-env: &laravel-env
   MAIL_MAILER: log
   FILESYSTEM_DISK: local
   AQARI_ATTACHMENT_DISK: local
-  AQARI_CLAMAV_BINARY: /usr/bin/clamscan
+  AQARI_CLAMAV_BINARY: "${AQARI_CI_SCANNER_BINARY:-/usr/bin/clamscan}"
   AQARI_CLAMAV_TIMEOUT_SECONDS: "120"
 
 x-app-image: &app-image
