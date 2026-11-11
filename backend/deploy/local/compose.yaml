@@ -107,7 +107,6 @@ services:
 
 networks:
   private:
-    internal: true
 
 volumes:
   postgres_data:
