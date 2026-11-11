@@ -1,0 +1,22 @@
+# TLS and reverse proxy for the first-party staging host.
+# Requires a DNS record for AQARI_DOMAIN and reachable ports 80/443.
+{$AQARI_DOMAIN} {
+  encode zstd gzip
+
+  header {
+    Strict-Transport-Security "max-age=31536000"
+    X-Frame-Options "DENY"
+    X-Content-Type-Options "nosniff"
+    Referrer-Policy "strict-origin-when-cross-origin"
+    Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; form-action 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'"
+    -Server
+  }
+
+  @home path /
+  redir @home /staging/ 302
+
+  @staging path /staging/*
+  header @staging Cache-Control "private, no-store"
+
+  reverse_proxy app:80
+}
