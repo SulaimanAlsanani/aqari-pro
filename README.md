@@ -1,5 +1,20 @@
 # عقاري برو | الإصدار الأول لأصحاب العقارات
 
+## 🚀 تشغيل النسخة الكاملة على GitHub
+
+**[افتح Aqari Pro مباشرة في GitHub Codespaces](https://codespaces.new/SulaimanAlsanani/aqari-pro?quickstart=1)**
+
+عند اختيار **Create codespace** يبدأ تجهيز Laravel 12 وPostgreSQL 16 تلقائيًا عبر Docker. افتح تبويب **PORTS**، ثم المنفذ **8080**، وانتقل إلى `/staging/` من رابط GitHub الآمن. **احتفظ بمنفذ Codespaces على Private.**
+
+لإنشاء أول حساب مالك تجريبي من Terminal داخل Codespace:
+
+```bash
+docker compose --env-file backend/deploy/local/.env.local -f backend/deploy/local/compose.yaml exec app php artisan aqari:provision-owner owner@example.com --name="Test Owner"
+```
+
+هذا تشغيل حقيقي للـBackend داخل **بيئة تطوير مؤقتة**، وليس استضافة إنتاجية دائمة. أما [GitHub Pages](https://sulaimanalsanani.github.io/aqari-pro/) فيستمر بتقديم الواجهة الثابتة المنفصلة. التفاصيل في [دليل Codespaces](.devcontainer/README.md) و[التشغيل المحلي](backend/deploy/local/README.md).
+
+
 هذا المشروع **نسخة تجريبية للمالك الذي يدير عقاراته بنفسه**، وليس نظامًا مخصصًا لمكاتب إدارة الأملاك.
 
 ## نطاق الإصدار الأول
@@ -26,7 +41,7 @@
 ## بدء تأسيس Backend الإنتاجي (غير منشور)
 أضيف مجلد `backend/` يحتوي على **أساس Laravel 12**: مخطط PostgreSQL للعقارات والوحدات والمستأجرين والعقود والاستحقاقات والمدفوعات، ونماذج Eloquent، وواجهات عقارات تتطلب `auth:sanctum` وتستمد ملكية العقار من المستخدم الموثق، واختبارات عزل الملاك.
 
-**هذا ليس خادمًا قابلًا للتشغيل مباشرةً**؛ يلزم تثبيت تطبيق Laravel مستقل وSanctum وتجهيز قاعدة البيانات وتشغيل migrations والاختبارات وتوصيل الواجهة بالـ API. تفاصيل التركيب في [backend/README.md](backend/README.md). النسخة الحالية على GitHub Pages لا تستخدم هذا الـ Backend بعد.
+**أصبح بالإمكان تشغيل Laravel وSanctum وPostgreSQL معًا عبر Docker** داخل Codespaces أو على الجهاز المحلي باستخدام الملفات الموجودة في `backend/deploy/`. راجع [دليل Codespaces](.devcontainer/README.md) و[دليل Backend](backend/README.md). تظل GitHub Pages واجهة ثابتة منفصلة لا تتصل بالـBackend.
 
 يتضمن مسار نشر GitHub Pages الملفات العامة المصرح بها فقط، ولا ينسخ مجلد Backend إلى حزمة الموقع المنشورة.
 
