@@ -104,6 +104,41 @@ class ContractCreationTest extends TestCase
         $this->assertDatabaseCount('dues', 0);
     }
 
+    public function test_scoped_contract_detail_contains_installments_and_receipt_history(): void
+    {
+        [$user, $owner, $property, $unit, $tenant] = $this->fixture();
+        $this->actingAs($user);
+        $response = $this->postJson('/api/v1/contracts', [
+            'unit_id' => $unit->id, 'tenant_id' => $tenant->id,
+            'start_date' => '2026-01-01', 'end_date' => '2026-03-31',
+            'total' => '300.00', 'installments' => 3,
+        ])->assertCreated();
+
+        $id = $response->json('data.id');
+        $due = $response->json('data.dues.0.id');
+
+        $payment = $this->postJson("/api/v1/dues/{$due}/payments", [
+            'amount' => '40.00', 'method' => 'bank',
+            'received_at' => '2026-01-05', 'reference' => 'RECEIPT-01',
+        ])->assertCreated();
+        $paymentId = $payment->json('data.id');
+
+        $this->getJson("/api/v1/contracts/{$id}")
+            ->assertOk()
+            ->assertJsonCount(3, 'data.dues')
+            ->assertJsonPath('data.dues.0.payments.0.id', $paymentId)
+            ->assertJsonPath('data.dues.0.payments.0.amount', '40.00');
+
+        $this->postJson("/api/v1/payments/{$paymentId}/reverse", [
+            'reason' => 'Duplicate receipt in system',
+        ])->assertOk();
+
+        $this->getJson("/api/v1/contracts/{$id}")
+            ->assertOk()
+            ->assertJsonPath('data.dues.0.payments.0.id', $paymentId)
+            ->assertJsonPath('data.dues.0.payments.0.reversal_reason', 'Duplicate receipt in system');
+    }
+
     public function test_guest_cannot_list_or_create_contracts(): void
     {
         $this->getJson('/api/v1/contracts')->assertUnauthorized();
