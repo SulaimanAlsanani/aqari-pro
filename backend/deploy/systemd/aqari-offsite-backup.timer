@@ -1,0 +1,11 @@
+[Unit]
+Description=Schedule daily Aqari Pro encrypted off-site PostgreSQL backup
+
+[Timer]
+OnCalendar=*-*-* 02:15:00
+Persistent=true
+RandomizedDelaySec=15min
+Unit=aqari-offsite-backup.service
+
+[Install]
+WantedBy=timers.target
