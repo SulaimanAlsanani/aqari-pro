@@ -69,3 +69,5 @@ jobs:
         run: bash backend/scripts/ci-test.sh
       - name: Verify encrypted off-site backup with mock S3
         run: bash backend/scripts/ci-encrypted-backup.sh
+      - name: Reject missing or stale offsite backups
+        run: bash backend/scripts/ci-backup-freshness.sh
