@@ -48,7 +48,14 @@
       },
       me() { return send('/api/v1/me', 'GET'); },
       properties() { return send('/api/v1/properties', 'GET'); },
+      createProperty(data) { return send('/api/v1/properties', 'POST', data); },
+      updateProperty(id, data) { return send('/api/v1/properties/' + encodeURIComponent(id), 'PATCH', data); },
+      units(propertyId) { return send('/api/v1/properties/' + encodeURIComponent(propertyId) + '/units', 'GET'); },
+      createUnit(propertyId, data) { return send('/api/v1/properties/' + encodeURIComponent(propertyId) + '/units', 'POST', data); },
+      updateUnit(propertyId, id, data) { return send('/api/v1/properties/' + encodeURIComponent(propertyId) + '/units/' + encodeURIComponent(id), 'PATCH', data); },
       tenants() { return send('/api/v1/tenants', 'GET'); },
+      createTenant(data) { return send('/api/v1/tenants', 'POST', data); },
+      updateTenant(id, data) { return send('/api/v1/tenants/' + encodeURIComponent(id), 'PATCH', data); },
       receivables(propertyId) {
         return send('/api/v1/reports/receivables' + (propertyId ? '?property_id=' + encodeURIComponent(propertyId) : ''), 'GET');
       },
