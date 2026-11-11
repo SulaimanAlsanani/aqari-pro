@@ -79,6 +79,11 @@ class OwnerAccountController extends Controller
         });
 
         Auth::guard('web')->logout();
+        // Sanctum's RequestGuard may cache the user for the current request.
+        // Clear that cache as well as the browser session and stored tokens.
+        if (method_exists(Auth::guard('sanctum'), 'forgetUser')) {
+            Auth::guard('sanctum')->forgetUser();
+        }
         if ($request->hasSession()) {
             $request->session()->invalidate();
             $request->session()->regenerateToken();
