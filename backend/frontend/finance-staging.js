@@ -9,6 +9,12 @@
     return Number(whole) * 100 + Number(decimals.padEnd(2, '0'));
   }
 
+  function localDate() {
+    const now = new Date();
+    const two = value => String(value).padStart(2, '0');
+    return now.getFullYear() + '-' + two(now.getMonth() + 1) + '-' + two(now.getDate());
+  }
+
   function money(value) {
     const abs = Math.abs(value);
     return (value < 0 ? '-' : '') + String(Math.floor(abs / 100)) +
@@ -154,7 +160,7 @@
             $('postPaymentPanel').hidden = false;
             $('chosenDueId').textContent = '#' + due.id;
             $('postPaymentForm').elements.amount.value = money(remainingCents);
-            $('postPaymentForm').elements.received_at.value = new Date().toISOString().slice(0, 10);
+            $('postPaymentForm').elements.received_at.value = localDate();
             $('postPaymentForm').scrollIntoView({behavior: 'smooth', block: 'nearest'});
           });
           li.append(collect);
