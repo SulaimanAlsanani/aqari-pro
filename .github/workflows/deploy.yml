@@ -32,6 +32,7 @@ jobs:
           node --check attachments.js
           node --check backend/frontend/api-session.js
           node --check backend/frontend/staging-app.js
+          node --check backend/frontend/finance-staging.js
       - name: Test financial regression cases
         run: node --test tests/*.test.cjs
       - name: Validate PHP backend source syntax
