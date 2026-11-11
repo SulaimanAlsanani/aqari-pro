@@ -70,7 +70,9 @@ bash "$scriptdir/pg-restore-verify.sh" "$scratch/db" "$AQARI_VERIFY_RESTORE_DB"
 
 (
   cd "$laravel"
-  DB_CONNECTION=pgsql DB_HOST="$PGHOST" DB_PORT="(printenv PGPORT || printf 5432)" \
+  port="$(printenv PGPORT || true)"
+  [[ -n "$port" ]] || port=5432
+  DB_CONNECTION=pgsql DB_HOST="$PGHOST" DB_PORT="$port" \
     DB_DATABASE="$AQARI_VERIFY_RESTORE_DB" DB_USERNAME="$PGUSER" DB_PASSWORD="$PGPASSWORD" \
     php artisan aqari:verify-attachment-export "$scratch/files" --no-interaction
 )
