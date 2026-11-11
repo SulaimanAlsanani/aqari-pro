@@ -2,6 +2,16 @@
 
 This directory contains **source files for a new Laravel 12 backend**, not a working deployed API. The GitHub Pages demo remains unchanged. Do not collect real customer data until this service is installed, configured, audited, backed up, and tested.
 
+## Opt-in encrypted off-site PostgreSQL backup scheduler
+
+The `scripts/offsite-backup.sh` tool now creates a temporary private PostgreSQL snapshot, bundles its dump/checksum/manifest, encrypts it **before upload** using a public `age` recipient, removes the plaintext snapshot, and uploads only an encrypted `.tar.age` object into a private S3-compatible bucket. The script requests SSE-AES256, verifies the remote object size, and cleans up on success or failure.
+
+`deploy/systemd/aqari-offsite-backup.service` and `.timer` supply an **example daily 02:15 server-time schedule**, hardened service settings and an external secrets file. They are **not installed or enabled on any host**. No cloud credentials or private encryption identities are committed.
+
+`scripts/ci-encrypted-backup.sh` tests the entire envelope with a temporary `age` identity, mock private object storage, decrypt/restore archive inspection, invalid recipients and simulated upload failure. It does **not** verify a real AWS/S3 account or production backup retention.
+
+See [encrypted off-site backup deployment and recovery](docs/ENCRYPTED_OFFSITE_BACKUPS.md). **Database archives still exclude private attachment file bytes**, which need independent private backups and a coordinated restore drill. Real KMS/IAM, scheduling, alerts, recovery key custody, off-site attachment copies and HTTPS staging are pending.
+
 ## PostgreSQL backup, isolated restoration and private-object audit
 
 New **staging/recovery** scripts and CLI checks:
