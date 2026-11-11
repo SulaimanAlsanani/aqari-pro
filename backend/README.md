@@ -2,6 +2,17 @@
 
 This directory contains **source files for a new Laravel 12 backend**, not a working deployed API. The GitHub Pages demo remains unchanged. Do not collect real customer data until this service is installed, configured, audited, backed up, and tested.
 
+## PostgreSQL backup, isolated restoration and private-object audit
+
+New **staging/recovery** scripts and CLI checks:
+
+- `scripts/pg-backup.sh` produces a custom-format PostgreSQL archive with SHA-256 checksum in a new mode-0700 private directory; it refuses overwriting existing backups or writing under the repository/public web root.
+- `scripts/pg-restore-verify.sh` verifies the archive checksum, then restores only into an explicitly provisioned, **empty** `aqari_restore_*` database within one transaction. It does not drop or overwrite databases.
+- `php artisan aqari:verify-attachments` checks private `local`/`s3` attachment objects for existence and recorded byte size; missing/truncated/unsupported objects cause exit code 1. This is **not** a cryptographic per-object verification.
+- GitHub's PostgreSQL CI now tests restore to an ephemeral database, confirms restored migration data, and verifies that tampered archives and repeat restores into nonempty databases are rejected.
+
+See [Backup and recovery runbook](docs/BACKUP_RECOVERY_RUNBOOK.md) for prerequisites and commands. **A PostgreSQL dump excludes all private attachment bytes.** Private storage backups, encryption, external retention, scheduled backup jobs, live restore drills and RPO/RTO monitoring have not been deployed.
+
 ## Install into a fresh Laravel 12 application
 
 1. Provision a **private** HTTPS application server and managed PostgreSQL database.
