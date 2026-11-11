@@ -73,7 +73,9 @@ class OwnerAccountController extends Controller
                 DB::table('sessions')->where('user_id', $user->id)->delete();
             }
             DB::table('password_reset_tokens')->where('email', $user->email)->delete();
-            $user->tokens()->delete();
+            if (method_exists($user, 'tokens')) {
+                $user->tokens()->delete();
+            }
         });
 
         Auth::guard('web')->logout();
