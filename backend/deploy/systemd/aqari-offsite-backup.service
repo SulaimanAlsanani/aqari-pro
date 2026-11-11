@@ -1,0 +1,26 @@
+[Unit]
+Description=Aqari Pro encrypted off-site PostgreSQL backup
+Documentation=man:systemd.service(5)
+Wants=network-online.target
+After=network-online.target
+ConditionPathExists=/etc/aqari/backup.env
+
+[Service]
+Type=oneshot
+User=aqari-backup
+Group=aqari-backup
+UMask=0077
+EnvironmentFile=/etc/aqari/backup.env
+WorkingDirectory=/opt/aqari-pro
+ExecStart=/usr/bin/bash /opt/aqari-pro/backend/scripts/offsite-backup.sh
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+ReadWritePaths=/var/lib/aqari/backups/tmp
+TimeoutStartSec=45min
+StandardOutput=journal
+StandardError=journal
