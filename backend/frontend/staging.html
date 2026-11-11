@@ -15,7 +15,7 @@ input,select,button{font:inherit;padding:9px 12px;border:1px solid #a4b7c1;borde
 button{background:#192734;color:white;cursor:pointer;border:0}button[disabled]{opacity:.5;cursor:not-allowed}
 ul{list-style:none;padding:0}li{border-bottom:1px solid #e4eaee;padding:10px 0;display:flex;justify-content:space-between;gap:12px;align-items:center}
 [hidden]{display:none!important}.notice{background:#fff3de;border:1px solid #dcc38a;padding:12px;border-radius:10px}
-#status{padding:12px 0;color:#235e79}small{color:#516873}
+#status{padding:12px 0;color:#235e79}small{color:#516873}.pager{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:12px 0}.pager button{padding:7px 13px}.row-actions{display:flex;gap:8px}.row-actions button{background:#1a89a7}.dialog{border:1px solid #bdced6;border-radius:14px;max-width:530px;width:calc(100% - 36px);padding:24px}.dialog::backdrop{background:#192734aa}.dialog form{display:grid;gap:14px}.dialog menu{display:flex;gap:8px;margin:0;padding:0}.dialog menu button[type=button]{background:#657d89}
 </style>
 </head>
 <body>
@@ -31,15 +31,16 @@ ul{list-style:none;padding:0}li{border-bottom:1px solid #e4eaee;padding:10px 0;d
 <div id="workspace" hidden>
 <section class="panel"><h2>حساب المالك</h2><p id="ownerLabel"></p><button type="button" id="logout">تسجيل الخروج</button><button type="button" id="refresh">تحديث البيانات</button></section>
 <section class="panel"><h2>العقارات</h2>
-<form id="propertyForm"><label>اسم العقار<input name="name" maxlength="180" required></label><label>المدينة<input name="city" maxlength="100" required></label><label>الحي<input name="district" maxlength="100"></label><button type="submit">إضافة عقار</button></form><ul id="propertyList"></ul>
+<form id="propertyForm"><label>اسم العقار<input name="name" maxlength="180" required></label><label>المدينة<input name="city" maxlength="100" required></label><label>الحي<input name="district" maxlength="100"></label><button type="submit">إضافة عقار</button></form><ul id="propertyList"></ul><div id="propertyPager" class="pager" aria-label="صفحات العقارات"></div>
 </section>
 <section class="panel"><h2>الوحدات</h2>
 <label>العقار<select id="unitProperty"></select></label>
-<form id="unitForm"><label>رمز الوحدة<input name="code" maxlength="60" required></label><label>نوع الوحدة<input name="type" maxlength="60"></label><label>المساحة (م²)<input name="area" type="number" min="0" step=".01"></label><button type="submit">إضافة وحدة</button></form><ul id="unitList"></ul></section>
+<form id="unitForm"><label>رمز الوحدة<input name="code" maxlength="60" required></label><label>نوع الوحدة<input name="type" maxlength="60"></label><label>المساحة (م²)<input name="area" type="number" min="0" step=".01"></label><button type="submit">إضافة وحدة</button></form><ul id="unitList"></ul><div id="unitPager" class="pager" aria-label="صفحات الوحدات"></div></section>
 <section class="panel"><h2>المستأجرون</h2>
-<form id="tenantForm"><label>اسم المستأجر<input name="name" maxlength="180" required></label><label>رقم التواصل<input name="phone" maxlength="30"></label><button type="submit">إضافة مستأجر</button></form><ul id="tenantList"></ul>
+<form id="tenantForm"><label>اسم المستأجر<input name="name" maxlength="180" required></label><label>رقم التواصل<input name="phone" maxlength="30"></label><button type="submit">إضافة مستأجر</button></form><ul id="tenantList"></ul><div id="tenantPager" class="pager" aria-label="صفحات المستأجرين"></div>
 </section>
 </div>
+<dialog id="editDialog" class="dialog"><h2 id="editTitle">تعديل السجل</h2><form id="editForm"><div id="editFields"></div><menu><button type="submit">حفظ التغييرات</button><button id="cancelEdit" type="button">إلغاء</button></menu></form></dialog>
 <script src="api-session.js"></script><script src="staging-app.js"></script>
 </body>
 </html>
