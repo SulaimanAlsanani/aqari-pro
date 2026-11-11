@@ -67,6 +67,17 @@
         return send('/login', 'POST', { email, password });
       },
       me() { return send('/api/v1/me', 'GET'); },
+      account() { return send('/api/v1/account', 'GET'); },
+      updateAccount(data) { return send('/api/v1/account', 'PATCH', data); },
+      changePassword(data) { return send('/api/v1/account/change-password', 'POST', data); },
+      async requestPasswordReset(email) {
+        await send('/sanctum/csrf-cookie', 'GET');
+        return send('/forgot-password', 'POST', {email});
+      },
+      async resetPassword(data) {
+        await send('/sanctum/csrf-cookie', 'GET');
+        return send('/reset-password', 'POST', data);
+      },
       properties(page=1) { return send('/api/v1/properties?page=' + encodeURIComponent(page), 'GET'); },
       createProperty(data) { return send('/api/v1/properties', 'POST', data); },
       updateProperty(id, data) { return send('/api/v1/properties/' + encodeURIComponent(id), 'PATCH', data); },
