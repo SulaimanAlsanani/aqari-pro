@@ -48,6 +48,7 @@ class PasswordRecoveryController extends Controller
                 'required', 'confirmed',
                 Password::min(12)->mixedCase()->numbers()->symbols(),
             ],
+            'password_confirmation' => ['required', 'string'],
         ]);
 
         $status = PasswordBroker::broker()->reset([
