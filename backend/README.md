@@ -51,6 +51,19 @@ To use them in an isolated non-public test environment, deploy the Laravel appli
 
 The Pages workflow explicitly stages only root-level demo files, so these staging sources are not available at the public `github.io` URL. Automated Node tests verify the client's request paths and CSRF handling, but **live browser-to-server end-to-end testing still requires a staging server**.
 
+## Contracts, installments, receipts and receivables — staging UI
+
+The separate \`frontend/finance-staging.js\` module extends \`staging.html\` (loaded after \`api-session.js\`) and integrates into \`staging-app.js\`. It provides a working staging client flow for:
+
+- Selecting an owner-scoped property, one of its units, and an owner-scoped tenant; creating a **draft contract** through \`POST /api/v1/contracts\` with monthly installment scheduling.
+- Paginating the owner's contracts and displaying \`GET /api/v1/contracts/{id}\`, including due dates, outstanding balances, and posted/reversed receipt history.
+- Posting an installment receipt through \`POST /api/v1/dues/{id}/payments\`, and deliberately reversing an existing receipt with an obligatory reason through \`POST /api/v1/payments/{id}/reverse\`. Reversal does not delete original receipt history.
+- Paginating receipt history and rendering \`GET /api/v1/reports/receivables\` with property filtering and overdue aging bands.
+
+Monetary display in the staging module uses **integer halalas**, and reversed receipts do not reduce outstanding balance. All client-rendered labels are assigned as text, not untrusted HTML. Backend ownership, payment limits and financial invariants remain authoritative.
+
+The staging selectors fetch a bounded maximum of 25 pages (at most 500 records per lookup); larger portfolios require searchable server-backed selectors. The UI is **not connected** to the localStorage GitHub Pages demo, and is **not live on a staging host**. Live browser E2E tests, permanent PostgreSQL, server-side HTTPS/cookie configuration, backups, user provisioning, data migration, and complete security review remain prerequisites for release.
+
 ## Secure payment posting — staging API
 
 Authenticated endpoints:
@@ -60,6 +73,6 @@ Authenticated endpoints:
 
 For each posted payment the API locks the due row within a PostgreSQL transaction, totals existing receipts in integer halalas, rejects overpayments, and rejects duplicate nonblank payment references for the same due and method (case-insensitively). The response provides the receipt record. This is an internal receipt, not an Ejar or ZATCA tax document. Integration tests cover balances, duplicate references, cross-owner access and invalid amounts.
 
-Payment creation currently has no refund, reversal, or idempotency-key workflow; those controls must be designed before real financial processing. The public GitHub Pages demo remains local-only and is not connected to these endpoints.
+Payment reversals now preserve the original record and append an audit event, but automated refund disbursement, a dedicated idempotency-key workflow, role approvals and reconciliation controls are still outstanding. The public GitHub Pages demo remains local-only and is not connected to these endpoints.
 
-This is **foundation work**, not a promise that complete authentication, tenancy, documents, payments, or production infrastructure are implemented.
+This is **foundation/staging implementation work**, not a claim of a production-ready identity system, sensitive-document storage, financial ledger, or deployed production infrastructure.
