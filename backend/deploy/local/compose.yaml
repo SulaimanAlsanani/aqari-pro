@@ -1,0 +1,115 @@
+# Local-only Docker stack. Do not publish this HTTP service to the internet.
+name: aqari-local
+
+x-local-env: &local-env
+  APP_NAME: "Aqari Pro Local"
+  APP_ENV: local
+  APP_DEBUG: "false"
+  APP_KEY: "${AQARI_APP_KEY:?Generate a private APP_KEY in .env.local}"
+  APP_URL: "http://localhost:${AQARI_LOCAL_PORT:-8080}"
+  LOG_CHANNEL: stderr
+  DB_CONNECTION: pgsql
+  DB_HOST: db
+  DB_PORT: "5432"
+  DB_DATABASE: aqari_local
+  DB_USERNAME: aqari
+  DB_PASSWORD: "${AQARI_DB_PASSWORD:?Generate a private DB password in .env.local}"
+  SESSION_DRIVER: database
+  SESSION_LIFETIME: "120"
+  SESSION_SECURE_COOKIE: "false"
+  SESSION_SAME_SITE: lax
+  SANCTUM_STATEFUL_DOMAINS: "localhost:${AQARI_LOCAL_PORT:-8080},127.0.0.1:${AQARI_LOCAL_PORT:-8080}"
+  CACHE_STORE: database
+  QUEUE_CONNECTION: sync
+  MAIL_MAILER: log
+  FILESYSTEM_DISK: local
+  AQARI_ATTACHMENT_DISK: local
+  AQARI_CLAMAV_BINARY: /usr/bin/clamscan
+  AQARI_CLAMAV_TIMEOUT_SECONDS: "120"
+
+x-app-image: &app-image
+  image: aqari-local-laravel:local
+  build:
+    context: ../../..
+    dockerfile: backend/deploy/staging/Dockerfile
+
+services:
+  db:
+    image: postgres:16-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: aqari_local
+      POSTGRES_USER: aqari
+      POSTGRES_PASSWORD: "${AQARI_DB_PASSWORD:?Generate a private DB password in .env.local}"
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - private
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aqari -d aqari_local"]
+      interval: 10s
+      timeout: 4s
+      retries: 10
+    security_opt:
+      - no-new-privileges:true
+
+  migrate:
+    <<: *app-image
+    restart: "no"
+    environment: *local-env
+    command: ["php", "artisan", "migrate", "--force", "--no-interaction"]
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - private_attachments:/var/www/html/storage/app/private
+    networks:
+      - private
+    security_opt:
+      - no-new-privileges:true
+
+  app:
+    <<: *app-image
+    restart: unless-stopped
+    environment: *local-env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - "127.0.0.1:${AQARI_LOCAL_PORT:-8080}:80"
+    volumes:
+      - private_attachments:/var/www/html/storage/app/private
+      - clamav_signatures:/var/lib/clamav
+    networks:
+      - private
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1/up >/dev/null"]
+      interval: 20s
+      timeout: 5s
+      start_period: 60s
+      retries: 6
+
+  clamav-update:
+    <<: *app-image
+    profiles: [maintenance]
+    restart: "no"
+    entrypoint: ["freshclam"]
+    command: ["--stdout"]
+    volumes:
+      - clamav_signatures:/var/lib/clamav
+    networks:
+      - private
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  private:
+    internal: true
+
+volumes:
+  postgres_data:
+  private_attachments:
+  clamav_signatures:
