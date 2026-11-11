@@ -64,6 +64,16 @@ Monetary display in the staging module uses **integer halalas**, and reversed re
 
 The staging selectors fetch a bounded maximum of 25 pages (at most 500 records per lookup); larger portfolios require searchable server-backed selectors. The UI is **not connected** to the localStorage GitHub Pages demo, and is **not live on a staging host**. Live browser E2E tests, permanent PostgreSQL, server-side HTTPS/cookie configuration, backups, user provisioning, data migration, and complete security review remain prerequisites for release.
 
+## Malware-scanned, configurable private document storage
+
+Private uploads now run through `app/Services/AttachmentScanner.php` before permanent persistence. ClamAV is **mandatory**: infected files are rejected with validation errors and scanner errors/missing executables return HTTP 503 without saving files. Configure `AQARI_CLAMAV_BINARY` and `AQARI_CLAMAV_TIMEOUT_SECONDS` on the private app server.
+
+`AQARI_ATTACHMENT_DISK=local` (default) uses Laravel's private local disk. `AQARI_ATTACHMENT_DISK=s3` opts into a configured private S3-compatible disk; each file records its storage disk so previously uploaded objects remain downloadable when the default changes. The code stores attachments with private visibility, but the external bucket, IAM permissions and server-side encryption must be configured and verified outside the repository.
+
+The `attachment_events` table records who uploaded a file and each authorized `download_requested` operation. Events are visible only to the owner through `GET /api/v1/attachments/{attachment}/events`. The download audit action does not guarantee successful completion of browser transfer.
+
+See [private document deployment checklist](docs/PRIVATE_DOCUMENTS_DEPLOYMENT.md). S3 integration uses fake disks in CI; real ClamAV installation, object storage encryption, external backups and a restored HTTPS staging deployment are still unverified prerequisites.
+
 ## Private property and contract attachments (staging)
 
 New files: `database/migrations/2026_11_11_000003_create_private_attachments.php`, `app/Models/Attachment.php`, `app/Http/Controllers/Api/AttachmentController.php`, `tests/Feature/PrivateAttachmentsTest.php`, and `frontend/attachment-staging.js` with the upload panel in `staging.html`.
@@ -74,7 +84,7 @@ The server verifies owner identity before looking up the target property/contrac
 
 **Current safeguards:** PDF, JPEG and PNG only; maximum 10 MiB; server-side MIME checks; owner-scoped metadata and downloads. Laravel/PostgreSQL tests cover valid uploads, invalid types, oversized files, missing objects, unauthenticated downloads and cross-owner access.
 
-**Required before production:** encrypted external object storage, verified backup/restore, malware scan/quarantine (ClamAV), upload quotas, retention/deletion rules, audit logs, HTTPS and CORS review, and real browser E2E tests. These controls are NOT all implemented. Do not upload real identity records, deeds or tenant documents to the public demo or an unreviewed deployment.
+**Required before production:** deploy and verify real ClamAV/signature updates, provision encrypted external object storage, verified backup/restore, upload quotas, retention/deletion rules, durable audit-log retention, HTTPS and CORS review, and real browser E2E tests. File scanning gates, selectable private disks and basic attachment events are coded but NOT independently verified on production infrastructure. Do not upload real identity records, deeds or tenant documents to the public demo or an unreviewed deployment.
 ## Secure payment posting — staging API
 
 Authenticated endpoints:
