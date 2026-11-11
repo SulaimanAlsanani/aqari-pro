@@ -4,18 +4,24 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Attachment extends Model
 {
     protected $fillable = [
         'owner_id', 'property_id', 'contract_id',
-        'original_name', 'storage_path', 'mime_type', 'size_bytes',
+        'original_name', 'storage_path', 'storage_disk', 'mime_type', 'size_bytes',
     ];
 
     // Internal filesystem paths and owner identifiers must not leak into JSON.
-    protected $hidden = ['storage_path', 'owner_id'];
+    protected $hidden = ['storage_path', 'storage_disk', 'owner_id'];
 
     protected $casts = ['size_bytes' => 'integer'];
+
+    public function events(): HasMany
+    {
+        return $this->hasMany(AttachmentEvent::class);
+    }
 
     public function owner(): BelongsTo
     {
