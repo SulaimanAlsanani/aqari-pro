@@ -96,7 +96,9 @@ jobs:
       - name: Install Playwright Chromium for real browser testing
         run: |
           npm install --no-save --ignore-scripts playwright@1.57.0
-          npx playwright install --with-deps chromium
+          # GitHub Ubuntu runners already include Chromium runtime libraries.
+          # Avoid network-dependent apt package mirrors during this CI step.
+          npx playwright install chromium
 
       - name: Install isolated CI-only synthetic file scanner
         run: |
