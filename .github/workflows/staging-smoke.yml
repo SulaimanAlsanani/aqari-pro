@@ -12,6 +12,8 @@ on:
       - 'backend/frontend/**'
       - 'backend/tests/browser/**'
       - 'backend/deploy/staging/**'
+      - 'backend/deploy/local/**'
+      - '.dockerignore'
       - '.github/workflows/staging-smoke.yml'
   workflow_dispatch:
 
@@ -36,6 +38,27 @@ jobs:
             echo 'AQARI_STATEFUL_PORT_SUFFIX=:18443'
             echo 'AQARI_CI_SCANNER_BINARY=/tmp/aqari-ci-clamscan'
           } > backend/deploy/staging/.env.staging
+
+      - name: Verify local-only Docker Compose safety and Bash launcher syntax
+        run: |
+          set -euo pipefail
+          bash -n backend/deploy/local/start.sh
+          docker compose --env-file backend/deploy/staging/.env.staging \
+            -f backend/deploy/local/compose.yaml config --quiet
+          docker compose --env-file backend/deploy/staging/.env.staging \
+            -f backend/deploy/local/compose.yaml config --format json \
+            | python3 -c '
+          import json,sys
+          services=json.load(sys.stdin)["services"]
+          assert not services["db"].get("ports"), "PostgreSQL must not publish a host port"
+          ports=services["app"]["ports"]
+          assert len(ports)==1 and ports[0].get("host_ip")=="127.0.0.1", "Local HTTP must bind loopback only"
+          assert str(ports[0].get("published"))=="8080", "Unexpected local HTTP port"
+          assert services["app"]["environment"]["APP_ENV"]=="local", "Must run in local mode"
+          assert services["app"]["environment"]["SESSION_SECURE_COOKIE"]=="false", "Loopback HTTP cookie must not require HTTPS"
+          assert services["app"]["environment"]["MAIL_MAILER"]=="log", "Local mail must remain non-delivering"
+          print("Local-only Docker Compose safety checks passed.")
+          '
 
       - name: Validate Compose and HTTPS proxy syntax
         run: |
