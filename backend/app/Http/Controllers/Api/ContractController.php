@@ -41,7 +41,7 @@ class ContractController extends Controller
     {
         $owner = $this->owner($request);
         $contract = $this->scopedContracts($owner)->whereKey($contract->id)
-            ->with(['dues' => fn ($query) => $query->orderBy('due_date')])->firstOrFail();
+            ->with(['dues' => fn ($query) => $query->orderBy('due_date')->with(['payments' => fn ($payments) => $payments->orderBy('id')])])->firstOrFail();
 
         return response()->json(['data' => $contract]);
     }
