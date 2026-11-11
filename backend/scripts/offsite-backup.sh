@@ -53,6 +53,7 @@ esac
 scratch="$(mktemp -d "$workdir/aqari-offsite.XXXXXXXX")"
 cleanup() {
   rm -f -- "$scratch/backup.tar.age"
+  rm -f -- "$scratch/complete.txt"
   rm -rf -- "$scratch/source"
   rmdir -- "$scratch" 2>/dev/null || true
 }
@@ -88,6 +89,14 @@ if [[ "$remote_size" != "$local_size" ]]; then
   echo "Remote backup object size could not be verified; alert operator." >&2
   exit 1
 fi
+
+# A completion object is written ONLY after the encrypted upload has passed
+# its size verification. Freshness monitors ignore unfinished .tar.age files.
+printf 'ciphertext_sha256=%s\n' "$(sha256sum "$ciphertext" | cut -d ' ' -f 1)" > "$scratch/complete.txt"
+chmod 600 "$scratch/complete.txt"
+aws s3api put-object --bucket "$AQARI_BACKUP_BUCKET" --key "$key.ok" \
+  --body "$scratch/complete.txt" --server-side-encryption AES256 \
+  --checksum-algorithm SHA256 >/dev/null
 
 echo "Encrypted off-site database snapshot stored and remote size checked."
 echo "Remote object key: $key"
