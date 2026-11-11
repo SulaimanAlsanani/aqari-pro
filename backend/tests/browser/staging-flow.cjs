@@ -157,8 +157,20 @@ function retryStatus(page, expected, timeout = 25000) {
     assert.ok(audit.events.some(e => e.action === 'uploaded'));
     assert.ok(audit.events.some(e => e.action === 'download_requested'));
 
-    await page.locator('#logout').click();
-    await retryStatus(page, 'تم تسجيل الخروج');
+    // Owner self-service: changes are scoped to the current account.
+    await page.locator('#accountForm input[name=name]').fill('Updated E2E Owner');
+    await page.locator('#accountForm input[name=phone]').fill('0501234567');
+    await page.locator('#accountForm button[type=submit]').click();
+    await retryStatus(page, 'تم حفظ بيانات حساب المالك');
+    assert.match(await page.locator('#ownerLabel').innerText(), /Updated E2E Owner/);
+    assert.equal(await page.locator('#accountEmail').inputValue(), 'owner.e2e@example.test');
+
+    // Password rotation must invalidate the browser session immediately.
+    await page.locator('#changePasswordForm input[name=current_password]').fill(password);
+    await page.locator('#changePasswordForm input[name=password]').fill('RotatedPass!2026');
+    await page.locator('#changePasswordForm input[name=password_confirmation]').fill('RotatedPass!2026');
+    await page.locator('#changePasswordForm button[type=submit]').click();
+    await retryStatus(page, 'تم تغيير كلمة المرور');
     assert.equal(await page.locator('#workspace').isVisible(), false);
     const afterLogout = await page.evaluate(async () => {
       const response = await fetch('/api/v1/properties', {
@@ -173,9 +185,21 @@ function retryStatus(page, expected, timeout = 25000) {
       });
       return response.status;
     }, fileId);
-    assert.equal(documentAfterLogout, 401, 'Private files must be inaccessible after logout');
+    assert.equal(documentAfterLogout, 401, 'Private files must be inaccessible after password rotation');
+
+    // Verify the old password is rejected and the new password is accepted.
+    await page.locator('#loginForm input[name=email]').fill('owner.e2e@example.test');
+    await page.locator('#loginForm input[name=password]').fill(password);
+    await page.locator('#loginForm button[type=submit]').click();
+    await retryStatus(page, 'بيانات تسجيل الدخول غير صحيحة');
+    await page.locator('#loginForm input[name=email]').fill('owner.e2e@example.test');
+    await page.locator('#loginForm input[name=password]').fill('RotatedPass!2026');
+    await page.locator('#loginForm button[type=submit]').click();
+    await retryStatus(page, 'متصل ببيئة');
+    await page.locator('#logout').click();
+    await retryStatus(page, 'تم تسجيل الخروج');
     assert.deepEqual(pageErrors, [], 'No browser exceptions or server 5xx responses');
-    console.log('Browser E2E passed: login, CSRF, tenant isolation, property, unit, tenant, 12 dues, payment, reversal, receivables, private PNG upload/download, audit and logout.');
+    console.log('Browser E2E passed: login, CSRF, tenant isolation, property, unit, tenant, 12 dues, payment, reversal, receivables, private PNG upload/download, audit, owner profile, password rotation and logout.');
   } finally {
     await browser.close();
   }
