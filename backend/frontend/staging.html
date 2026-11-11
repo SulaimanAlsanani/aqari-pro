@@ -28,9 +28,38 @@ ul{list-style:none;padding:0}li{border-bottom:1px solid #e4eaee;padding:10px 0;d
 <section class="panel" id="loginPanel">
 <h2>تسجيل الدخول</h2>
 <form id="loginForm"><label>البريد الإلكتروني<input name="email" type="email" autocomplete="username" required></label><label>كلمة المرور<input name="password" type="password" autocomplete="current-password" required></label><button type="submit">دخول</button></form>
+<h3>نسيت كلمة المرور؟</h3>
+<form id="forgotForm"><label>البريد المسجل<input name="email" type="email" autocomplete="email" required></label><button type="submit">إرسال رابط الاستعادة</button></form>
+<p><small>إذا كان البريد مسجلًا، ستصل إليه رسالة تتضمن رابطًا مؤقتًا لإعادة تعيين كلمة المرور. لا يمكن إرسال الرسائل حتى يُهيأ SMTP آمن على الخادم.</small></p>
+</section>
+<section class="panel" id="resetPanel" hidden>
+<h2>استعادة كلمة المرور</h2>
+<p id="resetEmailLabel"></p>
+<form id="resetForm">
+<label>كلمة المرور الجديدة<input type="password" name="password" autocomplete="new-password" minlength="12" required></label>
+<label>تأكيد كلمة المرور<input type="password" name="password_confirmation" autocomplete="new-password" minlength="12" required></label>
+<button type="submit">تعيين كلمة المرور الجديدة</button>
+<button type="button" id="cancelReset">العودة لتسجيل الدخول</button>
+</form>
+<p><small>استخدم كلمة مرور من 12 حرفًا على الأقل، مع أحرف كبيرة وصغيرة وأرقام ورموز.</small></p>
 </section>
 <div id="workspace" hidden>
-<section class="panel"><h2>حساب المالك</h2><p id="ownerLabel"></p><button type="button" id="logout">تسجيل الخروج</button><button type="button" id="refresh">تحديث البيانات</button></section>
+<section class="panel"><h2>حساب المالك</h2><p id="ownerLabel"></p>
+<form id="accountForm">
+<label>اسم المالك<input name="name" maxlength="180" minlength="2" required></label>
+<label>رقم التواصل<input name="phone" maxlength="30"></label>
+<label>البريد الإلكتروني<input id="accountEmail" type="email" disabled></label>
+<button type="submit">حفظ بيانات الحساب</button>
+</form>
+<h3>تغيير كلمة المرور</h3>
+<form id="changePasswordForm">
+<label>كلمة المرور الحالية<input name="current_password" type="password" autocomplete="current-password" required></label>
+<label>كلمة المرور الجديدة<input name="password" type="password" autocomplete="new-password" minlength="12" required></label>
+<label>تأكيد كلمة المرور<input name="password_confirmation" type="password" autocomplete="new-password" minlength="12" required></label>
+<button type="submit">تغيير كلمة المرور وتسجيل الخروج</button>
+</form>
+<button type="button" id="logout">تسجيل الخروج</button>
+<button type="button" id="refresh">تحديث البيانات</button></section>
 <section class="panel"><h2>العقارات</h2>
 <form id="propertyForm"><label>اسم العقار<input name="name" maxlength="180" required></label><label>المدينة<input name="city" maxlength="100" required></label><label>الحي<input name="district" maxlength="100"></label><button type="submit">إضافة عقار</button></form><ul id="propertyList"></ul><div id="propertyPager" class="pager" aria-label="صفحات العقارات"></div>
 </section>
