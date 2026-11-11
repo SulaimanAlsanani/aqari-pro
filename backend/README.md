@@ -64,6 +64,17 @@ Monetary display in the staging module uses **integer halalas**, and reversed re
 
 The staging selectors fetch a bounded maximum of 25 pages (at most 500 records per lookup); larger portfolios require searchable server-backed selectors. The UI is **not connected** to the localStorage GitHub Pages demo, and is **not live on a staging host**. Live browser E2E tests, permanent PostgreSQL, server-side HTTPS/cookie configuration, backups, user provisioning, data migration, and complete security review remain prerequisites for release.
 
+## Private property and contract attachments (staging)
+
+New files: `database/migrations/2026_11_11_000003_create_private_attachments.php`, `app/Models/Attachment.php`, `app/Http/Controllers/Api/AttachmentController.php`, `tests/Feature/PrivateAttachmentsTest.php`, and `frontend/attachment-staging.js` with the upload panel in `staging.html`.
+
+Authenticated API endpoints: `GET|POST /api/v1/properties/{property}/attachments`, `GET|POST /api/v1/contracts/{contract}/attachments`, `GET /api/v1/attachments/{attachment}/download`.
+
+The server verifies owner identity before looking up the target property/contract. The PostgreSQL schema enforces exactly one parent. Files use Laravel's private local disk under `owner-documents/{owner-id}/` with generated names. API responses hide internal storage paths. Downloads require authentication, force attachment disposition, disable caching, and set `nosniff` and sandbox headers. The staging upload form uses multipart requests and CSRF without storing secrets in localStorage.
+
+**Current safeguards:** PDF, JPEG and PNG only; maximum 10 MiB; server-side MIME checks; owner-scoped metadata and downloads. Laravel/PostgreSQL tests cover valid uploads, invalid types, oversized files, missing objects, unauthenticated downloads and cross-owner access.
+
+**Required before production:** encrypted external object storage, verified backup/restore, malware scan/quarantine (ClamAV), upload quotas, retention/deletion rules, audit logs, HTTPS and CORS review, and real browser E2E tests. These controls are NOT all implemented. Do not upload real identity records, deeds or tenant documents to the public demo or an unreviewed deployment.
 ## Secure payment posting — staging API
 
 Authenticated endpoints:
