@@ -53,12 +53,12 @@ The Pages workflow explicitly stages only root-level demo files, so these stagin
 
 ## Contracts, installments, receipts and receivables — staging UI
 
-The separate \`frontend/finance-staging.js\` module extends \`staging.html\` (loaded after \`api-session.js\`) and integrates into \`staging-app.js\`. It provides a working staging client flow for:
+The separate `frontend/finance-staging.js` module extends `staging.html` (loaded after `api-session.js`) and integrates into `staging-app.js`. It provides a working staging client flow for:
 
-- Selecting an owner-scoped property, one of its units, and an owner-scoped tenant; creating a **draft contract** through \`POST /api/v1/contracts\` with monthly installment scheduling.
-- Paginating the owner's contracts and displaying \`GET /api/v1/contracts/{id}\`, including due dates, outstanding balances, and posted/reversed receipt history.
-- Posting an installment receipt through \`POST /api/v1/dues/{id}/payments\`, and deliberately reversing an existing receipt with an obligatory reason through \`POST /api/v1/payments/{id}/reverse\`. Reversal does not delete original receipt history.
-- Paginating receipt history and rendering \`GET /api/v1/reports/receivables\` with property filtering and overdue aging bands.
+- Selecting an owner-scoped property, one of its units, and an owner-scoped tenant; creating a **draft contract** through `POST /api/v1/contracts` with monthly installment scheduling.
+- Paginating the owner's contracts and displaying `GET /api/v1/contracts/{id}`, including due dates, outstanding balances, and posted/reversed receipt history.
+- Posting an installment receipt through `POST /api/v1/dues/{id}/payments`, and deliberately reversing an existing receipt with an obligatory reason through `POST /api/v1/payments/{id}/reverse`. Reversal does not delete original receipt history.
+- Paginating receipt history and rendering `GET /api/v1/reports/receivables` with property filtering and overdue aging bands.
 
 Monetary display in the staging module uses **integer halalas**, and reversed receipts do not reduce outstanding balance. All client-rendered labels are assigned as text, not untrusted HTML. Backend ownership, payment limits and financial invariants remain authoritative.
 
