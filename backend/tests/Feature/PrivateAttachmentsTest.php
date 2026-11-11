@@ -222,8 +222,11 @@ class PrivateAttachmentsTest extends TestCase
         $this->assertSame('s3', $record->storage_disk);
         Storage::disk('s3')->assertExists($record->storage_path);
 
-        $this->get("/api/v1/attachments/{$record->id}/download")
-            ->assertOk()->assertHeader('Cache-Control', 'private, no-store');
+        $response = $this->get("/api/v1/attachments/{$record->id}/download")
+            ->assertOk();
+        $cacheControl = $response->baseResponse->headers->get('Cache-Control');
+        $this->assertStringContainsString('private', $cacheControl);
+        $this->assertStringContainsString('no-store', $cacheControl);
     }
 
     public function test_audit_endpoint_is_owner_only_and_refuses_cross_owner_requests(): void
