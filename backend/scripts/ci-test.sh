@@ -16,6 +16,7 @@ composer create-project laravel/laravel "$RUNTIME" "^12.0" --no-interaction --pr
 )
 
 cp -R "$REPO_ROOT/backend/app/." "$RUNTIME/app/"
+cp -R "$REPO_ROOT/backend/config/." "$RUNTIME/config/"
 cp -R "$REPO_ROOT/backend/database/migrations/." "$RUNTIME/database/migrations/"
 cp -R "$REPO_ROOT/backend/tests/Feature/." "$RUNTIME/tests/Feature/"
 cp "$REPO_ROOT/backend/routes/api.php" "$RUNTIME/routes/api.php"
