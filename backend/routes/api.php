@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\TenantController;
 use App\Http\Controllers\Api\ContractController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\ReceivablesController;
+use App\Http\Controllers\Api\AttachmentController;
 use Illuminate\Support\Facades\Route;
 
 // Requires Laravel Sanctum to be installed and configured in the Laravel app.
@@ -39,4 +40,9 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('/v1/dues/{due}/payments', [PaymentController::class, 'store']);
     Route::post('/v1/payments/{payment}/reverse', [PaymentController::class, 'reverse']);
     Route::get('/v1/reports/receivables', [ReceivablesController::class, 'index']);
+    Route::get('/v1/properties/{property}/attachments', [AttachmentController::class, 'propertyIndex']);
+    Route::post('/v1/properties/{property}/attachments', [AttachmentController::class, 'propertyStore']);
+    Route::get('/v1/contracts/{contract}/attachments', [AttachmentController::class, 'contractIndex']);
+    Route::post('/v1/contracts/{contract}/attachments', [AttachmentController::class, 'contractStore']);
+    Route::get('/v1/attachments/{attachment}/download', [AttachmentController::class, 'download']);
 });
