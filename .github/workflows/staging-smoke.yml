@@ -1,0 +1,80 @@
+name: Staging Container Integration
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/app/**'
+      - 'backend/bootstrap/**'
+      - 'backend/config/**'
+      - 'backend/database/migrations/**'
+      - 'backend/routes/**'
+      - 'backend/frontend/**'
+      - 'backend/deploy/staging/**'
+      - '.github/workflows/staging-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  staging-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Create ephemeral staging settings
+        run: |
+          umask 077
+          {
+            echo 'AQARI_DOMAIN=staging.example.test'
+            echo 'AQARI_DB_PASSWORD=ci_disposable_staging_password_43'
+            printf 'AQARI_APP_KEY=base64:%s\n' "$(openssl rand -base64 32)"
+          } > backend/deploy/staging/.env.staging
+
+      - name: Validate Compose and HTTPS proxy syntax
+        run: |
+          docker compose --env-file backend/deploy/staging/.env.staging \
+            -f backend/deploy/staging/compose.yaml config --quiet
+          docker run --rm \
+            -e AQARI_DOMAIN=staging.example.test \
+            -v "$PWD/backend/deploy/staging/Caddyfile:/etc/caddy/Caddyfile:ro" \
+            caddy:2.10-alpine caddy validate \
+            --config /etc/caddy/Caddyfile --adapter caddyfile
+
+      - name: Build and start isolated Laravel staging
+        run: |
+          docker compose --env-file backend/deploy/staging/.env.staging \
+            -f backend/deploy/staging/compose.yaml \
+            up --detach --build --wait db migrate app
+
+      - name: Verify Laravel health, access isolation and staged UI
+        run: |
+          set -euo pipefail
+          compose=(docker compose --env-file backend/deploy/staging/.env.staging \
+            -f backend/deploy/staging/compose.yaml)
+          "${compose[@]}" exec -T app php artisan route:list --path=api
+          "${compose[@]}" exec -T app curl --fail --silent http://127.0.0.1/up > /dev/null
+          "${compose[@]}" exec -T app curl --fail --silent http://127.0.0.1/staging/ | grep -q 'عقاري برو'
+          status=$("${compose[@]}" exec -T app curl --silent --output /dev/null \
+            --write-out '%{http_code}' --header 'Accept: application/json' \
+            http://127.0.0.1/api/v1/properties)
+          test "$status" = 401
+          echo 'Staging health, first-party UI and guest API isolation passed.'
+
+      - name: Inspect container status on failure
+        if: failure()
+        run: |
+          docker compose --env-file backend/deploy/staging/.env.staging \
+            -f backend/deploy/staging/compose.yaml ps -a || true
+          docker compose --env-file backend/deploy/staging/.env.staging \
+            -f backend/deploy/staging/compose.yaml logs --no-color --tail=80 app migrate db || true
+
+      - name: Remove ephemeral staging environment
+        if: always()
+        run: |
+          docker compose --env-file backend/deploy/staging/.env.staging \
+            -f backend/deploy/staging/compose.yaml down --volumes --remove-orphans || true
+          rm -f backend/deploy/staging/.env.staging
