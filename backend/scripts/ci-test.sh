@@ -52,6 +52,25 @@ if bash "$REPO_ROOT/backend/scripts/pg-restore-verify.sh" \
   exit 1
 fi
 
+# A populated restore target must also be rejected without destructive changes.
+if bash "$REPO_ROOT/backend/scripts/pg-restore-verify.sh" \
+  "$BACKUP_DIRECTORY" aqari_restore_ci; then
+  echo "ERROR: unexpectedly overwrote an already-populated restore database." >&2
+  exit 1
+fi
+
+# The rehearsal must restore actual migration rows, not just table structures.
+original_migrations="$(PGHOST="$DB_HOST" PGPORT="$DB_PORT" PGUSER="$DB_USERNAME" \
+  PGPASSWORD="$DB_PASSWORD" psql -X -Atq -v ON_ERROR_STOP=1 \
+  --dbname="$DB_DATABASE" -c 'SELECT count(*) FROM migrations')"
+restored_migrations="$(PGHOST="$DB_HOST" PGPORT="$DB_PORT" PGUSER="$DB_USERNAME" \
+  PGPASSWORD="$DB_PASSWORD" psql -X -Atq -v ON_ERROR_STOP=1 \
+  --dbname=aqari_restore_ci -c 'SELECT count(*) FROM migrations')"
+if [[ "$original_migrations" -eq 0 || "$original_migrations" != "$restored_migrations" ]]; then
+  echo "ERROR: restored migration records differ from source." >&2
+  exit 1
+fi
+
 echo "PostgreSQL isolated restore rehearsal and tamper rejection passed."
 
 echo "Laravel 12 owner-isolation integration suite finished."
