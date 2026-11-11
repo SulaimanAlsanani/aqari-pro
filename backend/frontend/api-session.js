@@ -47,13 +47,13 @@
         return send('/login', 'POST', { email, password });
       },
       me() { return send('/api/v1/me', 'GET'); },
-      properties(page=1) { return send('/api/v1/properties?page=' + encodeURIComponent(page), 'GET'); }
+      properties(page=1) { return send('/api/v1/properties?page=' + encodeURIComponent(page), 'GET'); },
       createProperty(data) { return send('/api/v1/properties', 'POST', data); },
       updateProperty(id, data) { return send('/api/v1/properties/' + encodeURIComponent(id), 'PATCH', data); },
-      units(propertyId, page=1) { return send('/api/v1/properties/' + encodeURIComponent(propertyId) + '/units?page=' + encodeURIComponent(page), 'GET'); }
+      units(propertyId, page=1) { return send('/api/v1/properties/' + encodeURIComponent(propertyId) + '/units?page=' + encodeURIComponent(page), 'GET'); },
       createUnit(propertyId, data) { return send('/api/v1/properties/' + encodeURIComponent(propertyId) + '/units', 'POST', data); },
       updateUnit(propertyId, id, data) { return send('/api/v1/properties/' + encodeURIComponent(propertyId) + '/units/' + encodeURIComponent(id), 'PATCH', data); },
-      tenants(page=1) { return send('/api/v1/tenants?page=' + encodeURIComponent(page), 'GET'); }
+      tenants(page=1) { return send('/api/v1/tenants?page=' + encodeURIComponent(page), 'GET'); },
       createTenant(data) { return send('/api/v1/tenants', 'POST', data); },
       updateTenant(id, data) { return send('/api/v1/tenants/' + encodeURIComponent(id), 'PATCH', data); },
       receivables(propertyId) {
