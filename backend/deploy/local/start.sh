@@ -64,7 +64,7 @@ fi
 docker compose --env-file "$envfile" "${compose_files[@]}" config --quiet
 docker compose --env-file "$envfile" "${compose_files[@]}" up --detach --build --wait db migrate app
 if command -v curl >/dev/null 2>&1; then
-  curl --noproxy '*' --fail --silent --show-error "$address/up" >/dev/null
+  curl --noproxy '*' --fail --silent --show-error "http://127.0.0.1:$port/up" >/dev/null
 fi
 echo
 if [[ "$mode" == "--codespaces" ]]; then
