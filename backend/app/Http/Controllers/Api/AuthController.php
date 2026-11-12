@@ -13,6 +13,8 @@ class AuthController extends Controller {
   if(!$user||!Hash::check($credentials['password'],$user->password))
    return response()->json(['message'=>'بيانات الدخول غير صحيحة'],422);
   if($user->mfa_enabled_at){
+   if(!$request->filled('mfa_code'))
+    return response()->json(['message'=>'رمز المصادقة الثنائية مطلوب','mfa_required'=>true],428);
    $data=$request->validate(['mfa_code'=>['required','string','max:32']]);
    $passed=DB::transaction(function()use($user,$data){
     $locked=User::query()->lockForUpdate()->findOrFail($user->id);
