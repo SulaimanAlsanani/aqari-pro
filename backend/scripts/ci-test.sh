@@ -27,7 +27,7 @@ cp "$REPO_ROOT/backend/bootstrap/app.php" "$RUNTIME/bootstrap/app.php"
   cd "$RUNTIME"
   php artisan migrate --force --no-interaction
   php artisan route:list --path=api
-  php artisan test --filter='(PropertyIsolationTest|PortfolioIsolationTest|ContractCreationTest|PaymentPostingTest|ReceivablesReversalTest|SessionAuthenticationTest|PrivateAttachmentsTest|AttachmentStorageVerificationTest|AttachmentExportTest|ProvisionOwnerTest|OwnerAccountRecoveryTest|OwnerSessionSecurityTest|OwnerLoginRetentionTest)'
+  php artisan test --filter='(PropertyIsolationTest|PortfolioIsolationTest|ContractCreationTest|PaymentPostingTest|ReceivablesReversalTest|SessionAuthenticationTest|PrivateAttachmentsTest|AttachmentStorageVerificationTest|AttachmentExportTest|ProvisionOwnerTest|OwnerAccountRecoveryTest|OwnerSessionSecurityTest|OwnerLoginRetentionTest|OwnerMfaTest)'
 )
 
 echo "Rehearsing PostgreSQL backup and restore in a fresh isolated database..."
