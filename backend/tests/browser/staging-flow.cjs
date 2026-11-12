@@ -165,6 +165,58 @@ function retryStatus(page, expected, timeout = 25000) {
     assert.match(await page.locator('#ownerLabel').innerText(), /Updated E2E Owner/);
     assert.equal(await page.locator('#accountEmail').inputValue(), 'owner.e2e@example.test');
 
+    // Verify two real browser devices have independent session cookies.
+    const secondContext = await browser.newContext({
+      ignoreHTTPSErrors: true,
+      viewport: {width: 900, height: 700},
+      locale: 'ar-SA',
+    });
+    try {
+      const remote = await secondContext.newPage();
+      await remote.goto(origin + '/staging/', {waitUntil: 'domcontentloaded'});
+      await remote.locator('#loginForm input[name=email]').fill('owner.e2e@example.test');
+      await remote.locator('#loginForm input[name=password]').fill(password);
+      await remote.locator('#loginForm button[type=submit]').click();
+      await retryStatus(remote, 'متصل ببيئة');
+
+      await page.locator('#refreshSessions').click();
+      await retryStatus(page, 'تم تحديث قائمة الأجهزة');
+      assert.ok(await page.locator('#activeSessions li').count() >= 2,
+        'Both current and remote browser sessions should appear');
+      assert.match(await page.locator('#loginActivity').innerText(), /دخول ناجح/);
+      assert.doesNotMatch(await page.locator('#activeSessions').innerText(),
+        /session-id|session_token|payload/i);
+
+      await page.locator('#revokeOthersForm input[name=current_password]').fill('incorrect');
+      await page.locator('#revokeOthersForm button[type=submit]').click();
+      await retryStatus(page, 'كلمة المرور الحالية');
+      const beforeRevoke = await remote.evaluate(async () => {
+        const res = await fetch('/api/v1/me', {
+          credentials: 'include', headers: {'Accept': 'application/json'},
+        });
+        return res.status;
+      });
+      assert.equal(beforeRevoke, 200,
+        'Incorrect password must leave the other browser signed in');
+
+      await page.locator('#revokeOthersForm input[name=current_password]').fill(password);
+      await page.locator('#revokeOthersForm button[type=submit]').click();
+      await retryStatus(page, 'تم تسجيل خروج الأجهزة الأخرى');
+      const afterRevoke = await remote.evaluate(async () => {
+        const res = await fetch('/api/v1/me', {
+          credentials: 'include', headers: {'Accept': 'application/json'},
+        });
+        return res.status;
+      });
+      assert.equal(afterRevoke, 401, 'Remote browser session must be revoked');
+      assert.equal(await page.locator('#workspace').isVisible(), true,
+        'The current browser session should remain signed in');
+      assert.match(await page.locator('#loginActivity').innerText(),
+        /إنهاء الجلسات الأخرى/);
+    } finally {
+      await secondContext.close();
+    }
+
     // Password rotation must invalidate the browser session immediately.
     await page.locator('#changePasswordForm input[name=current_password]').fill(password);
     await page.locator('#changePasswordForm input[name=password]').fill('RotatedPass!2026');
