@@ -74,3 +74,23 @@ jobs:
         run: |
           python3 -m py_compile scripts/mysql_isolated_restore.py
           python3 -m unittest discover -s tests -p 'test_mysql_isolated_restore.py' -v
+
+  mysql-isolated-restore:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Exercise real offline MySQL import in disposable no-network Docker
+        run: |
+          set -euo pipefail
+          STAGE="backend/storage/app/restore-staging/123e4567-e89b-12d3-a456-426614174000"
+          mkdir -p "$STAGE"
+          cat > "$STAGE/database.mysql.sql" <<'SQL'
+          CREATE DATABASE IF NOT EXISTS aqari_restore_probe;
+          USE aqari_restore_probe;
+          CREATE TABLE probe (id INT PRIMARY KEY, label VARCHAR(100));
+          INSERT INTO probe VALUES (1, 'restored');
+          SQL
+          python3 backend/scripts/mysql_isolated_restore.py \
+            --stage "$PWD/$STAGE" --app-storage "$PWD/backend/storage/app"
+          rm -rf "$STAGE"
