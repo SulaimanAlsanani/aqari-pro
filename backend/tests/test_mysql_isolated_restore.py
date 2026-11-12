@@ -53,11 +53,28 @@ class RestoreDrillSafetyTest(unittest.TestCase):
                     module.run_drill(self.sql)
                 runner.assert_not_called()
 
+    def test_remote_selected_context_is_rejected_before_container_creation(self):
+        with patch.dict(module.os.environ, {}, clear=True):
+            with patch.object(module, "run_command", return_value=type("Done", (), {"stdout": b"ssh://remote-host/run/docker.sock\\n"})()) as runner:
+                with self.assertRaises(ValueError):
+                    module.run_drill(self.sql)
+                runner.assert_called_once()
+                self.assertEqual(runner.call_args.args[0][:3], ["docker", "context", "inspect"])
+
+    def test_tcp_context_is_rejected_before_container_creation(self):
+        with patch.dict(module.os.environ, {}, clear=True):
+            with patch.object(module, "run_command", return_value=type("Done", (), {"stdout": b"tcp://127.0.0.1:2375\\n"})()) as runner:
+                with self.assertRaises(ValueError):
+                    module.run_drill(self.sql)
+                runner.assert_called_once()
+
     def test_docker_container_is_networkless_and_mountless(self):
         calls = []
 
         def fake_run(args, **kwargs):
             calls.append(args)
+            if args[:3] == ["docker", "context", "inspect"]:
+                return type("Done", (), {"stdout": b"unix:///var/run/docker.sock\n"})()
             if args[1] == "exec" and "mysql" in args:
                 if "--execute" in args:
                     return type("Done", (), {"stdout": b"3\n"})()
