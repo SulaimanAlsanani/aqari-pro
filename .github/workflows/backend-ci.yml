@@ -52,14 +52,8 @@ jobs:
           extensions: pdo_pgsql, pgsql, mbstring, xml, curl, zip, intl
           tools: composer:v2
           coverage: none
-      - name: Install PostgreSQL backup and recovery client tools
-        run: |
-          if ! command -v pg_dump >/dev/null || ! command -v pg_restore >/dev/null || ! command -v psql >/dev/null; then
-            sudo apt-get update
-            sudo apt-get install -y postgresql-client
-          fi
-          pg_dump --version
-          pg_restore --version
+      - name: Use matching PostgreSQL 16 backup and restore tools
+        run: bash backend/scripts/setup-ci-postgres16-clients.sh
       - name: Install verified age CLI without relying on Ubuntu apt mirrors
         run: |
           set -euo pipefail
