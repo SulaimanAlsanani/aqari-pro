@@ -57,7 +57,7 @@ final class BackupStageRestoreTest extends TestCase
             $output=Artisan::output();
             self::assertStringContainsString('Isolated restore staged', $output);
             // The staged path is only emitted after integrity verification.
-            preg_match('~(.*restore-staging/[a-f0-9-]{36})~',$output,$matches);
+            preg_match('~(/[^\\s]*restore-staging/[a-f0-9-]{36})~',$output,$matches);
             self::assertNotEmpty($matches[1]??null);
             $staged=$matches[1];
             self::assertFileExists($staged.'/database.sqlite');
