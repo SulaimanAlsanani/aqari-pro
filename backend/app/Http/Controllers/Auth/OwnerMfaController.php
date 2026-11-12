@@ -68,7 +68,7 @@ final class OwnerMfaController extends Controller
         $data = $request->validate(['code' => ['required', 'regex:/^[0-9]{6}$/D']]);
         if ($user->mfa_enabled_at || ! $user->mfa_pending_secret ||
             ! $user->mfa_pending_at ||
-            now()->greaterThan($user->mfa_pending_at->copy()->addMinutes(10))) {
+            now()->greaterThan(\Illuminate\Support\Carbon::parse($user->mfa_pending_at)->addMinutes(10))) {
             throw ValidationException::withMessages([
                 'code' => ['طلب الإعداد منتهي الصلاحية. ابدأ الإعداد من جديد.'],
             ]);
