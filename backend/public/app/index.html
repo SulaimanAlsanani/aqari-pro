@@ -33,7 +33,7 @@ input:focus,select:focus,button:focus-visible{outline:2px solid #c39f57;outline-
 th,td{text-align:right;padding:11px;border-bottom:1px solid #e4ece7}th{background:#edf5ef;font-weight:800}
 .auth-card{width:min(460px,calc(100% - 24px));margin:70px auto;padding:30px}
 #notice{min-height:24px;margin:10px 0;color:#116741}#notice.error{color:#b32c3b}
-.muted{color:#687f70;font-size:12px}.hidden{display:none!important}
+.muted{color:#687f70;font-size:12px}.mfa-secret{direction:ltr;text-align:left;user-select:all;font-family:monospace;overflow-wrap:anywhere;display:block;padding:10px;background:#f1f6f2;border-radius:8px}.mfa-recovery{direction:ltr;text-align:left;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;font-family:monospace;list-style:none;padding:0}.mfa-recovery li{background:#f1f6f2;border-radius:6px;padding:8px}.mfa-warning{border-right:3px solid #b28b47;padding:9px 12px;background:#fff9ea}.hidden{display:none!important}
 .tag{border-radius:7px;background:#ecf5ed;color:#1e663d;padding:3px 8px;font-size:12px}
 @media(max-width:900px){.metrics{grid-template-columns:repeat(2,1fr)}.layout{grid-template-columns:1fr;padding:12px}aside{display:flex;gap:6px;overflow:auto}aside button{width:auto;white-space:nowrap}}
 @media(max-width:540px){.metrics,.form-grid{grid-template-columns:1fr}header{padding:12px}main{padding:15px}.auth-card{margin:30px auto}}
@@ -44,6 +44,7 @@ th,td{text-align:right;padding:11px;border-bottom:1px solid #e4ece7}th{backgroun
 <section id="loginPanel" class="auth-card"><h2>دخول مالك العقار</h2><p class="muted">اتصال آمن بقاعدة بيانات النظام. لا تُخزّن كلمة المرور في المتصفح.</p>
 <form id="loginForm"><label for="email">البريد الإلكتروني</label><input id="email" name="email" type="email" autocomplete="username" required>
 <label for="password">كلمة المرور</label><input id="password" name="password" type="password" autocomplete="current-password" required>
+<div id="mfaLoginField" class="hidden"><label for="mfaLoginCode">رمز التحقق الثنائي أو رمز الاسترداد</label><input id="mfaLoginCode" name="mfa_code" type="text" inputmode="text" autocapitalize="characters" autocomplete="one-time-code" maxlength="32" pattern="[0-9]{6}|[a-fA-F0-9-]{16,32}" aria-describedby="mfaLoginHelp"><p id="mfaLoginHelp" class="muted">أدخل رمز التطبيق المكوّن من 6 أرقام، أو أحد رموز الاسترداد الاحتياطية. لا ترسلها لأي شخص.</p></div>
 <div class="actions"><button class="primary" type="submit">دخول</button><button class="secondary" type="button" id="forgotOpen">نسيت كلمة المرور؟</button></div></form></section>
 <section id="forgotPanel" class="auth-card hidden"><h2>استعادة كلمة المرور</h2>
 <p class="muted">أدخل بريد حسابك. سيُرسل رابط الاستعادة إذا كان البريد مسجلًا وكانت خدمة البريد مهيأة.</p>
