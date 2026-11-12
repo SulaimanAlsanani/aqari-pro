@@ -71,3 +71,13 @@ The new `php artisan backup:make` command is deliberately constrained: it suppor
 **Prerequisites:** PHP extensions openssl and zip, S3 adapter installed by Composer, a correctly configured private backup bucket, separate encryption-key escrow, available disk space and configured `BACKUP_ENCRYPTION_KEY`. On staging only, enter maintenance mode with `php artisan down`, run `php artisan backup:check-storage` then `php artisan backup:make`, and restore service with `php artisan up` after verifying results. This command does not automatically manage maintenance mode.
 
 **Limitations / launch blockers:** This is not production-grade disaster recovery. MySQL is unsupported; the snapshot operates in memory up to 128 MiB; attachment changes by external writers during maintenance could affect consistency; a full restore command, independent isolated restore drill, managed scheduled backups, retention enforcement, encryption-key rotation and operational monitoring remain outstanding. Never restore an unverified archive over a live database.
+
+## Read-only backup verification and isolated restore staging
+
+For an existing encrypted backup object with a full path returned by `backup:make`:
+- `php artisan backup:verify snapshots/YYYY/MM/DD/HHMMSS-UUID.aqbk` authenticates and decrypts the remote object into an ephemeral private directory, verifies all ZIP entries against the SHA-256 manifest, and removes its temporary copy. No live database or attachments are touched.
+- `php artisan backup:stage-restore snapshots/YYYY/MM/DD/HHMMSS-UUID.aqbk` performs the same envelope and archive validation, then writes individual allowlisted files to a **new random directory under `storage/app/restore-staging/`** and runs `PRAGMA integrity_check` against the recovered SQLite database. It never replaces live data and does not update application configuration. Restrict access to this directory (sensitive data is decrypted during the drill). Delete it securely after validation.
+
+Both commands require the independent backup key, a private S3 disk, and PHP ZIP support. They enforce the 128 MiB encrypted backup-size limit and reject unexpected archive members, missing checksums, oversized expansion and malformed object keys. Run staged restore only on an isolated non-production host with separate credentials.
+
+**Not yet an automatic in-place recovery path:** service recovery still requires an approved maintenance procedure, a separate database and attachment reconciliation, verification of application startup, a restore rehearsal, and retention/monitoring controls. Do not use the staged data in production directly. MySQL support remains unimplemented.
