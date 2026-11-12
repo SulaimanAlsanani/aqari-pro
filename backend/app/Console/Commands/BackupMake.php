@@ -56,6 +56,7 @@ final class BackupMake extends Command
         $remoteWritten = false;
 
         try {
+            if (!is_dir(dirname($dir)) && !mkdir(dirname($dir),0700,true)) throw new RuntimeException('Could not create backup directory.');
             if (!mkdir($dir, 0700, true)) throw new RuntimeException('Could not create private workspace.');
             $source = DB::connection('sqlite')->getDatabaseName();
             if (!$source || !is_file($source)) throw new RuntimeException('SQLite database file is missing.');
@@ -103,18 +104,13 @@ final class BackupMake extends Command
             $encrypted=BackupEnvelope::encrypt($plaintext,$key);
             unset($plaintext);
             $remote=Storage::disk($diskName);
+            $remoteWritten = true; // Cleanup even if remote partially writes then fails.
             if (!$remote->put($object,$encrypted,['visibility'=>'private'])) {
                 throw new RuntimeException('Backup upload failed.');
             }
-            $remoteWritten=true;
             $downloaded=$remote->get($object);
             if (!is_string($downloaded) || !hash_equals(hash('sha256',$encrypted),hash('sha256',$downloaded))) {
                 throw new RuntimeException('Remote backup integrity verification failed.');
-            }
-            if (!hash_equals(hash('sha256',$encrypted),hash('sha256',BackupEnvelope::encrypt(
-                BackupEnvelope::decrypt($downloaded,$key),$key
-            )))) {
-                // GCM uses a random nonce; never compare ciphertexts for equality.
             }
             if (BackupEnvelope::decrypt($downloaded,$key) !== file_get_contents($zipPath)) {
                 throw new RuntimeException('Backup decryption round-trip failed.');
