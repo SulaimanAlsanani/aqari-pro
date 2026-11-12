@@ -15,6 +15,7 @@ final class OwnerLoginAudit
     {
         if (! in_array($event, [
             'login_succeeded', 'login_failed', 'logout', 'other_sessions_revoked',
+            'mfa_enabled', 'mfa_disabled', 'mfa_failed',
         ], true)) {
             throw new \InvalidArgumentException('Unknown account security event.');
         }
