@@ -29,7 +29,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
-          extensions: mbstring, dom, fileinfo, pdo_sqlite, sqlite3, bcmath, openssl
+          extensions: mbstring, dom, fileinfo, pdo_sqlite, sqlite3, bcmath, openssl, zip
           tools: composer:v2
           coverage: none
       - name: Install PHP dependencies
@@ -41,14 +41,18 @@ jobs:
           php -l app/Http/Controllers/Api/AuthController.php
           php -l app/Http/Controllers/Api/SessionController.php
           php -l app/Console/Commands/BackupStorageCheck.php
+          php -l app/Console/Commands/BackupMake.php
+          php -l app/Support/BackupEnvelope.php
           php -l app/Models/User.php
           php -l database/migrations/2026_11_12_120000_add_mfa_to_users_table.php
           php -l database/migrations/2026_11_12_130000_add_mfa_pending_expiry_to_users_table.php
           php -l tests/Feature/OwnerMfaTest.php
           php -l tests/Feature/OwnerSessionTest.php
           php -l tests/Feature/BackupStorageCheckTest.php
+          php -l tests/Feature/BackupMakeGuardTest.php
+          php -l tests/Unit/BackupEnvelopeTest.php
           php -l tests/Unit/TotpTest.php
       - name: Run TOTP vectors and owner MFA integration tests
-        run: php artisan test --filter='TotpTest|OwnerMfaTest|OwnerSessionTest|BackupStorageCheckTest'
+        run: php artisan test --filter='TotpTest|OwnerMfaTest|OwnerSessionTest|BackupStorageCheckTest|BackupMakeGuardTest|BackupEnvelopeTest'
       - name: Check portal JavaScript syntax
         run: node --check public/app/app.js
