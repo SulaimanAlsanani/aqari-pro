@@ -29,7 +29,7 @@ final class OwnerMfaController extends Controller
         $user = $this->owner($request);
 
         return response()->json(['data' => [
-            'enabled' => $user->mfa_enabled_at !== null && $user->mfa_secret !== null,
+            'enabled' => $user->mfa_enabled_at !== null,
         ]])->header('Cache-Control', 'no-store');
     }
 
