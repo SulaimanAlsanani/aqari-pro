@@ -19,6 +19,8 @@ final class BackupArchiveValidator
                 throw new RuntimeException('Unknown backup manifest version.');
             }
             $expected=['manifest.json'=>true];
+            $totalSize=0;
+            if (count($manifest['files'])>20000) throw new RuntimeException('Too many backup files.');
             foreach($manifest['files'] as $entry){
                 if (!is_array($entry)) throw new RuntimeException('Invalid manifest entry.');
                 $name=$entry['name']??'';
@@ -33,12 +35,15 @@ final class BackupArchiveValidator
                 $index=$zip->locateName($name);
                 if ($index===false) throw new RuntimeException('Backup archive is missing a manifest entry.');
                 $stat=$zip->statIndex($index);
+                $totalSize += $entry['bytes'];
+                if ($totalSize>128*1024*1024) throw new RuntimeException('Backup expands beyond 128 MiB.');
                 if (($stat['size']??-1)!==$entry['bytes']) throw new RuntimeException('Backup item size mismatch.');
                 $stream=$zip->getStream($name);
                 if (!$stream) throw new RuntimeException('Could not inspect backup item.');
                 $hash=hash_init('sha256');
-                hash_update_stream($hash,$stream);
+                $readBytes=hash_update_stream($hash,$stream, $entry['bytes']+1);
                 fclose($stream);
+                if ($readBytes!==$entry['bytes']) throw new RuntimeException('Backup item size changed during verification.');
                 if (!hash_equals($entry['sha256'],hash_final($hash))) {
                     throw new RuntimeException('Backup item digest mismatch.');
                 }
