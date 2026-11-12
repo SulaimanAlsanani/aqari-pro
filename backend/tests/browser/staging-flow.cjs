@@ -188,8 +188,14 @@ function retryStatus(page, expected, timeout = 25000) {
         /session-id|session_token|payload/i);
 
       await page.locator('#revokeOthersForm input[name=current_password]').fill('incorrect');
+      const rejectedRevoke = page.waitForResponse(response =>
+        response.url().includes('/account/sessions/revoke-others') &&
+        response.request().method() === 'POST');
       await page.locator('#revokeOthersForm button[type=submit]').click();
-      await retryStatus(page, 'كلمة المرور الحالية');
+      assert.equal((await rejectedRevoke).status(), 422,
+        'Wrong current password must never revoke a session');
+      await page.waitForFunction(() =>
+        !document.querySelector('#revokeOthersForm button[type=submit]').disabled);
       const beforeRevoke = await remote.evaluate(async () => {
         const res = await fetch('/api/v1/me', {
           credentials: 'include', headers: {'Accept': 'application/json'},
