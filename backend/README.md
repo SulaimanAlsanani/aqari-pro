@@ -31,6 +31,12 @@ New **staging/recovery** scripts and CLI checks:
 
 See [Backup and recovery runbook](docs/BACKUP_RECOVERY_RUNBOOK.md) for prerequisites and commands. **A PostgreSQL dump excludes all private attachment bytes.** Private storage backups, encryption, external retention, scheduled backup jobs, live restore drills and RPO/RTO monitoring have not been deployed.
 
+## TOTP multifactor authentication (MFA) for owner accounts
+
+Owner-only `/account/mfa/*` endpoints allow current-password-gated TOTP setup, a single-use encrypted provisioning secret, verified confirmation and password-plus-TOTP disable. Once enabled, `POST /login` no longer authenticates the browser until a separate, short-lived TOTP challenge on `POST /login/mfa` is passed. Each 30-second code can be consumed only once; account security events contain no secret or login codes. The first-party Staging UI supports the full flow, including manual offline authenticator setup.
+
+See [MFA security and deployment limitations](docs/OWNER_MFA.md). **This remains experimental: no lost-authenticator recovery codes or audited support reset flow exist yet.** Do not enable MFA for real owners until this recovery dependency, real HTTPS and APP_KEY custody have been addressed. The Laravel APP_KEY must be separately recoverable because it encrypts active MFA secrets.
+
 ## Owner account self-service and secure password recovery
 
 Staging now provides owner-only account display and profile editing (name/contact phone), password change after verifying the current password, and a self-service recovery screen using Laravel's expiring, single-use `password_reset_tokens`. Reset URLs carry tokens in same-origin fragments that are cleared immediately by the browser. API operations are protected by Sanctum, cookie authentication and CSRF; recovery routes have rate limits and identical responses for known/unknown emails.
