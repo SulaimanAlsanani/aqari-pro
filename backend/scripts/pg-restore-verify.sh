@@ -69,10 +69,11 @@ expected_tables="$(psql -X --dbname="$target" --no-psqlrc -Atq -v ON_ERROR_STOP=
  SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public'
  AND table_name IN (
  'users','owners','properties','units','tenants','contracts','dues',
- 'payments','attachments','attachment_events','payment_events','migrations'
+ 'payments','attachments','attachment_events','payment_events','migrations',
+ 'owner_login_events'
  );
 ")"
-if [[ "$expected_tables" != "12" ]]; then
+if [[ "$expected_tables" != "13" ]]; then
   echo "Restored schema does not contain all expected Aqari Pro tables." >&2
   exit 1
 fi
