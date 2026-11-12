@@ -53,6 +53,12 @@ def run_drill(sql: Path, *, image: str = IMAGE) -> None:
         raise ValueError("Only the pinned MySQL major/minor image is supported")
     if os.environ.get("DOCKER_HOST") or os.environ.get("DOCKER_CONTEXT"):
         raise ValueError("Remote or overridden Docker contexts are not supported")
+    # A selected remote Docker context can exist even with both environment variables unset.
+    # Explicitly inspect the active daemon endpoint before provisioning any container.
+    endpoint = run_command(["docker", "context", "inspect", "--format", "{{.Endpoints.docker.Host}}"], timeout=15)
+    docker_host = endpoint.stdout.decode("utf-8", errors="replace").strip()
+    if not docker_host.startswith("unix:///") or "\\n" in docker_host:
+        raise ValueError("Docker daemon must use a local Unix socket")
     password = secrets.token_urlsafe(36)
     name = "aqari-restore-" + uuid.uuid4().hex[:16]
     created = False
