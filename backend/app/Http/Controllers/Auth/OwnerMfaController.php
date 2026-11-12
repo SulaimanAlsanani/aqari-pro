@@ -21,7 +21,7 @@ final class OwnerMfaController extends Controller
         $user = Auth::guard('web')->user();
         abort_unless($user && Owner::query()->where('user_id', $user->id)->exists(), 403);
 
-        return $user;
+        return $user->fresh();
     }
 
     public function status(Request $request): JsonResponse
