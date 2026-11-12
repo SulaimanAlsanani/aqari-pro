@@ -23,7 +23,7 @@ final class OwnerMfaTest extends TestCase
 
         $this->app['auth']->forgetGuards();
         $this->postJson('/api/login',['email'=>$user->email,'password'=>'a-long-test-password'])
-            ->assertUnprocessable()->assertJsonMissingPath('token');
+            ->assertStatus(428)->assertJson(['mfa_required'=>true])->assertJsonMissingPath('token');
         $this->postJson('/api/login',['email'=>$user->email,'password'=>'a-long-test-password','mfa_code'=>'000000'])
             ->assertUnprocessable()->assertJsonMissingPath('token');
 
