@@ -7,10 +7,10 @@ use App\Http\Controllers\Auth\PasswordRecoveryController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/login', [SessionController::class, 'login'])
-    ->middleware('throttle:5,1');
+    ->middleware('throttle:aqari-password-login');
 
 Route::post('/login/mfa', [SessionController::class, 'verifyMfa'])
-    ->middleware('throttle:5,1');
+    ->middleware('throttle:aqari-mfa-challenge');
 
 Route::post('/logout', [SessionController::class, 'logout'])
     ->middleware('auth:web');
