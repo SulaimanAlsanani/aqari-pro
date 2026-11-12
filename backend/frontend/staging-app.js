@@ -72,6 +72,7 @@
   function showSession(profile) {
     $('workspace').hidden = false;
     $('loginPanel').hidden = true;
+    $('mfaLoginPanel').hidden = true;
     $('resetPanel').hidden = true;
     $('ownerLabel').textContent = (profile.owner?.name || 'حساب مالك غير مهيأ') + ' — ' + (profile.user?.email || '');
   }
@@ -80,10 +81,18 @@
     editTarget = null;
     $('workspace').hidden = true;
     $('loginPanel').hidden = Boolean(recoveryToken);
+    $('mfaLoginPanel').hidden = true;
+    $('mfaLoginForm').reset();
     $('resetPanel').hidden = !recoveryToken;
     $('resetEmailLabel').textContent = recoveryEmail || '';
     $('loginForm').reset();
     $('changePasswordForm').reset();
+    $('mfaSetupForm').reset();
+    $('mfaDisableForm').reset();
+    $('mfaConfirmForm').reset();
+    $('mfaPendingPanel').hidden = true;
+    $('mfaSecret').value = '';
+    $('mfaProvisioningUri').value = '';
     $('revokeOthersForm').reset();
     $('activeSessions').replaceChildren();
     $('loginActivity').replaceChildren();
@@ -150,7 +159,10 @@
       login_succeeded: 'دخول ناجح',
       login_failed: 'محاولة دخول غير ناجحة',
       logout: 'تسجيل خروج',
-      other_sessions_revoked: 'إنهاء الجلسات الأخرى'
+      other_sessions_revoked: 'إنهاء الجلسات الأخرى',
+      mfa_enabled: 'تفعيل المصادقة الثنائية',
+      mfa_disabled: 'إيقاف المصادقة الثنائية',
+      mfa_failed: 'رمز مصادقة غير صحيح'
     };
     $('loginActivity').replaceChildren();
     for (const event of events) {
@@ -161,10 +173,24 @@
     }
     if (!events.length) $('loginActivity').append(text('li', 'لا توجد أحداث مسجلة.'));
   }
+  async function refreshMfaStatus() {
+    const result = await api.mfaStatus();
+    const enabled = Boolean(result.data?.enabled);
+    $('mfaStatus').textContent = enabled ?
+      'المصادقة الثنائية مفعّلة. سيطلب النظام رمز التطبيق عند كل دخول.' :
+      'المصادقة الثنائية غير مفعّلة. يُنصح بتفعيلها لحماية حساب المالك.';
+    $('mfaSetupForm').hidden = enabled;
+    $('mfaDisableForm').hidden = !enabled;
+    if (enabled) {
+      $('mfaPendingPanel').hidden = true;
+      $('mfaSecret').value = '';
+      $('mfaProvisioningUri').value = '';
+    }
+  }
   async function refreshAll() {
     const profile = await api.me();
     showSession(profile);
-    await Promise.all([refreshProperties(), refreshTenants(), finance.refresh(), attachments.refresh(), refreshAccount(), refreshSecuritySessions()]);
+    await Promise.all([refreshProperties(), refreshTenants(), finance.refresh(), attachments.refresh(), refreshAccount(), refreshSecuritySessions(), refreshMfaStatus()]);
     status('متصل ببيئة Staging — البيانات من Laravel API');
   }
   function field(label, name, value, required=false) {
@@ -290,12 +316,66 @@
       status(result.message || 'تم تسجيل خروج الأجهزة الأخرى.');
     });
   });
+  $('mfaSetupForm').addEventListener('submit', e => {
+    e.preventDefault();
+    task(async () => {
+      const {current_password: password} = fromForm(e.target);
+      const result = await api.mfaStart(password);
+      e.target.reset();
+      $('mfaSecret').value = result.data.secret;
+      $('mfaProvisioningUri').value = result.data.provisioning_uri;
+      $('mfaPendingPanel').hidden = false;
+      status('أضف المفتاح إلى تطبيق المصادقة ثم أدخل الرمز لتأكيد التفعيل.');
+    });
+  });
+  $('mfaConfirmForm').addEventListener('submit', e => {
+    e.preventDefault();
+    task(async () => {
+      await api.mfaConfirm(fromForm(e.target).code);
+      e.target.reset();
+      await refreshMfaStatus();
+      await refreshSecuritySessions();
+      status('تم تفعيل المصادقة الثنائية.');
+    });
+  });
+  $('mfaDisableForm').addEventListener('submit', e => {
+    e.preventDefault();
+    task(async () => {
+      const result = await api.mfaDisable(fromForm(e.target));
+      e.target.reset();
+      await refreshMfaStatus();
+      await refreshSecuritySessions();
+      status(result.message || 'تم إيقاف المصادقة الثنائية.');
+    });
+  });
+  $('mfaLoginForm').addEventListener('submit', e => {
+    e.preventDefault();
+    task(async () => {
+      await api.verifyMfa(fromForm(e.target).code);
+      e.target.reset();
+      await refreshAll();
+      status('اكتملت المصادقة الثنائية وتم تسجيل الدخول.');
+    });
+  });
+  $('mfaLoginCancel').addEventListener('click', () => {
+    $('mfaLoginPanel').hidden = true;
+    $('mfaLoginForm').reset();
+    $('loginPanel').hidden = false;
+    status('أعد تسجيل الدخول للبدء من جديد.');
+  });
   $('loginForm').addEventListener('submit', e => {
     e.preventDefault();
     task(async () => {
       const v = fromForm(e.target);
-      await api.login(v.email, v.password);
+      const result = await api.login(v.email, v.password);
       e.target.reset();
+      if (result?.mfa_required) {
+        $('loginPanel').hidden = true;
+        $('mfaLoginPanel').hidden = false;
+        $('workspace').hidden = true;
+        status('أدخل رمز المصادقة الثنائية لإكمال تسجيل الدخول.');
+        return;
+      }
       await refreshAll();
     });
   });
