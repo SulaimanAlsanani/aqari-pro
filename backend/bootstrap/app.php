@@ -14,6 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withCommands([
         \App\Console\Commands\ProvisionOwner::class,
+        \App\Console\Commands\PruneOwnerLoginEvents::class,
         \App\Console\Commands\VerifyAttachmentStorage::class,
         \App\Console\Commands\ExportPrivateAttachments::class,
         \App\Console\Commands\VerifyAttachmentExport::class,
