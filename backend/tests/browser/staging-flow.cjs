@@ -309,7 +309,13 @@ function retryStatus(page, expected, timeout = 25000) {
     // server to allow for legitimate authenticator clock differences.
     const challengeStep = Math.max(setupStep + 1, Math.floor(Date.now() / 30000));
     await page.locator('#mfaLoginForm input[name=code]').fill(sixDigitTotp(setupSecret, challengeStep));
+    const challengeResponse = page.waitForResponse(response =>
+      response.url().endsWith('/login/mfa') && response.request().method() === 'POST');
     await page.locator('#mfaLoginForm button[type=submit]').click();
+    const confirmedResponse = await challengeResponse;
+    assert.equal(confirmedResponse.status(), 200,
+      'TOTP challenge failed with HTTP ' + confirmedResponse.status() +
+      ': ' + JSON.stringify(await confirmedResponse.json()));
     await retryStatus(page, 'اكتملت المصادقة الثنائية');
     assert.equal(await page.locator('#workspace').isVisible(), true);
 
