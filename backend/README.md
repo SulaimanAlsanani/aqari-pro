@@ -36,3 +36,12 @@ This is a **development-stage Laravel 12 API**, intended to replace browser-only
 
 ## Not yet launch-ready
 Frontend authentication and API integration, robust password reset / account recovery, audit history, invoice and receipt workflows, notifications, encrypted backup/restore, admin provisioning, operations documentation, secure hosting, security review and end-to-end testing are still required.
+
+## Owner multi-factor authentication (development branch)
+- Authenticator TOTP (SHA-1 / 30 seconds / 6 digits) is supported through `/api/account/mfa` and `/api/account/mfa/setup`, `/confirm`, `/disable`.
+- After verifying the password, login responds `428` and `mfa_required: true` when a second factor is missing. Complete login with `mfa_code` (an authenticator code or a 16-character recovery code).
+- Activating MFA displays eight single-use recovery codes exactly once. Save these offline; only SHA-256 hashes remain in the database.
+- TOTP secrets are encrypted via Laravel's `encrypted` Eloquent casts. Protect `APP_KEY` in secret management; if it is lost, encrypted MFA secrets are unrecoverable.
+- Setup and disable require the current account password. Activating or disabling MFA revokes all existing Sanctum tokens. Successful TOTP verification prevents time-step replay, and recovery-code consumption is serialized by a user-row lock.
+- The server-hosted owner portal (`backend/public/app/`) now includes the login challenge and MFA settings in **حسابي**. The public GitHub Pages demo intentionally does not provide these features.
+- Before considering production: execute migrations and the MFA CI checks; verify HTTPS, secure key management, application clocks, recovery processes, and review MFA security with real browser tests. The workflow code is present, but a green result is required.
