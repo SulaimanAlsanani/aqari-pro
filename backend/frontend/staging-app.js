@@ -84,6 +84,9 @@
     $('resetEmailLabel').textContent = recoveryEmail || '';
     $('loginForm').reset();
     $('changePasswordForm').reset();
+    $('revokeOthersForm').reset();
+    $('activeSessions').replaceChildren();
+    $('loginActivity').replaceChildren();
     properties = [];
     for (const id of ['propertyList','unitList','tenantList','unitProperty','propertyPager','unitPager','tenantPager']) $(id).replaceChildren();
     pages.property = pages.unit = pages.tenant = 1;
@@ -129,10 +132,39 @@
     $('accountForm').elements.phone.value = result.data.phone || '';
     $('accountEmail').value = result.data.email || '';
   }
+  async function refreshSecuritySessions() {
+    const response = await api.securitySessions();
+    $('activeSessions').replaceChildren();
+    const list = Array.isArray(response.data) ? response.data : [];
+    for (const session of list) {
+      const line = text('li', session.current ? '● الجهاز الحالي' : 'جهاز آخر');
+      const details = text('small', ' — ' + (session.device || 'متصفح غير معروف') +
+        ' — ' + (session.ip_address || 'عنوان غير معروف') +
+        ' — ' + new Date(Number(session.last_activity) * 1000).toLocaleString('ar-SA'));
+      line.append(details);
+      $('activeSessions').append(line);
+    }
+    if (!list.length) $('activeSessions').append(text('li', 'لا توجد جلسات نشطة مسجلة.'));
+    const events = Array.isArray(response.recent_activity) ? response.recent_activity : [];
+    const names = {
+      login_succeeded: 'دخول ناجح',
+      login_failed: 'محاولة دخول غير ناجحة',
+      logout: 'تسجيل خروج',
+      other_sessions_revoked: 'إنهاء الجلسات الأخرى'
+    };
+    $('loginActivity').replaceChildren();
+    for (const event of events) {
+      const when = event.occurred_at ? new Date(event.occurred_at).toLocaleString('ar-SA') : '';
+      $('loginActivity').append(text('li',
+        (names[event.event] || 'حدث أمني') + ' — ' + when +
+        ' — ' + (event.ip_address || 'عنوان غير معروف')));
+    }
+    if (!events.length) $('loginActivity').append(text('li', 'لا توجد أحداث مسجلة.'));
+  }
   async function refreshAll() {
     const profile = await api.me();
     showSession(profile);
-    await Promise.all([refreshProperties(), refreshTenants(), finance.refresh(), attachments.refresh(), refreshAccount()]);
+    await Promise.all([refreshProperties(), refreshTenants(), finance.refresh(), attachments.refresh(), refreshAccount(), refreshSecuritySessions()]);
     status('متصل ببيئة Staging — البيانات من Laravel API');
   }
   function field(label, name, value, required=false) {
@@ -242,6 +274,20 @@
       e.target.reset();
       logoutView();
       status(result.message || 'تم تغيير كلمة المرور. سجّل الدخول مجددًا.');
+    });
+  });
+  $('refreshSessions').addEventListener('click', () => task(async () => {
+    await refreshSecuritySessions();
+    status('تم تحديث قائمة الأجهزة والنشاط الأمني.');
+  }));
+  $('revokeOthersForm').addEventListener('submit', e => {
+    e.preventDefault();
+    task(async () => {
+      const currentPassword = e.target.elements.current_password.value;
+      const result = await api.revokeOtherSessions(currentPassword);
+      e.target.reset();
+      await refreshSecuritySessions();
+      status(result.message || 'تم تسجيل خروج الأجهزة الأخرى.');
     });
   });
   $('loginForm').addEventListener('submit', e => {
