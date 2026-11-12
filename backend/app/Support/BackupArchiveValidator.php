@@ -15,16 +15,17 @@ final class BackupArchiveValidator
             if (!is_string($raw) || strlen($raw)>1024*1024) throw new RuntimeException('Missing or invalid backup manifest.');
             $manifest=json_decode($raw,true,512,JSON_THROW_ON_ERROR);
             if (($manifest['version']??null)!==1 || !is_array($manifest['files']??null)
-                || ($manifest['database']??null)!=='database.sqlite') {
+                || !in_array($manifest['database']??null,['database.sqlite','database.mysql.sql'],true)) {
                 throw new RuntimeException('Unknown backup manifest version.');
             }
+            $databaseName=$manifest['database'];
             $expected=['manifest.json'=>true];
             $totalSize=0;
             if (count($manifest['files'])>20000) throw new RuntimeException('Too many backup files.');
             foreach($manifest['files'] as $entry){
                 if (!is_array($entry)) throw new RuntimeException('Invalid manifest entry.');
                 $name=$entry['name']??'';
-                if (!is_string($name) || !preg_match('~^(database\.sqlite|attachments/owners/[0-9]+/documents/[A-Za-z0-9_./-]+)$~D',$name)
+                if (!is_string($name) || !preg_match('~^(database\.sqlite|database\.mysql\.sql|attachments/owners/[0-9]+/documents/[A-Za-z0-9_./-]+)$~D',$name)
                     || str_contains($name,'..') || isset($expected[$name])) {
                     throw new RuntimeException('Invalid or duplicated archived path.');
                 }
@@ -49,7 +50,7 @@ final class BackupArchiveValidator
                 }
                 $expected[$name]=true;
             }
-            if (!isset($expected['database.sqlite']) || count($expected)!==$zip->numFiles) {
+            if (!isset($expected[$databaseName]) || (isset($expected['database.sqlite']) && isset($expected['database.mysql.sql'])) || count($expected)!==$zip->numFiles) {
                 throw new RuntimeException('Backup manifest does not cover all archive members.');
             }
         } finally {
