@@ -3,6 +3,7 @@ namespace App\Console\Commands;
 
 use App\Support\BackupEnvelope;
 use App\Support\BackupArchiveValidator;
+use App\Support\BackupAttachmentAudit;
 use App\Support\MySqlSnapshot;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
@@ -69,6 +70,9 @@ final class BackupMake extends Command
             } else {
                 MySqlSnapshot::export($dbCopy,$dir);
             }
+
+            // Refuse backups that omit, mismatch, or silently include private files.
+            BackupAttachmentAudit::verify();
 
             $zip = new ZipArchive();
             if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
