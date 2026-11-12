@@ -37,37 +37,39 @@ class BackupStorageCheck extends Command
         $path = 'healthchecks/'.Str::uuid().'.bin';
         $payload = random_bytes(64);
         $disk = Storage::disk($name);
-        $written = false;
+        $cleanupOk = true;
 
         try {
             if (!$disk->put($path, $payload, ['visibility' => 'private'])) {
                 throw new \RuntimeException('Probe upload failed.');
             }
-            $written = true;
+            // A failed remote upload can still leave a partial object; cleanup is unconditional.
             $read = $disk->get($path);
             if (!is_string($read) || !hash_equals(hash('sha256', $payload), hash('sha256', $read))) {
                 throw new \RuntimeException('Probe integrity mismatch.');
             }
             $this->info('Backup storage write and read verified; checking cleanup.');
         } catch (Throwable $exception) {
-            $this->error('Backup storage verification failed: '.$exception->getMessage());
+            report($exception);
+            $this->error('Backup storage verification failed; inspect protected server logs.');
             return self::FAILURE;
         } finally {
             // Removal must also succeed; handled by the check below.
-            if ($written) {
+            {
                 try {
                     if (!$disk->delete($path)) {
                         $this->error('Could not remove verification probe: '.$path);
-                        $written = false;
+                        $cleanupOk = false;
                     }
                 } catch (Throwable $exception) {
-                    $this->error('Could not remove verification probe: '.$exception->getMessage());
-                    $written = false;
+                    report($exception);
+                    $this->error('Could not remove verification probe; inspect protected server logs.');
+                    $cleanupOk = false;
                 }
             }
         }
 
-        if (!$written) {
+        if (!$cleanupOk) {
             return self::FAILURE;
         }
         $this->info('Private backup storage probe completed and removed.');
