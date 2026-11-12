@@ -94,7 +94,16 @@ jobs:
           USE aqari_restore_probe;
           CREATE TABLE probe (id INT PRIMARY KEY, label VARCHAR(100));
           INSERT INTO probe VALUES (1, 'restored');
+          CREATE TABLE documents (
+            id BIGINT UNSIGNED PRIMARY KEY,
+            user_id BIGINT UNSIGNED NOT NULL,
+            path VARCHAR(255) NOT NULL,
+            size BIGINT UNSIGNED NOT NULL
+          );
+          INSERT INTO documents VALUES (1, 7, 'owners/7/documents/proof.pdf', 4);
           SQL
+          mkdir -p "$STAGE/attachments/owners/7/documents"
+          printf 'test' > "$STAGE/attachments/owners/7/documents/proof.pdf"
           python3 backend/scripts/mysql_isolated_restore.py \
             --stage "$PWD/$STAGE" --app-storage "$PWD/backend/storage/app"
           rm -rf "$STAGE"
