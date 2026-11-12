@@ -23,7 +23,8 @@ permissions:
 
 jobs:
   staging-smoke:
-    runs-on: ubuntu-latest
+    # Pinned until Playwright's Chromium build supports Ubuntu 26.04.
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
       - name: Checkout source
