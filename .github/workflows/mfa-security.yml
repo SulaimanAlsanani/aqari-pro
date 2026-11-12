@@ -49,6 +49,7 @@ jobs:
           php -l routes/console.php
           php -l app/Support/BackupEnvelope.php
           php -l app/Support/BackupArchiveValidator.php
+          php -l app/Support/BackupAttachmentAudit.php
           php -l app/Support/MySqlSnapshot.php
           php -l app/Models/User.php
           php -l database/migrations/2026_11_12_120000_add_mfa_to_users_table.php
@@ -60,6 +61,7 @@ jobs:
           php -l tests/Feature/BackupVerifyTest.php
           php -l tests/Feature/BackupStageRestoreTest.php
           php -l tests/Feature/BackupMySqlStageTest.php
+          php -l tests/Feature/BackupAttachmentAuditTest.php
           php -l tests/Feature/BackupStatusTest.php
           php -l tests/Feature/MySqlSnapshotTest.php
           php -l tests/Feature/BackupMonitorEventsTest.php
@@ -67,7 +69,7 @@ jobs:
           php -l tests/Unit/BackupArchiveValidatorTest.php
           php -l tests/Unit/TotpTest.php
       - name: Run TOTP vectors and owner MFA integration tests
-        run: php artisan test --filter='TotpTest|OwnerMfaTest|OwnerSessionTest|BackupStorageCheckTest|BackupMakeGuardTest|BackupEnvelopeTest|BackupArchiveValidatorTest|BackupVerifyTest|BackupStageRestoreTest|BackupStatusTest|BackupMonitorEventsTest|MySqlSnapshotTest|BackupMySqlStageTest'
+        run: php artisan test --filter='TotpTest|OwnerMfaTest|OwnerSessionTest|BackupStorageCheckTest|BackupMakeGuardTest|BackupEnvelopeTest|BackupArchiveValidatorTest|BackupVerifyTest|BackupStageRestoreTest|BackupStatusTest|BackupMonitorEventsTest|MySqlSnapshotTest|BackupMySqlStageTest|BackupAttachmentAuditTest'
       - name: Check portal JavaScript syntax
         run: node --check public/app/app.js
       - name: Validate isolated MySQL restore drill syntax and safety
