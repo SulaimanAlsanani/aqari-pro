@@ -86,6 +86,9 @@ final class OwnerMfaTest extends TestCase
 
     public function test_mfa_login_never_creates_authenticated_session_until_valid_second_factor(): void
     {
+        // The test deliberately retries within the same 30-second period.
+        // Production endpoints retain the 5-per-minute rate-limit middleware.
+        $this->withoutMiddleware(\Illuminate\Routing\Middleware\ThrottleRequests::class);
         $user = $this->owner();
         $secret = $this->enroll($user);
         $this->postJson('/logout')->assertOk();
