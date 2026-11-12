@@ -3,6 +3,7 @@ namespace App\Http\Controllers\Api;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 class AuthController extends Controller {
@@ -11,10 +12,18 @@ class AuthController extends Controller {
   $user=User::where('email',$credentials['email'])->first();
   if(!$user||!Hash::check($credentials['password'],$user->password))
    return response()->json(['message'=>'بيانات الدخول غير صحيحة'],422);
+  if($user->mfa_enabled_at){
+   $data=$request->validate(['mfa_code'=>['required','string','max:32']]);
+   $passed=DB::transaction(function()use($user,$data){
+    $locked=User::query()->lockForUpdate()->findOrFail($user->id);
+    return \App\Http\Controllers\Api\MfaController::consumeCode($locked,$data['mfa_code']);
+   });
+   if(!$passed) throw ValidationException::withMessages(['mfa_code'=>'رمز المصادقة غير صحيح']);
+  }
   $token=$user->createToken('aqari-web', ['*'], now()->addHours(12))->plainTextToken;
   return response()->json(['token'=>$token,'token_type'=>'Bearer','expires_in'=>43200,'user'=>['id'=>$user->id,'name'=>$user->name]]);
  }
- public function me(Request $request){return response()->json(['id'=>$request->user()->id,'name'=>$request->user()->name,'email'=>$request->user()->email]);}
+ public function me(Request $request){return response()->json(['id'=>$request->user()->id,'name'=>$request->user()->name,'email'=>$request->user()->email,'mfa_enabled'=>(bool)$request->user()->mfa_enabled_at]);}
  public function changePassword(Request $request){
   $input=$request->validate([
    'current_password'=>['required','string'],
