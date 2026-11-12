@@ -68,8 +68,6 @@ def run_drill(sql: Path, *, image: str = IMAGE) -> None:
             image, "--skip-networking",
         ])
         created = True
-        client_env = os.environ.copy()
-        client_env.pop("MYSQL_PWD", None)
         # Docker exec passes only the random *disposable* password, not production credentials.
         ready = False
         for _ in range(60):
@@ -134,7 +132,8 @@ def main() -> int:
         return 0
     except (ValueError, RuntimeError, OSError, subprocess.SubprocessError) as exc:
         # Do not expose SQL contents or client stdout/stderr, which may contain secrets.
-        print("FAIL: isolated MySQL restore drill: " + str(exc), file=sys.stderr)
+        # subprocess errors may embed the ephemeral password in argv; never print them.
+        print("FAIL: isolated MySQL restore drill. Inspect protected local logs.", file=sys.stderr)
         return 1
 
 
