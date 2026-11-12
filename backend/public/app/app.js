@@ -41,7 +41,7 @@ function showAuthPanel(mode='login'){
  $(mode==='forgot'?'forgotPanel':mode==='reset'?'resetPanel':'loginPanel').classList.remove('hidden');
 }
 function resetAuth(){
- accessToken=null;user=null;showAuthPanel('login');$('workspace').classList.add('hidden');$('logout').classList.add('hidden');$('password').value='';
+ accessToken=null;user=null;showAuthPanel('login');$('workspace').classList.add('hidden');$('logout').classList.add('hidden');$('password').value='';$('mfaLoginCode').value='';$('mfaLoginField').classList.add('hidden');
 }
 async function api(path,options={}){
  if(!accessToken&&!['/login','/password/forgot','/password/reset'].includes(path))throw Error('انتهت الجلسة؛ سجل الدخول مرة أخرى');
@@ -809,6 +809,74 @@ async function showCashflow(){
  });
  form.requestSubmit();
 }
+
+function mfaField(name,label,type='text',required=true){
+ const wrap=el('div',null,'field'),lab=el('label',label),input=el('input');
+ input.id='mfa-'+name;input.name=name;input.type=type;input.required=required;
+ if(type==='password')input.autocomplete='current-password';
+ if(name==='code'){input.maxLength=32;input.autocomplete='one-time-code'}
+ lab.htmlFor=input.id;wrap.append(lab,input);return wrap;
+}
+async function showMfaSettings(){
+ const view=$('view'),panel=el('section',null,'panel'),heading=el('h3','المصادقة الثنائية (MFA)');
+ panel.append(heading,el('p','يتطلب الدخول رمزًا من تطبيق المصادقة، أو رمز استرداد احتياطيًا يُستخدم مرة واحدة.','muted'));
+ view.append(panel);
+ try {
+  const status=await api('/account/mfa');
+  if(active!=='account'||!view.contains(panel))return;
+  panel.append(el('p',status.enabled?'الحالة: مفعّلة':'الحالة: غير مفعّلة','tag'));
+  const form=el('form');
+  form.append(mfaField('password','كلمة المرور الحالية','password'));
+  if(status.enabled){
+   form.append(mfaField('code','رمز تطبيق المصادقة أو رمز الاسترداد'));
+   const button=el('button','تعطيل المصادقة الثنائية','secondary');button.type='submit';
+   form.append(button);panel.append(form);
+   form.addEventListener('submit',async event=>{
+    event.preventDefault();
+    if(!confirm('سيتم إلغاء جلسات جميع الأجهزة. هل تريد تعطيل المصادقة الثنائية؟'))return;
+    button.disabled=true;
+    try{
+     await api('/account/mfa/disable',{method:'POST',body:Object.fromEntries(new FormData(form))});
+     resetAuth();notify('تم تعطيل المصادقة الثنائية. سجل الدخول مجددًا.');
+    }catch(error){notify(error.message,true)}finally{button.disabled=false}
+   });
+  }else{
+   const button=el('button','بدء إعداد المصادقة الثنائية','primary');button.type='submit';
+   form.append(button);panel.append(form);
+   form.addEventListener('submit',async event=>{
+    event.preventDefault();button.disabled=true;
+    try{
+     const data=await api('/account/mfa/setup',{method:'POST',body:{password:form.elements.password.value}});
+     form.remove();
+     const secret=el('code',data.secret,'mfa-secret');
+     const intro=el('p','أضف الحساب في تطبيق المصادقة باستخدام المفتاح التالي. لا تشارك المفتاح أو تحفظه في مكان مكشوف.','mfa-warning');
+     const uri=el('code',data.otpauth_url,'mfa-secret');
+     const hint=el('p','يمكن إدخال رابط otpauth في تطبيق يدعمه، أو نسخ المفتاح يدويًا.','muted');
+     const confirmForm=el('form');
+     confirmForm.append(mfaField('code','رمز مكوّن من 6 أرقام'));
+     const code=confirmForm.querySelector('input');code.pattern='[0-9]{6}';code.inputMode='numeric';code.maxLength=6;
+     const confirmButton=el('button','تأكيد التفعيل','primary');confirmButton.type='submit';
+     confirmForm.append(confirmButton);panel.append(intro,secret,hint,uri,confirmForm);
+     confirmForm.addEventListener('submit',async e=>{
+      e.preventDefault();confirmButton.disabled=true;
+      try{
+       const response=await api('/account/mfa/confirm',{method:'POST',body:{code:code.value.trim()}});
+       panel.replaceChildren(el('h3','تم تفعيل المصادقة الثنائية'));
+       const warning=el('p','احفظ رموز الاسترداد الآن خارج هذا الجهاز؛ لا يمكن عرضها مرة أخرى. انتهت صلاحية الجلسة الحالية.','mfa-warning');
+       const list=el('ul',null,'mfa-recovery');
+       for(const recovery of response.recovery_codes)list.append(el('li',recovery));
+       const finish=el('button','حفظت الرموز — تسجيل الدخول مجددًا','primary');
+       finish.type='button';finish.addEventListener('click',()=>{
+        list.replaceChildren();resetAuth();notify('أدخل رمز المصادقة عند تسجيل الدخول.');
+       });
+       panel.append(warning,list,finish);notify('تم التفعيل. احفظ الرموز قبل المغادرة.');
+      }catch(error){notify(error.message,true)}finally{confirmButton.disabled=false}
+     });
+    }catch(error){notify(error.message,true)}finally{button.disabled=false}
+   });
+  }
+ }catch(error){panel.append(el('p',error.message,'muted'));notify(error.message,true)}
+}
 function showAccount(){
  const view=$('view');view.replaceChildren();
  const section=el('section',null,'panel'),h=el('h3','تغيير كلمة المرور');
@@ -832,7 +900,7 @@ function showAccount(){
    resetAuth();notify('تم تغيير كلمة المرور وإلغاء الجلسات، سجل الدخول بكلمة المرور الجديدة.');
   }catch(err){notify(err.message,true)}finally{action.disabled=false}
  });
- section.append(h,explanation,form);view.append(section);
+ section.append(h,explanation,form);view.append(section);showMfaSettings();
 }
 async function showAlerts(){
  const view=$('view');view.replaceChildren(el('p','جاري تحميل التنبيهات...','muted'));
@@ -946,11 +1014,19 @@ $('resetForm').addEventListener('submit',async e=>{
 $('loginForm').addEventListener('submit',async e=>{
  e.preventDefault();const button=e.target.querySelector('button[type=submit]');button.disabled=true;
  try{
-  const data=await api('/login',{method:'POST',body:{email:$('email').value,password:$('password').value}});
+  const payload={email:$('email').value,password:$('password').value};
+  if(!$('mfaLoginField').classList.contains('hidden'))payload.mfa_code=$('mfaLoginCode').value.trim();
+  const data=await api('/login',{method:'POST',body:payload});
+  $('mfaLoginCode').value='';$('mfaLoginField').classList.add('hidden');
   accessToken=data.token;user=data.user;
   $('loginPanel').classList.add('hidden');$('workspace').classList.remove('hidden');$('logout').classList.remove('hidden');$('password').value='';
   active='overview';nav();notify('تم تسجيل الدخول');await refresh();
- }catch(err){notify(err.message,true)}finally{button.disabled=false}
+ }catch(err){
+  if(/mfa_code|المصادقة|رمز التحقق|رمز المصادقة|رمز الاسترداد/.test(err.message)){
+   $('mfaLoginField').classList.remove('hidden');$('mfaLoginCode').focus();
+  }
+  notify(err.message,true);
+ }finally{button.disabled=false}
 });
 $('logout').addEventListener('click',async()=>{
  try{await api('/logout',{method:'POST'})}catch{}
