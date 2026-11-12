@@ -25,7 +25,7 @@ class MfaController extends Controller
             return response()->json(['message'=>'المصادقة الثنائية مفعّلة بالفعل'],409);
         }
         $secret = Totp::generateSecret();
-        $user->forceFill(['mfa_pending_secret'=>$secret])->save();
+        $user->forceFill(['mfa_pending_secret'=>$secret,'mfa_pending_at'=>now()])->save();
         $label = rawurlencode('Aqari Pro:'.$user->email);
         $uri = 'otpauth://totp/'.$label.'?secret='.$secret.'&issuer='.rawurlencode('Aqari Pro').'&algorithm=SHA1&digits=6&period=30';
         return response()->json(['secret'=>$secret,'otpauth_url'=>$uri,'message'=>'احفظ المفتاح في تطبيق المصادقة ثم أكّد برمز صالح']);
@@ -38,7 +38,23 @@ class MfaController extends Controller
             if ($user->mfa_enabled_at || !$user->mfa_pending_secret) {
                 return response()->json(['message'=>'لا يوجد إعداد قيد التفعيل'],409);
             }
-            if (!Totp::verify($user->mfa_pending_secret,$data['code'],time())) {
+            // Enrollment expires independently of the underlying 30-second TOTP window.
+            if (!$user->mfa_pending_at || $user->mfa_pending_at->lte(now()->subMinutes(10))) {
+                $user->forceFill(['mfa_pending_secret'=>null,'mfa_pending_at'=>null])->save();
+                return response()->json(['message'=>'انتهت مهلة إعداد المصادقة الثنائية؛ ابدأ الإعداد مجددًا'],409);
+            }
+            // Return the accepted step to ensure the very same code cannot be replayed.
+            $currentStep=intdiv(time(),30);
+            $acceptedStep=null;
+            foreach ([-1,0,1] as $offset) {
+                $step=$currentStep+$offset;
+                if ($step<0) continue;
+                if (hash_equals(Totp::code($user->mfa_pending_secret,$step*30),$data['code'])) {
+                    $acceptedStep=$step;
+                    break;
+                }
+            }
+            if ($acceptedStep===null) {
                 throw ValidationException::withMessages(['code'=>'رمز التحقق غير صحيح']);
             }
             $recovery=[];
@@ -46,8 +62,9 @@ class MfaController extends Controller
             $user->forceFill([
                 'mfa_secret'=>$user->mfa_pending_secret,
                 'mfa_pending_secret'=>null,
+                'mfa_pending_at'=>null,
                 'mfa_enabled_at'=>now(),
-                'mfa_last_step'=>intdiv(time(),30),
+                'mfa_last_step'=>$acceptedStep,
                 'mfa_recovery_codes'=>array_map(fn($v)=>hash('sha256',$v),$recovery),
             ])->save();
             // Existing sessions predate MFA verification. Revoke all of them.
@@ -65,7 +82,7 @@ class MfaController extends Controller
                 !self::consumeCode($user,$data['code'])) {
                 throw ValidationException::withMessages(['code'=>'تعذر التحقق من بيانات الأمان']);
             }
-            $user->forceFill(['mfa_secret'=>null,'mfa_pending_secret'=>null,
+            $user->forceFill(['mfa_secret'=>null,'mfa_pending_secret'=>null,'mfa_pending_at'=>null,
                 'mfa_recovery_codes'=>null,'mfa_enabled_at'=>null,'mfa_last_step'=>null])->save();
             $user->tokens()->delete();
             return response()->json(['enabled'=>false,'message'=>'تم التعطيل وإلغاء جميع الجلسات']);
