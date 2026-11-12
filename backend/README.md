@@ -45,3 +45,10 @@ Frontend authentication and API integration, robust password reset / account rec
 - Setup and disable require the current account password. Activating or disabling MFA revokes all existing Sanctum tokens. Successful TOTP verification prevents time-step replay, and recovery-code consumption is serialized by a user-row lock.
 - The server-hosted owner portal (`backend/public/app/`) now includes the login challenge and MFA settings in **حسابي**. The public GitHub Pages demo intentionally does not provide these features.
 - Before considering production: execute migrations and the MFA CI checks; verify HTTPS, secure key management, application clocks, recovery processes, and review MFA security with real browser tests. The workflow code is present, but a green result is required.
+
+## Owner session management (development branch)
+- `GET /api/account/sessions` lists up to 100 unexpired Sanctum bearer sessions belonging only to the authenticated owner, marking the current token.
+- `DELETE /api/account/sessions/{token}` revokes an individual owner-owned token; `DELETE /api/account/sessions/others` revokes all other tokens while preserving the present one.
+- Both revoke operations require the current account password and are rate limited. Revoking the current token requires logging in again.
+- The portal exposes session management from **حسابي**. Token creation, last use and expiry are visible; they are *sessions*, not verified hardware/device identities.
+- Security tests include cross-owner isolation, current-token revocation, and revocation of all other sessions.
