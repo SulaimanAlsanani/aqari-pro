@@ -39,11 +39,13 @@ jobs:
           php -l app/Support/Totp.php
           php -l app/Http/Controllers/Api/MfaController.php
           php -l app/Http/Controllers/Api/AuthController.php
+          php -l app/Http/Controllers/Api/SessionController.php
           php -l app/Models/User.php
           php -l database/migrations/2026_11_12_120000_add_mfa_to_users_table.php
           php -l tests/Feature/OwnerMfaTest.php
+          php -l tests/Feature/OwnerSessionTest.php
           php -l tests/Unit/TotpTest.php
       - name: Run TOTP vectors and owner MFA integration tests
-        run: php artisan test --filter='TotpTest|OwnerMfaTest'
+        run: php artisan test --filter='TotpTest|OwnerMfaTest|OwnerSessionTest'
       - name: Check portal JavaScript syntax
         run: node --check public/app/app.js
