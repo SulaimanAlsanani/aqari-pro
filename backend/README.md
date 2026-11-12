@@ -52,3 +52,8 @@ Frontend authentication and API integration, robust password reset / account rec
 - Both revoke operations require the current account password and are rate limited. Revoking the current token requires logging in again.
 - The portal exposes session management from **حسابي**. Token creation, last use and expiry are visible; they are *sessions*, not verified hardware/device identities.
 - Security tests include cross-owner isolation, current-token revocation, and revocation of all other sessions.
+
+## MFA setup-expiration safeguard
+- Pending authenticator enrollment expires 10 minutes after it is created. Expired pending secrets are invalidated; the owner must begin setup again.
+- During confirmation, the server records the exact accepted TOTP time step (including a tolerated adjacent step) so that it cannot be reused for login.
+- Apply both `2026_11_12_120000_add_mfa_to_users_table.php` and `2026_11_12_130000_add_mfa_pending_expiry_to_users_table.php` migrations before enabling MFA. These changes are not a replacement for a green CI run and staging verification.
