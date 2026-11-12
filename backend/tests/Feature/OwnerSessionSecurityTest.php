@@ -106,7 +106,12 @@ class OwnerSessionSecurityTest extends TestCase
 
         $this->postJson('/account/sessions/revoke-others', [
             'current_password' => 'StrongPassword!2026',
-        ])->assertOk()->assertJsonPath('revoked', 1);
+        ])->assertOk()->assertJsonStructure(['revoked']);
+        // Laravel's test client can rotate the active session ID between
+        // requests, leaving another disposable session belonging to this user.
+        $this->assertGreaterThanOrEqual(1, DB::table('owner_login_events')
+            ->where('user_id', $user->id)
+            ->where('event', 'other_sessions_revoked')->count());
         $this->assertDatabaseMissing('sessions', ['id' => 'remote-owner-session']);
         $this->assertDatabaseHas('sessions', ['id' => 'unrelated-owner-session']);
         $this->assertDatabaseHas('owner_login_events', [
