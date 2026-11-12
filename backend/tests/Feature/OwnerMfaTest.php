@@ -187,6 +187,23 @@ final class OwnerMfaTest extends TestCase
         $this->assertNull($user->fresh()->mfa_enabled_at);
     }
 
+    public function test_corrupted_enabled_mfa_never_downgrades_to_password_only_login(): void
+    {
+        $user = $this->owner();
+        $user->forceFill([
+            'mfa_enabled_at' => now(),
+            'mfa_secret' => null,
+        ])->save();
+
+        $this->postJson('/login', [
+            'email' => $user->email,
+            'password' => 'StrongPassword!2026',
+        ])->assertStatus(503);
+
+        $this->assertGuest();
+        $this->getJson('/api/v1/me')->assertUnauthorized();
+    }
+
     public function test_mfa_enrollment_fails_closed_without_database_sessions(): void
     {
         config()->set('session.driver', 'array');
