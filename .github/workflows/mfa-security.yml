@@ -43,6 +43,7 @@ jobs:
           php -l app/Console/Commands/BackupStorageCheck.php
           php -l app/Console/Commands/BackupMake.php
           php -l app/Support/BackupEnvelope.php
+          php -l app/Support/BackupArchiveValidator.php
           php -l app/Models/User.php
           php -l database/migrations/2026_11_12_120000_add_mfa_to_users_table.php
           php -l database/migrations/2026_11_12_130000_add_mfa_pending_expiry_to_users_table.php
@@ -51,8 +52,9 @@ jobs:
           php -l tests/Feature/BackupStorageCheckTest.php
           php -l tests/Feature/BackupMakeGuardTest.php
           php -l tests/Unit/BackupEnvelopeTest.php
+          php -l tests/Unit/BackupArchiveValidatorTest.php
           php -l tests/Unit/TotpTest.php
       - name: Run TOTP vectors and owner MFA integration tests
-        run: php artisan test --filter='TotpTest|OwnerMfaTest|OwnerSessionTest|BackupStorageCheckTest|BackupMakeGuardTest|BackupEnvelopeTest'
+        run: php artisan test --filter='TotpTest|OwnerMfaTest|OwnerSessionTest|BackupStorageCheckTest|BackupMakeGuardTest|BackupEnvelopeTest|BackupArchiveValidatorTest'
       - name: Check portal JavaScript syntax
         run: node --check public/app/app.js
