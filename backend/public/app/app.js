@@ -877,6 +877,54 @@ async function showMfaSettings(){
   }
  }catch(error){panel.append(el('p',error.message,'muted'));notify(error.message,true)}
 }
+
+async function showSessionSettings(){
+ const view=$('view'),panel=el('section',null,'panel');
+ panel.append(el('h3','الجلسات والأجهزة'),el('p','يمكنك إنهاء الجلسات التي لا تعرفها. يتطلب الإنهاء تأكيد كلمة مرور حسابك.','muted'));
+ view.append(panel);
+ try{
+  const response=await api('/account/sessions');
+  if(active!=='account'||!view.contains(panel))return;
+  const rows=response.data||[];
+  if(!rows.length){panel.append(el('p','لا توجد جلسات فعالة.','muted'));return}
+  const allOthers=el('button','إنهاء جميع الجلسات الأخرى','secondary');
+  allOthers.type='button';
+  allOthers.disabled=!rows.some(x=>!x.current);
+  allOthers.addEventListener('click',async()=>{
+   const password=prompt('أدخل كلمة المرور لتأكيد إنهاء الجلسات الأخرى');
+   if(password===null)return;
+   allOthers.disabled=true;
+   try{
+    const result=await api('/account/sessions/others',{method:'DELETE',body:{password}});
+    notify('أُلغيت '+result.revoked_count+' جلسة أخرى.');await showAccount();
+   }catch(error){notify(error.message,true);allOthers.disabled=false}
+  });
+  panel.append(allOthers);
+  const table=el('div',null,'table-wrap'),grid=el('table'),head=el('thead'),heading=el('tr');
+  for(const label of ['الجلسة','الإنشاء','آخر استخدام','الانتهاء','الإجراء'])heading.append(el('th',label));
+  head.append(heading);grid.append(head);
+  const body=el('tbody');
+  for(const item of rows){
+   const row=el('tr');
+   for(const value of [item.name+(item.current?' — الجهاز الحالي':''),item.created_at||'—',item.last_used_at||'—',item.expires_at||'—'])row.append(el('td',value));
+   const cell=el('td'),button=el('button',item.current?'إنهاء جلستي':'إنهاء الجلسة','secondary');
+   button.type='button';
+   button.addEventListener('click',async()=>{
+    if(!confirm('تأكيد إنهاء الجلسة المختارة؟'))return;
+    const password=prompt('أدخل كلمة مرور حسابك للتأكيد');
+    if(password===null)return;
+    button.disabled=true;
+    try{
+     const result=await api('/account/sessions/'+item.id,{method:'DELETE',body:{password}});
+     if(result.current_revoked){resetAuth();notify('تم إنهاء الجلسة الحالية. سجل الدخول مرة أخرى.')}
+     else {notify('تم إنهاء الجلسة.');await showAccount()}
+    }catch(error){notify(error.message,true);button.disabled=false}
+   });
+   cell.append(button);row.append(cell);body.append(row);
+  }
+  grid.append(body);table.append(grid);panel.append(table);
+ }catch(error){panel.append(el('p',error.message,'muted'));notify(error.message,true)}
+}
 function showAccount(){
  const view=$('view');view.replaceChildren();
  const section=el('section',null,'panel'),h=el('h3','تغيير كلمة المرور');
@@ -900,7 +948,7 @@ function showAccount(){
    resetAuth();notify('تم تغيير كلمة المرور وإلغاء الجلسات، سجل الدخول بكلمة المرور الجديدة.');
   }catch(err){notify(err.message,true)}finally{action.disabled=false}
  });
- section.append(h,explanation,form);view.append(section);showMfaSettings();
+ section.append(h,explanation,form);view.append(section);showMfaSettings();showSessionSettings();
 }
 async function showAlerts(){
  const view=$('view');view.replaceChildren(el('p','جاري تحميل التنبيهات...','muted'));
