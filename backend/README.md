@@ -57,3 +57,10 @@ Frontend authentication and API integration, robust password reset / account rec
 - Pending authenticator enrollment expires 10 minutes after it is created. Expired pending secrets are invalidated; the owner must begin setup again.
 - During confirmation, the server records the exact accepted TOTP time step (including a tolerated adjacent step) so that it cannot be reused for login.
 - Apply both `2026_11_12_120000_add_mfa_to_users_table.php` and `2026_11_12_130000_add_mfa_pending_expiry_to_users_table.php` migrations before enabling MFA. These changes are not a replacement for a green CI run and staging verification.
+
+## Private object-storage preflight (development branch)
+A dedicated private `backup` filesystem disk now supports S3-compatible providers. Configure `BACKUP_S3_KEY`, `BACKUP_S3_SECRET`, `BACKUP_S3_REGION`, `BACKUP_S3_BUCKET`, and optional `BACKUP_S3_ENDPOINT` and `BACKUP_S3_PATH_STYLE` as environment secrets. Install PHP packages through Composer on the deployment server.
+
+Run `php artisan config:clear && php artisan backup:check-storage` on a locked-down staging server. The command rejects local/public storage, uploads 64 random bytes under a unique `healthchecks/` object name, reads back and hashes the object, then deletes it. It must exit successfully before backup infrastructure is considered connected. Test code uses a fake disk and **does not establish access to a real external bucket**.
+
+**This preflight is not a backup**: it does not export a database, copy private attachments, test restore, enforce retention/immutability, or monitor backup age. Do not claim disaster-recovery readiness until an encrypted, consistent database-and-attachments backup and an isolated restore drill have been implemented and observed. Use a provider-managed private bucket, least-privilege credentials, versioning and immutable retention where supported. Never use the public GitHub Pages demo to store real property documents.
