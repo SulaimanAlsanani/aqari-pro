@@ -2,6 +2,7 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
+use App\Support\BackupMonitorEvents;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
 
@@ -20,12 +21,14 @@ final class BackupStatus extends Command
         $hours=filter_var($this->option('max-age-hours'),FILTER_VALIDATE_INT);
         if ($hours===false || $hours<1 || $hours>8760) {
             $this->error('Snapshot maximum age must be an integer between 1 and 8760 hours.');
+            BackupMonitorEvents::record('invalid_configuration');
             return self::FAILURE;
         }
         $config=config('filesystems.disks.'.$diskName);
         if (!is_array($config) || ($config['driver']??null)!=='s3' ||
             ($config['visibility']??null)!=='private') {
             $this->error('A private S3-compatible backup disk is required.');
+            BackupMonitorEvents::record('invalid_configuration');
             return self::FAILURE;
         }
 
@@ -62,8 +65,10 @@ final class BackupStatus extends Command
 
             if ($latest===null || $latest<$earliest->timestamp) {
                 $this->error('BACKUP STALE: no recent encrypted snapshot was found.');
+                BackupMonitorEvents::record('stale');
                 return self::FAILURE;
             }
+            BackupMonitorEvents::record('fresh');
             $ageMinutes=intdiv(max(0,$now->timestamp-$latest),60);
             $this->info('BACKUP FRESH: newest private snapshot is '.$ageMinutes.' minutes old.');
             $this->line('Object: '.$latestKey);
@@ -72,6 +77,7 @@ final class BackupStatus extends Command
         } catch (Throwable $exception) {
             report($exception);
             $this->error('BACKUP STATUS UNKNOWN: storage inspection failed; inspect protected logs.');
+            BackupMonitorEvents::record('unknown');
             return self::FAILURE;
         }
     }
