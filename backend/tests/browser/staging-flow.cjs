@@ -4,6 +4,27 @@
 const assert = require('node:assert/strict');
 const {chromium} = require('playwright');
 const fs = require('node:fs/promises');
+const {createHmac} = require('node:crypto');
+
+function sixDigitTotp(secret, step) {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  let bits = '';
+  for (const character of secret) {
+    const n = alphabet.indexOf(character);
+    if (n < 0) throw new Error('Invalid synthetic TOTP setup key');
+    bits += n.toString(2).padStart(5, '0');
+  }
+  const key = Buffer.from(
+    bits.match(/.{8}/g).map(chunk => parseInt(chunk, 2))
+  );
+  const counter = Buffer.alloc(8);
+  counter.writeBigUInt64BE(BigInt(step));
+  const digest = createHmac('sha1', key).update(counter).digest();
+  const offset = digest[19] & 15;
+  return String((digest.readUInt32BE(offset) & 0x7fffffff) % 1000000)
+    .padStart(6, '0');
+}
+
 
 const origin = 'https://staging.example.test:18443';
 const password = process.env.AQARI_E2E_PASSWORD;
@@ -254,10 +275,48 @@ function retryStatus(page, expected, timeout = 25000) {
     await page.locator('#loginForm input[name=password]').fill('RotatedPass!2026');
     await page.locator('#loginForm button[type=submit]').click();
     await retryStatus(page, 'متصل ببيئة');
+    // Enroll authenticator MFA in the owner's real browser session.
+    await page.locator('#mfaSetupForm input[name=current_password]').fill('RotatedPass!2026');
+    await page.locator('#mfaSetupForm button[type=submit]').click();
+    await retryStatus(page, 'أضف المفتاح إلى تطبيق المصادقة');
+    const setupSecret = await page.locator('#mfaSecret').inputValue();
+    assert.match(setupSecret, /^[A-Z2-7]{32}$/);
+    const setupStep = Math.floor(Date.now() / 30000);
+    await page.locator('#mfaConfirmForm input[name=code]').fill(sixDigitTotp(setupSecret, setupStep));
+    await page.locator('#mfaConfirmForm button[type=submit]').click();
+    await retryStatus(page, 'تم تفعيل المصادقة الثنائية');
+    assert.match(await page.locator('#mfaStatus').innerText(), /مفعّلة/);
+    assert.equal(await page.locator('#mfaSecret').inputValue(), '',
+      'Authenticator secret must be erased from the form after activation');
+
+    await page.locator('#logout').click();
+    await retryStatus(page, 'تم تسجيل الخروج');
+
+    await page.locator('#loginForm input[name=email]').fill('owner.e2e@example.test');
+    await page.locator('#loginForm input[name=password]').fill('RotatedPass!2026');
+    await page.locator('#loginForm button[type=submit]').click();
+    await retryStatus(page, 'أدخل رمز المصادقة الثنائية لإكمال تسجيل الدخول');
+    assert.equal(await page.locator('#mfaLoginPanel').isVisible(), true);
+    const beforeSecondFactor = await page.evaluate(async () => {
+      const res = await fetch('/api/v1/properties', {
+        credentials: 'include', headers: {'Accept': 'application/json'},
+      });
+      return res.status;
+    });
+    assert.equal(beforeSecondFactor, 401, 'MFA owner must not access portfolio with password alone');
+
+    // Advance to an unused time step. One adjacent step is accepted by the
+    // server to allow for legitimate authenticator clock differences.
+    const challengeStep = Math.max(setupStep + 1, Math.floor(Date.now() / 30000));
+    await page.locator('#mfaLoginForm input[name=code]').fill(sixDigitTotp(setupSecret, challengeStep));
+    await page.locator('#mfaLoginForm button[type=submit]').click();
+    await retryStatus(page, 'اكتملت المصادقة الثنائية');
+    assert.equal(await page.locator('#workspace').isVisible(), true);
+
     await page.locator('#logout').click();
     await retryStatus(page, 'تم تسجيل الخروج');
     assert.deepEqual(pageErrors, [], 'No browser exceptions or server 5xx responses');
-    console.log('Browser E2E passed: login, CSRF, tenant isolation, property, unit, tenant, 12 dues, payment, reversal, receivables, private PNG upload/download, audit, owner profile, password rotation and logout.');
+    console.log('Browser E2E passed: login, CSRF, tenant isolation, property, unit, tenant, 12 dues, payment, reversal, receivables, private PNG upload/download, audit, owner profile, password rotation, verified TOTP enrollment and MFA challenge before portfolio access.');
   } finally {
     await browser.close();
   }
