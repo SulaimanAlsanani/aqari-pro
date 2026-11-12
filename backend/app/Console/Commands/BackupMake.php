@@ -2,6 +2,7 @@
 namespace App\Console\Commands;
 
 use App\Support\BackupEnvelope;
+use App\Support\BackupArchiveValidator;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -99,6 +100,7 @@ final class BackupMake extends Command
                 $zip->close();
             }
             if (filesize($zipPath) > $max) throw new RuntimeException('Archive exceeds size limit.');
+            BackupArchiveValidator::validate($zipPath);
             $plaintext=file_get_contents($zipPath);
             if ($plaintext===false) throw new RuntimeException('Archive read failed.');
             $encrypted=BackupEnvelope::encrypt($plaintext,$key);
