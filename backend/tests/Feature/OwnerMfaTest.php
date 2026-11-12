@@ -65,4 +65,28 @@ final class OwnerMfaTest extends TestCase
         $this->assertNull($user->fresh()->mfa_recovery_codes);
     }
 
+
+    public function test_pending_mfa_setup_expires_after_ten_minutes(): void
+    {
+        $user=User::create(['name'=>'Owner','email'=>'expired@example.test','password'=>'a-long-test-password']);
+        $this->actingAs($user,'sanctum');
+        $setup=$this->postJson('/api/account/mfa/setup',['password'=>'a-long-test-password'])->assertOk()->json();
+        $user->forceFill(['mfa_pending_at'=>now()->subMinutes(11)])->save();
+        $this->postJson('/api/account/mfa/confirm',[
+            'code'=>Totp::code($setup['secret'],time()),
+        ])->assertStatus(409);
+        $this->assertNull($user->fresh()->mfa_pending_secret);
+        $this->assertNull($user->fresh()->mfa_enabled_at);
+    }
+
+    public function test_confirmation_consumes_the_exact_accepted_future_time_step(): void
+    {
+        $user=User::create(['name'=>'Owner','email'=>'step@example.test','password'=>'a-long-test-password']);
+        $this->actingAs($user,'sanctum');
+        $setup=$this->postJson('/api/account/mfa/setup',['password'=>'a-long-test-password'])->assertOk()->json();
+        $currentStep=intdiv(time(),30);
+        $code=Totp::code($setup['secret'],($currentStep+1)*30);
+        $this->postJson('/api/account/mfa/confirm',['code'=>$code])->assertOk();
+        $this->assertSame($currentStep+1,(int) $user->fresh()->mfa_last_step);
+    }
 }
