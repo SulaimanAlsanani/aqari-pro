@@ -12,7 +12,8 @@ use ZipArchive;
 
 /**
  * Stages a verified snapshot outside live application storage.
- * Never replaces the active SQLite database or attachments.
+ * Never replaces the active database or attachments. MySQL dumps are staged,
+ * not executed against a server.
  */
 final class BackupStageRestore extends Command
 {
@@ -40,8 +41,8 @@ final class BackupStageRestore extends Command
             $this->error('Invalid backup encryption key.');
             return self::FAILURE;
         }
-        if (!class_exists(ZipArchive::class) || !class_exists(\SQLite3::class)) {
-            $this->error('PHP zip and sqlite3 extensions are required.');
+        if (!class_exists(ZipArchive::class)) {
+            $this->error('PHP zip extension is required.');
             return self::FAILURE;
         }
 
@@ -77,7 +78,7 @@ final class BackupStageRestore extends Command
                     $name=$zip->getNameIndex($i);
                     if ($name==='manifest.json') continue;
                     // Paths are already allowlisted by the validator; never call extractTo().
-                    if ($name!=='database.sqlite' &&
+                    if (!in_array($name,['database.sqlite','database.mysql.sql'],true) &&
                         !preg_match('~^attachments/owners/[0-9]+/documents/[A-Za-z0-9_./-]+$~D',$name)) {
                         throw new RuntimeException('Unexpected restored path.');
                     }
@@ -100,13 +101,26 @@ final class BackupStageRestore extends Command
             } finally { $zip->close(); }
             unlink($zipPath);
 
-            $db=new \SQLite3($dir.'/database.sqlite',SQLITE3_OPEN_READONLY);
-            try {
-                $result=$db->querySingle('PRAGMA integrity_check');
-                if ($result!=='ok') throw new RuntimeException('Restored SQLite integrity check failed.');
-            } finally { $db->close(); }
+            if (is_file($dir.'/database.sqlite')) {
+                if (!class_exists(\SQLite3::class)) {
+                    throw new RuntimeException('SQLite3 extension required to validate SQLite snapshot.');
+                }
+                $db=new \SQLite3($dir.'/database.sqlite',SQLITE3_OPEN_READONLY);
+                try {
+                    $result=$db->querySingle('PRAGMA integrity_check');
+                    if ($result!=='ok') throw new RuntimeException('Restored SQLite integrity check failed.');
+                } finally { $db->close(); }
+                $message='Isolated restore staged and SQLite integrity validated: ';
+            } elseif (is_file($dir.'/database.mysql.sql')) {
+                // SQL is never interpreted here. The dump contains its own
+                // CREATE DATABASE / USE commands, so automated execution
+                // could overwrite an unintended target.
+                $message='Isolated MySQL SQL dump staged (NOT imported): ';
+            } else {
+                throw new RuntimeException('No database payload in archive.');
+            }
             $success=true;
-            $this->info('Isolated restore staged and SQLite integrity validated: '.$dir);
+            $this->info($message.$dir);
             $this->warn('Live database and attachments were NOT modified. Do not serve staging folder publicly.');
             return self::SUCCESS;
         } catch (Throwable $exception) {
