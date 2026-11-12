@@ -66,6 +66,13 @@
         await send('/sanctum/csrf-cookie', 'GET');
         return send('/login', 'POST', { email, password });
       },
+      verifyMfa(code) { return send('/login/mfa', 'POST', {code}); },
+      mfaStatus() { return send('/account/mfa', 'GET'); },
+      mfaStart(currentPassword) {
+        return send('/account/mfa/start', 'POST', {current_password: currentPassword});
+      },
+      mfaConfirm(code) { return send('/account/mfa/confirm', 'POST', {code}); },
+      mfaDisable(data) { return send('/account/mfa/disable', 'POST', data); },
       me() { return send('/api/v1/me', 'GET'); },
       account() { return send('/api/v1/account', 'GET'); },
       updateAccount(data) { return send('/api/v1/account', 'PATCH', data); },
