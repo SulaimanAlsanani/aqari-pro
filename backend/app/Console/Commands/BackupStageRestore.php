@@ -3,6 +3,7 @@ namespace App\Console\Commands;
 
 use App\Support\BackupArchiveValidator;
 use App\Support\BackupEnvelope;
+use App\Support\BackupStagedFilesVerifier;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -99,6 +100,7 @@ final class BackupStageRestore extends Command
                     chmod($target,0600);
                 }
             } finally { $zip->close(); }
+            BackupStagedFilesVerifier::verify($zipPath,$dir);
             unlink($zipPath);
 
             if (is_file($dir.'/database.sqlite')) {
