@@ -58,6 +58,17 @@ ul{list-style:none;padding:0}li{border-bottom:1px solid #e4eaee;padding:10px 0;d
 <label>تأكيد كلمة المرور<input name="password_confirmation" type="password" autocomplete="new-password" minlength="12" required></label>
 <button type="submit">تغيير كلمة المرور وتسجيل الخروج</button>
 </form>
+<h3>الأجهزة والجلسات النشطة</h3>
+<p><small>اعرض أجهزة الدخول والنشاط الأخير؛ لا يُعرض معرّف الجلسة السري.</small></p>
+<button type="button" id="refreshSessions">تحديث الجلسات</button>
+<ul id="activeSessions" aria-label="الجلسات النشطة"></ul>
+<h3>تسجيل خروج الأجهزة الأخرى</h3>
+<form id="revokeOthersForm">
+<label>كلمة المرور الحالية<input name="current_password" type="password" autocomplete="current-password" required></label>
+<button type="submit">تسجيل خروج جميع الأجهزة الأخرى</button>
+</form>
+<h3>آخر نشاطات تسجيل الدخول</h3>
+<ul id="loginActivity" aria-label="سجل أمان الحساب"></ul>
 <button type="button" id="logout">تسجيل الخروج</button>
 <button type="button" id="refresh">تحديث البيانات</button></section>
 <section class="panel"><h2>العقارات</h2>
