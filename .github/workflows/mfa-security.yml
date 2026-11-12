@@ -1,0 +1,49 @@
+name: Aqari Pro MFA security tests
+
+on:
+  push:
+    branches:
+      - feature/production-foundation
+    paths:
+      - 'backend/**'
+      - '.github/workflows/mfa-security.yml'
+  pull_request:
+    paths:
+      - 'backend/**'
+      - '.github/workflows/mfa-security.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  laravel-security:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup PHP and SQLite support
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, dom, fileinfo, pdo_sqlite, sqlite3, bcmath, openssl
+          tools: composer:v2
+          coverage: none
+      - name: Install PHP dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+      - name: Validate PHP syntax in MFA-related files
+        run: |
+          php -l app/Support/Totp.php
+          php -l app/Http/Controllers/Api/MfaController.php
+          php -l app/Http/Controllers/Api/AuthController.php
+          php -l app/Models/User.php
+          php -l database/migrations/2026_11_12_120000_add_mfa_to_users_table.php
+          php -l tests/Feature/OwnerMfaTest.php
+          php -l tests/Unit/TotpTest.php
+      - name: Run TOTP vectors and owner MFA integration tests
+        run: php artisan test --filter='TotpTest|OwnerMfaTest'
+      - name: Check portal JavaScript syntax
+        run: node --check public/app/app.js
