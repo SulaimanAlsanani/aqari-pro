@@ -3,6 +3,7 @@ namespace App\Console\Commands;
 
 use App\Support\BackupEnvelope;
 use App\Support\BackupArchiveValidator;
+use App\Support\MySqlSnapshot;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -12,15 +13,15 @@ use Throwable;
 use ZipArchive;
 
 /**
- * Small-installation SQLite snapshot with private attachments.
+ * Offline small-installation SQLite or MySQL snapshot with private attachments.
  * Requires maintenance mode to avoid writes during the snapshot.
- * Deliberately refuses MySQL and large installations rather than exporting
- * a misleading or internally inconsistent backup.
+ * Requires all external writers stopped. MySQL dump is transactionally consistent
+ * only for InnoDB tables; storage files still require an offline write barrier.
  */
 final class BackupMake extends Command
 {
     protected $signature = 'backup:make {--disk=backup : Private object storage disk}';
-    protected $description = 'Upload a verified encrypted SQLite database and attachment snapshot';
+    protected $description = 'Upload a verified encrypted SQLite/MySQL database and attachment snapshot';
 
     public function handle(): int
     {
@@ -28,8 +29,9 @@ final class BackupMake extends Command
             $this->error('Enter maintenance mode before creating a consistent SQLite snapshot.');
             return self::FAILURE;
         }
-        if (DB::getDefaultConnection() !== 'sqlite') {
-            $this->error('This snapshot command supports SQLite only; use a transactionally consistent MySQL backup tool.');
+        $driver=DB::getDefaultConnection();
+        if (!in_array($driver,['sqlite','mysql'],true)) {
+            $this->error('Unsupported database driver for offline snapshots.');
             return self::FAILURE;
         }
         $diskName = (string) $this->option('disk');
@@ -51,7 +53,8 @@ final class BackupMake extends Command
 
         $dir = storage_path('app/backup-work/'.Str::uuid());
         $zipPath = $dir.'/snapshot.zip';
-        $dbCopy = $dir.'/database.sqlite';
+        $databaseEntry=$driver==='mysql'?'database.mysql.sql':'database.sqlite';
+        $dbCopy = $dir.'/'.$databaseEntry;
         $object = 'snapshots/'.now('UTC')->format('Y/m/d/His').'-'.Str::uuid().'.aqbk';
         $max = 128 * 1024 * 1024;
         $remoteWritten = false;
@@ -59,10 +62,13 @@ final class BackupMake extends Command
         try {
             if (!is_dir(dirname($dir)) && !mkdir(dirname($dir),0700,true)) throw new RuntimeException('Could not create backup directory.');
             if (!mkdir($dir, 0700, true)) throw new RuntimeException('Could not create private workspace.');
-            $source = DB::connection('sqlite')->getDatabaseName();
-            if (!$source || !is_file($source)) throw new RuntimeException('SQLite database file is missing.');
-            // SQLite VACUUM INTO creates a consistent point-in-time database image.
-            DB::connection('sqlite')->getPdo()->exec('VACUUM INTO '.DB::connection('sqlite')->getPdo()->quote($dbCopy));
+            if ($driver==='sqlite') {
+                $source = DB::connection('sqlite')->getDatabaseName();
+                if (!$source || !is_file($source)) throw new RuntimeException('SQLite database file is missing.');
+                DB::connection('sqlite')->getPdo()->exec('VACUUM INTO '.DB::connection('sqlite')->getPdo()->quote($dbCopy));
+            } else {
+                MySqlSnapshot::export($dbCopy,$dir);
+            }
 
             $zip = new ZipArchive();
             if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
@@ -70,11 +76,11 @@ final class BackupMake extends Command
             }
             try {
                 $manifest = ['version'=>1,'created_at'=>now('UTC')->toIso8601String(),
-                    'database'=>'database.sqlite','files'=>[]];
+                    'database'=>$databaseEntry,'files'=>[]];
                 $size = filesize($dbCopy);
                 if ($size === false || $size > $max) throw new RuntimeException('Database exceeds small-installation limit.');
-                if (!$zip->addFile($dbCopy, 'database.sqlite')) throw new RuntimeException('Could not archive database.');
-                $manifest['files'][]=['name'=>'database.sqlite','bytes'=>$size,'sha256'=>hash_file('sha256',$dbCopy)];
+                if (!$zip->addFile($dbCopy, $databaseEntry)) throw new RuntimeException('Could not archive database.');
+                $manifest['files'][]=['name'=>$databaseEntry,'bytes'=>$size,'sha256'=>hash_file('sha256',$dbCopy)];
                 $disk = Storage::disk('local');
                 foreach ($disk->allFiles('owners') as $path) {
                     // Reject unexpected filenames and links; include only private owner documents.
