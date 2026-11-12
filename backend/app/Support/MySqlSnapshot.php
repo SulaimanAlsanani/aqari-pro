@@ -19,6 +19,17 @@ final class MySqlSnapshot
             throw new RuntimeException('DB_URL is not supported by this dump helper; configure discrete DB fields.');
         }
         $database=self::safeValue($config['database']??null,'database');
+        // --single-transaction is only safe for transactional tables.
+        // Run with writes blocked and refuse MyISAM/MEMORY tables.
+        $tables=DB::connection('mysql')->select(
+            'SELECT TABLE_NAME, ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_TYPE = ?',
+            [$database,'BASE TABLE']
+        );
+        foreach ($tables as $table) {
+            if (strtoupper((string)$table->ENGINE)!=='INNODB') {
+                throw new RuntimeException('MySQL database contains non-transactional tables.');
+            }
+        }
         $username=self::safeValue($config['username']??null,'username');
         $password=self::safeValue($config['password']??'','password',true);
         $socket=(string)($config['unix_socket']??'');
