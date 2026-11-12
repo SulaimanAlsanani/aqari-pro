@@ -2,6 +2,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\MfaController;
+use App\Http\Controllers\Api\SessionController;
 use App\Http\Controllers\Api\PortfolioController;
 use App\Http\Controllers\Api\DocumentController;
 use App\Http\Controllers\Api\OperationsController;
@@ -33,6 +34,9 @@ Route::post('/password/reset',[PasswordResetController::class,'reset'])->middlew
 
 Route::middleware('auth:sanctum')->group(function () {
  Route::get('/me',[AuthController::class,'me']);
+ Route::get('/account/sessions',[SessionController::class,'index']);
+ Route::delete('/account/sessions/others',[SessionController::class,'revokeOthers'])->middleware('throttle:3,1');
+ Route::delete('/account/sessions/{token}',[SessionController::class,'revoke'])->whereNumber('token')->middleware('throttle:5,1');
  Route::get('/account/mfa',[MfaController::class,'status']);
  Route::post('/account/mfa/setup',[MfaController::class,'setup'])->middleware('throttle:3,1');
  Route::post('/account/mfa/confirm',[MfaController::class,'confirm'])->middleware('throttle:5,1');
