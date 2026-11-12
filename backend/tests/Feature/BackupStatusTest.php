@@ -44,11 +44,9 @@ final class BackupStatusTest extends TestCase
 
     public function test_unrelated_or_too_small_objects_do_not_count(): void
     {
-        $this->travelTo(\Illuminate\Support\Carbon::parse('2026-11-12 12:31:00','UTC'));
         $this->fakePrivateBackup();
         Storage::disk('backup')->put('snapshots/'.now('UTC')->format('Y/m/d').'/invalid.aqbk',str_repeat('x',64));
-        Storage::disk('backup')->put(self::OBJECT,'tiny');
+        Storage::disk('backup')->put($this->object(),'tiny');
         self::assertSame(1,Artisan::call('backup:status'));
-        $this->travelBack();
     }
 }
