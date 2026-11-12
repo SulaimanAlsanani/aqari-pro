@@ -40,6 +40,9 @@ class SessionController extends Controller
             if (Auth::guard('web')->check()) {
                 Auth::guard('web')->logout();
             }
+            if (method_exists(Auth::guard('sanctum'), 'forgetUser')) {
+                Auth::guard('sanctum')->forgetUser();
+            }
             $request->session()->invalidate();
             $request->session()->regenerateToken();
             $request->session()->put([
@@ -95,7 +98,12 @@ class SessionController extends Controller
         $user = User::query()->find($userId);
         if (! $user || ! $user->mfa_enabled_at || ! $totp->consume($user, $data['code'])) {
             $request->session()->put('mfa_pending_attempts', $attempts + 1);
-            $audit->record($request, $userId, 'mfa_failed');
+            if ($user) {
+                $audit->record($request, $userId, 'mfa_failed');
+            }
+            if (method_exists(Auth::guard('sanctum'), 'forgetUser')) {
+                Auth::guard('sanctum')->forgetUser();
+            }
             throw ValidationException::withMessages([
                 'code' => ['رمز المصادقة غير صالح أو مستخدم سابقًا.'],
             ]);
@@ -121,6 +129,9 @@ class SessionController extends Controller
         }
 
         Auth::guard('web')->logout();
+        if (method_exists(Auth::guard('sanctum'), 'forgetUser')) {
+            Auth::guard('sanctum')->forgetUser();
+        }
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
