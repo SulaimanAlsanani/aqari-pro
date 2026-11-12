@@ -70,6 +70,10 @@
       account() { return send('/api/v1/account', 'GET'); },
       updateAccount(data) { return send('/api/v1/account', 'PATCH', data); },
       changePassword(data) { return send('/api/v1/account/change-password', 'POST', data); },
+      securitySessions() { return send('/account/sessions', 'GET'); },
+      revokeOtherSessions(currentPassword) {
+        return send('/account/sessions/revoke-others', 'POST', {current_password: currentPassword});
+      },
       async requestPasswordReset(email) {
         await send('/sanctum/csrf-cookie', 'GET');
         return send('/forgot-password', 'POST', {email});
