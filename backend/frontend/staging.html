@@ -32,6 +32,15 @@ ul{list-style:none;padding:0}li{border-bottom:1px solid #e4eaee;padding:10px 0;d
 <form id="forgotForm"><label>البريد المسجل<input name="email" type="email" autocomplete="email" required></label><button type="submit">إرسال رابط الاستعادة</button></form>
 <p><small>إذا كان البريد مسجلًا، ستصل إليه رسالة تتضمن رابطًا مؤقتًا لإعادة تعيين كلمة المرور. لا يمكن إرسال الرسائل حتى يُهيأ SMTP آمن على الخادم.</small></p>
 </section>
+<section class="panel" id="mfaLoginPanel" hidden>
+<h2>التحقق بخطوتين</h2>
+<p>افتح تطبيق المصادقة المرتبط بحسابك وأدخل رمز الأرقام الستة. هذه الخطوة مطلوبة بعد كلمة المرور.</p>
+<form id="mfaLoginForm">
+<label>رمز المصادقة<input name="code" type="text" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" required></label>
+<button type="submit">تأكيد الدخول</button>
+<button type="button" id="mfaLoginCancel">العودة لتسجيل الدخول</button>
+</form>
+</section>
 <section class="panel" id="resetPanel" hidden>
 <h2>استعادة كلمة المرور</h2>
 <p id="resetEmailLabel"></p>
@@ -58,6 +67,27 @@ ul{list-style:none;padding:0}li{border-bottom:1px solid #e4eaee;padding:10px 0;d
 <label>تأكيد كلمة المرور<input name="password_confirmation" type="password" autocomplete="new-password" minlength="12" required></label>
 <button type="submit">تغيير كلمة المرور وتسجيل الخروج</button>
 </form>
+<h3>المصادقة الثنائية (MFA)</h3>
+<p id="mfaStatus">حالة المصادقة الثنائية غير معروفة.</p>
+<form id="mfaSetupForm">
+<label>كلمة المرور الحالية<input name="current_password" type="password" autocomplete="current-password" required></label>
+<button type="submit">بدء تفعيل تطبيق المصادقة</button>
+</form>
+<div id="mfaPendingPanel" hidden>
+<p><small>أضف هذا الحساب إلى تطبيق مصادقة يدعم TOTP، مثل Google Authenticator أو Microsoft Authenticator. لا تشارك المفتاح أو تحفظه في مستندات عامة.</small></p>
+<label>مفتاح الإعداد (يُعرض مرة واحدة)<input id="mfaSecret" type="text" readonly autocomplete="off" spellcheck="false"></label>
+<label>رابط الإعداد لتطبيق المصادقة<input id="mfaProvisioningUri" type="text" readonly autocomplete="off" spellcheck="false"></label>
+<form id="mfaConfirmForm">
+<label>رمز التطبيق<input name="code" type="text" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" required></label>
+<button type="submit">تأكيد التفعيل</button>
+</form>
+</div>
+<form id="mfaDisableForm" hidden>
+<label>كلمة المرور الحالية<input name="current_password" type="password" autocomplete="current-password" required></label>
+<label>رمز التطبيق<input name="code" type="text" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" required></label>
+<button type="submit">إيقاف المصادقة الثنائية</button>
+</form>
+<p><small>إذا فُقد تطبيق المصادقة فلا يوجد تجاوز تلقائي عبر البريد؛ يتطلب استرجاع الوصول التحقق من الهوية بواسطة المشغّل.</small></p>
 <h3>الأجهزة والجلسات النشطة</h3>
 <p><small>اعرض أجهزة الدخول والنشاط الأخير؛ لا يُعرض معرّف الجلسة السري.</small></p>
 <button type="button" id="refreshSessions">تحديث الجلسات</button>
