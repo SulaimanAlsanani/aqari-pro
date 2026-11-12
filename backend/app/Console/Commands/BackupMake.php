@@ -112,10 +112,10 @@ final class BackupMake extends Command
             if (!is_string($downloaded) || !hash_equals(hash('sha256',$encrypted),hash('sha256',$downloaded))) {
                 throw new RuntimeException('Remote backup integrity verification failed.');
             }
-            if (BackupEnvelope::decrypt($downloaded,$key) !== file_get_contents($zipPath)) {
+            if (!hash_equals(hash('sha256',BackupEnvelope::decrypt($downloaded,$key)),hash_file('sha256',$zipPath))) {
                 throw new RuntimeException('Backup decryption round-trip failed.');
             }
-            $this->info('Encrypted snapshot uploaded and verified: '.$object);
+            $this->info('Encrypted snapshot uploaded and transport integrity verified: '.$object);
             return self::SUCCESS;
         } catch (Throwable $exception) {
             report($exception);
