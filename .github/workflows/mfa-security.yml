@@ -59,6 +59,7 @@ jobs:
           php -l tests/Feature/BackupMakeGuardTest.php
           php -l tests/Feature/BackupVerifyTest.php
           php -l tests/Feature/BackupStageRestoreTest.php
+          php -l tests/Feature/BackupMySqlStageTest.php
           php -l tests/Feature/BackupStatusTest.php
           php -l tests/Feature/MySqlSnapshotTest.php
           php -l tests/Feature/BackupMonitorEventsTest.php
@@ -66,6 +67,6 @@ jobs:
           php -l tests/Unit/BackupArchiveValidatorTest.php
           php -l tests/Unit/TotpTest.php
       - name: Run TOTP vectors and owner MFA integration tests
-        run: php artisan test --filter='TotpTest|OwnerMfaTest|OwnerSessionTest|BackupStorageCheckTest|BackupMakeGuardTest|BackupEnvelopeTest|BackupArchiveValidatorTest|BackupVerifyTest|BackupStageRestoreTest|BackupStatusTest|BackupMonitorEventsTest|MySqlSnapshotTest'
+        run: php artisan test --filter='TotpTest|OwnerMfaTest|OwnerSessionTest|BackupStorageCheckTest|BackupMakeGuardTest|BackupEnvelopeTest|BackupArchiveValidatorTest|BackupVerifyTest|BackupStageRestoreTest|BackupStatusTest|BackupMonitorEventsTest|MySqlSnapshotTest|BackupMySqlStageTest'
       - name: Check portal JavaScript syntax
         run: node --check public/app/app.js
