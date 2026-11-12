@@ -107,3 +107,16 @@ The existing `backup:make` encrypted backup flow now supports either SQLite or M
 `php artisan backup:stage-restore snapshots/YYYY/MM/DD/HHMMSS-UUID.aqbk` now accepts encrypted MySQL snapshots with a valid manifest, and stages `database.mysql.sql` plus allowlisted attachments under a random private path. **It never executes the dump** or connects to a MySQL destination. The MySQL dump was produced with `mysqldump --databases`, which may contain `CREATE DATABASE` and `USE` statements and is therefore unsafe to replay blindly even when pointed at a purported test connection.
 
 An actual isolated MySQL restore still requires a separate disposable MySQL instance, a restore-only account with no production connectivity, deliberate database-name remapping, controlled import, and post-import application checks. Staging the archive on the same host is not in itself an isolated database restore. Restrict filesystem access and remove staged plaintext files after review.
+
+## Fully disposable MySQL restore drill (offline Docker)
+
+To test importing a verified MySQL backup without touching the production database:
+
+1. On a **dedicated staging machine** with local Docker Engine and Python 3.10+, run `php artisan backup:stage-restore snapshots/YYYY/MM/DD/HHMMSS-UUID.aqbk`. Record the private UUID folder printed on success.
+2. Invoke `python3 scripts/mysql_isolated_restore.py --stage /absolute/path/to/backend/storage/app/restore-staging/UUID --app-storage /absolute/path/to/backend/storage/app`. Use `--validate-only` to check path constraints without starting Docker.
+3. The script starts a throwaway `mysql:8.4` container with **`--network none`**, no published ports, no bind mounts, and an ephemeral tmpfs database. It imports the staged SQL using random drill-only root credentials, runs `mysqlcheck`, counts restored application base tables, and removes the container on exit. Original SQL statements such as `CREATE DATABASE` and `USE` are safe only *inside this disposable container*.
+4. Remove the staged plaintext directory after the drill, following your organization’s secure cleanup policy. Never make it web-accessible.
+
+GitHub Actions now includes a separate `mysql-isolated-restore` job exercising this workflow with a synthetic fixture and the actual Docker container, as well as Python safety unit tests. **A green run is still required**; a committed workflow is not a completed integration test. The script rejects nonlocal Docker contexts and source paths outside `restore-staging/UUID`. It does not receive Laravel DB settings or production credentials.
+
+**Limitations:** Docker-based import alone is not a full application restore or a demonstration of attachment consistency, data equivalence, recovery point objective (RPO) or recovery time objective (RTO). A real encrypted S3 backup, the associated attachments and the application must be validated in a separate operational rehearsal before launch.
