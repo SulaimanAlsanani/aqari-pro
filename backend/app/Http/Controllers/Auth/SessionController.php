@@ -34,7 +34,13 @@ class SessionController extends Controller
         }
 
         $user = User::query()->where('email', $credentials['email'])->firstOrFail();
-        if ($user->mfa_enabled_at && $user->mfa_secret) {
+        if ($user->mfa_enabled_at !== null) {
+            // An inconsistent MFA record must NEVER downgrade to password-only.
+            if (! $user->mfa_secret) {
+                throw new \Symfony\Component\HttpKernel\Exception\ServiceUnavailableHttpException(
+                    null, 'المصادقة الثنائية لهذا الحساب تحتاج إصلاحًا بواسطة مشغّل النظام.'
+                );
+            }
             // A request to start another account's login must not retain the
             // previous account's authentication or its existing session ID.
             if (Auth::guard('web')->check()) {
