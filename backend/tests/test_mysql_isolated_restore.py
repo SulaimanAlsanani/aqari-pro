@@ -68,6 +68,38 @@ class RestoreDrillSafetyTest(unittest.TestCase):
                     module.run_drill(self.sql)
                 runner.assert_called_once()
 
+    def test_restored_document_matches_private_file(self):
+        target = self.stage / "attachments" / "owners" / "1" / "documents"
+        target.mkdir(parents=True)
+        (target / "file.pdf").write_bytes(b"PDF")
+        rows = b"1\t" + b"owners/1/documents/file.pdf".hex().encode() + b"\t3\n"
+        self.assertEqual(module.reconcile_documents(rows, self.stage), 1)
+
+    def test_missing_restored_document_fails(self):
+        rows = b"1\t" + b"owners/1/documents/missing.pdf".hex().encode() + b"\t3\n"
+        with self.assertRaises(RuntimeError):
+            module.reconcile_documents(rows, self.stage)
+
+    def test_orphan_restored_attachment_fails(self):
+        target = self.stage / "attachments" / "owners" / "1" / "documents"
+        target.mkdir(parents=True)
+        (target / "orphan.pdf").write_bytes(b"PDF")
+        with self.assertRaises(RuntimeError):
+            module.reconcile_documents(b"", self.stage)
+
+    def test_wrong_restored_document_size_fails(self):
+        target = self.stage / "attachments" / "owners" / "1" / "documents"
+        target.mkdir(parents=True)
+        (target / "file.pdf").write_bytes(b"PDF")
+        rows = b"1\t" + b"owners/1/documents/file.pdf".hex().encode() + b"\t99\n"
+        with self.assertRaises(RuntimeError):
+            module.reconcile_documents(rows, self.stage)
+
+    def test_cross_owner_document_path_fails(self):
+        rows = b"2\t" + b"owners/1/documents/file.pdf".hex().encode() + b"\t3\n"
+        with self.assertRaises(RuntimeError):
+            module.reconcile_documents(rows, self.stage)
+
     def test_docker_container_is_networkless_and_mountless(self):
         calls = []
 
@@ -77,6 +109,11 @@ class RestoreDrillSafetyTest(unittest.TestCase):
                 return type("Done", (), {"stdout": b"unix:///var/run/docker.sock\n"})()
             if args[1] == "exec" and "mysql" in args:
                 if "--execute" in args:
+                    sql = args[args.index("--execute") + 1]
+                    if "TABLE_NAME='documents'" in sql:
+                        return type("Done", (), {"stdout": b"aqari_restore_probe\n"})()
+                    if "HEX(path)" in sql:
+                        return type("Done", (), {"stdout": b""})()
                     return type("Done", (), {"stdout": b"3\n"})()
                 return type("Done", (), {"stdout": b""})()
             return type("Done", (), {"stdout": b"ok\n"})()
@@ -86,7 +123,7 @@ class RestoreDrillSafetyTest(unittest.TestCase):
                 with patch.object(module.subprocess, "run") as cleanup:
                     module.run_drill(self.sql)
                     cleanup.assert_called_once()
-        launch = calls[0]
+        launch = next(args for args in calls if args[:2] == ["docker", "run"])
         self.assertEqual(launch[:2], ["docker", "run"])
         self.assertEqual(launch[launch.index("--network") + 1], "none")
         self.assertNotIn("--publish", launch)
