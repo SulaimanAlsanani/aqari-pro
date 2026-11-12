@@ -42,4 +42,27 @@ final class OwnerMfaTest extends TestCase
         $this->postJson('/api/account/mfa/confirm',['code'=>'000000'])->assertUnprocessable();
         $this->assertNull($user->fresh()->mfa_enabled_at);
     }
+    public function test_recovery_code_is_single_use_and_disabling_revokes_tokens(): void
+    {
+        $user=User::create(['name'=>'Owner','email'=>'recovery@example.test','password'=>'a-long-test-password']);
+        $this->actingAs($user,'sanctum');
+        $setup=$this->postJson('/api/account/mfa/setup',['password'=>'a-long-test-password'])->assertOk()->json();
+        $recovery=$this->postJson('/api/account/mfa/confirm',['code'=>Totp::code($setup['secret'],time())])
+            ->assertOk()->json('recovery_codes');
+        $this->assertCount(8,$recovery);
+
+        $this->app['auth']->forgetGuards();
+        $credentials=['email'=>$user->email,'password'=>'a-long-test-password','mfa_code'=>$recovery[0]];
+        $this->postJson('/api/login',$credentials)->assertOk()->assertJsonStructure(['token']);
+        $this->postJson('/api/login',$credentials)->assertUnprocessable();
+        $this->assertCount(7,$user->fresh()->mfa_recovery_codes);
+
+        $this->actingAs($user,'sanctum');
+        $this->postJson('/api/account/mfa/disable',[
+            'password'=>'a-long-test-password','code'=>$recovery[1],
+        ])->assertOk()->assertJson(['enabled'=>false]);
+        $this->assertNull($user->fresh()->mfa_secret);
+        $this->assertNull($user->fresh()->mfa_recovery_codes);
+    }
+
 }
