@@ -43,6 +43,7 @@ jobs:
           php -l app/Console/Commands/BackupStorageCheck.php
           php -l app/Console/Commands/BackupMake.php
           php -l app/Console/Commands/BackupVerify.php
+          php -l app/Console/Commands/BackupStageRestore.php
           php -l app/Support/BackupEnvelope.php
           php -l app/Support/BackupArchiveValidator.php
           php -l app/Models/User.php
@@ -53,10 +54,11 @@ jobs:
           php -l tests/Feature/BackupStorageCheckTest.php
           php -l tests/Feature/BackupMakeGuardTest.php
           php -l tests/Feature/BackupVerifyTest.php
+          php -l tests/Feature/BackupStageRestoreTest.php
           php -l tests/Unit/BackupEnvelopeTest.php
           php -l tests/Unit/BackupArchiveValidatorTest.php
           php -l tests/Unit/TotpTest.php
       - name: Run TOTP vectors and owner MFA integration tests
-        run: php artisan test --filter='TotpTest|OwnerMfaTest|OwnerSessionTest|BackupStorageCheckTest|BackupMakeGuardTest|BackupEnvelopeTest|BackupArchiveValidatorTest|BackupVerifyTest'
+        run: php artisan test --filter='TotpTest|OwnerMfaTest|OwnerSessionTest|BackupStorageCheckTest|BackupMakeGuardTest|BackupEnvelopeTest|BackupArchiveValidatorTest|BackupVerifyTest|BackupStageRestoreTest'
       - name: Check portal JavaScript syntax
         run: node --check public/app/app.js
