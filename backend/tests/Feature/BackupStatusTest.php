@@ -7,7 +7,10 @@ use Tests\TestCase;
 
 final class BackupStatusTest extends TestCase
 {
-    private const OBJECT='snapshots/2026/11/12/120000-123e4567-e89b-12d3-a456-426614174000.aqbk';
+    private function object(): string
+    {
+        return 'snapshots/'.now('UTC')->format('Y/m/d').'/'.now('UTC')->format('His').'-123e4567-e89b-12d3-a456-426614174000.aqbk';
+    }
 
     private function fakePrivateBackup(): void
     {
@@ -33,19 +36,17 @@ final class BackupStatusTest extends TestCase
 
     public function test_recent_private_object_is_detected(): void
     {
-        $this->travelTo(\Illuminate\Support\Carbon::parse('2026-11-12 12:31:00','UTC'));
         $this->fakePrivateBackup();
-        Storage::disk('backup')->put(self::OBJECT,str_repeat('x',64));
+        Storage::disk('backup')->put($this->object(),str_repeat('x',64));
         self::assertSame(0,Artisan::call('backup:status'));
         self::assertStringContainsString('FRESH',Artisan::output());
-        $this->travelBack();
     }
 
     public function test_unrelated_or_too_small_objects_do_not_count(): void
     {
         $this->travelTo(\Illuminate\Support\Carbon::parse('2026-11-12 12:31:00','UTC'));
         $this->fakePrivateBackup();
-        Storage::disk('backup')->put('snapshots/2026/11/12/invalid.aqbk',str_repeat('x',64));
+        Storage::disk('backup')->put('snapshots/'.now('UTC')->format('Y/m/d').'/invalid.aqbk',str_repeat('x',64));
         Storage::disk('backup')->put(self::OBJECT,'tiny');
         self::assertSame(1,Artisan::call('backup:status'));
         $this->travelBack();
