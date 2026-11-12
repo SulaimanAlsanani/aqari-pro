@@ -48,6 +48,58 @@ def run_command(args: list[str], *, input_file=None, env=None, timeout=120) -> s
     )
 
 
+
+def reconcile_documents(rows: bytes, staged: Path) -> int:
+    """Match restored document DB rows to private staged owner files.
+
+    SQL returns user_id, HEX(path), size as TSV, avoiding ambiguous escaping
+    of filenames and never logging private names or row contents.
+    """
+    documents = staged / "attachments" / "owners"
+    expected: dict[str, int] = {}
+    if len(rows) > 8 * 1024 * 1024:
+        raise RuntimeError("Document listing exceeds audit limit")
+    for row in rows.splitlines():
+        if not row:
+            continue
+        cols = row.split(b"\t")
+        if len(cols) != 3:
+            raise RuntimeError("Malformed document record from restored MySQL")
+        try:
+            owner = int(cols[0])
+            path = bytes.fromhex(cols[1].decode("ascii")).decode("utf-8")
+            size = int(cols[2])
+        except (ValueError, UnicodeError) as exc:
+            raise RuntimeError("Invalid document record in restored MySQL") from exc
+        if owner < 1 or size < 0 or size > MAX_DUMP_BYTES:
+            raise RuntimeError("Invalid document owner or size")
+        if not re.fullmatch(r"owners/[0-9]+/documents/[A-Za-z0-9_./-]+", path):
+            raise RuntimeError("Unsafe restored document path")
+        if ".." in path or not path.startswith(f"owners/{owner}/documents/"):
+            raise RuntimeError("Restored document has mismatched owner")
+        if path in expected:
+            raise RuntimeError("Duplicate document record path")
+        expected[path] = size
+
+    actual: dict[str, int] = {}
+    if documents.exists():
+        if documents.is_symlink() or not documents.is_dir():
+            raise RuntimeError("Invalid restored attachments directory")
+        for item in documents.rglob("*"):
+            if item.is_symlink():
+                raise RuntimeError("Symlink in restored attachments")
+            if item.is_file():
+                rel = item.relative_to(staged / "attachments").as_posix()
+                if rel not in expected:
+                    raise RuntimeError("Orphan attachment in restored snapshot")
+                actual[rel] = item.stat().st_size
+            elif not item.is_dir():
+                raise RuntimeError("Unexpected attachment entry")
+    if expected != actual:
+        raise RuntimeError("Restored MySQL document records do not match staged attachments")
+    return len(expected)
+
+
 def run_drill(sql: Path, *, image: str = IMAGE) -> None:
     if image != IMAGE:
         raise ValueError("Only the pinned MySQL major/minor image is supported")
@@ -120,8 +172,29 @@ def run_drill(sql: Path, *, image: str = IMAGE) -> None:
             raise RuntimeError("Could not inspect recovered MySQL table count") from exc
         if tables < 1:
             raise RuntimeError("Restored MySQL contains no application tables")
-        print(f"PASS: isolated MySQL import and mysqlcheck completed; {tables} base tables detected.")
-        print("Live database connections, ports, and attachments were not used.")
+        # Find exactly one application schema containing the documents table.
+        schema_result = run_command([
+            "docker", "exec", "--env", "MYSQL_PWD=" + password, name, "mysql",
+            "--protocol=socket", "-uroot", "--batch", "--raw", "--skip-column-names",
+            "--execute", ("SELECT TABLE_SCHEMA FROM information_schema.TABLES "
+                          "WHERE TABLE_NAME='documents' AND TABLE_TYPE='BASE TABLE' "
+                          "AND TABLE_SCHEMA NOT IN "
+                          "('mysql','sys','performance_schema','information_schema')"),
+        ], timeout=30)
+        schemas = schema_result.stdout.decode("utf-8").strip().splitlines()
+        if len(schemas) != 1 or not re.fullmatch(r"[A-Za-z0-9_]+", schemas[0]):
+            raise RuntimeError("Expected exactly one restored application documents table")
+        schema = schemas[0]
+        doc_result = run_command([
+            "docker", "exec", "--env", "MYSQL_PWD=" + password, name, "mysql",
+            "--protocol=socket", "-uroot", "--batch", "--raw", "--skip-column-names",
+            "--database", schema,
+            "--execute", "SELECT user_id, HEX(path), size FROM documents ORDER BY id",
+        ], timeout=30)
+        document_count = reconcile_documents(doc_result.stdout, sql.parent)
+        print(f"PASS: isolated MySQL import, mysqlcheck and attachment reconciliation complete; "
+              f"{tables} tables, {document_count} documents.")
+        print("No live database connection or production attachments were modified.")
     finally:
         if created:
             subprocess.run(
