@@ -91,6 +91,13 @@ def run_drill(sql: Path, *, image: str = IMAGE) -> None:
                 "--max-allowed-packet=64M",
             ], input_file=stream, timeout=300)
 
+        # Run table-level consistency checks on the disposable instance.
+        run_command([
+            "docker", "exec", "--env", "MYSQL_PWD=" + password, name,
+            "mysqlcheck", "--protocol=socket", "-uroot",
+            "--all-databases", "--check", "--silent",
+        ], timeout=120)
+
         # The dump uses --databases, so it may create/select its own schema.
         # This query is scoped to the isolated instance and verifies usable tables exist.
         query = ("SELECT COUNT(*) FROM information_schema.tables "
@@ -107,7 +114,7 @@ def run_drill(sql: Path, *, image: str = IMAGE) -> None:
             raise RuntimeError("Could not inspect recovered MySQL table count") from exc
         if tables < 1:
             raise RuntimeError("Restored MySQL contains no application tables")
-        print(f"PASS: isolated MySQL import completed; {tables} base tables detected.")
+        print(f"PASS: isolated MySQL import and mysqlcheck completed; {tables} base tables detected.")
         print("Live database connections, ports, and attachments were not used.")
     finally:
         if created:
