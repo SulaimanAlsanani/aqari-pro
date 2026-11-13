@@ -3,6 +3,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Models\{Lease,Unit};
 use Carbon\CarbonImmutable;
+use App\Support\RentInstallmentSchedule;
+use InvalidArgumentException;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\DB;
@@ -12,11 +14,16 @@ class LeaseRenewalController extends Controller {
  public function store(Request $request,Lease $lease){
   abort_unless($lease->unit()->whereHas('property',fn($q)=>$q->where('user_id',$request->user()->id))->exists(),404);
   $data=$request->validate([
-   'total_amount'=>['required','numeric','gt:0','decimal:0,2'],
-   'deposit'=>['nullable','numeric','min:0','decimal:0,2'],
+   'total_amount'=>['required','numeric','gt:0','decimal:0,2','max:9999999999.99'],
+   'deposit'=>['nullable','numeric','min:0','decimal:0,2','max:9999999999.99'],
    'installments'=>['required','integer','in:1,2,4,12']
   ]);
-  $renewal=DB::transaction(function()use($lease,$data){
+  try {
+   $installmentAmounts=RentInstallmentSchedule::amounts($data['total_amount'],(int)$data['installments']);
+  } catch (InvalidArgumentException $exception) {
+   throw ValidationException::withMessages(['total_amount'=>'يجب أن يكون كل قسط على الأقل 0.01 ريال، ويجب إدخال مبلغ بخانتين عشريتين كحد أقصى']);
+  }
+  $renewal=DB::transaction(function()use($lease,$data,$installmentAmounts){
    // Serialize renewals and ordinary lease creation by locking the unit.
    Unit::whereKey($lease->unit_id)->lockForUpdate()->firstOrFail();
    $old=Lease::whereKey($lease->id)->lockForUpdate()->firstOrFail();
@@ -39,16 +46,12 @@ class LeaseRenewalController extends Controller {
     'deposit'=>$data['deposit']??0,
     'status'=>'draft'
    ]);
-   $count=(int)$data['installments'];
-   $cents=(int)round((float)$data['total_amount']*100);
-   $base=intdiv($cents,$count);
-   $extra=$cents%$count;
+   $count=count($installmentAmounts);
    for($i=0;$i<$count;$i++){
-    $pennies=$base+($i<$extra?1:0);
     $dueDate=$start->addMonthsNoOverflow($i*(12/$count));
     $new->dues()->create([
      'sequence'=>$i+1,'due_on'=>$dueDate->toDateString(),
-     'amount'=>number_format($pennies/100,2,'.','')
+     'amount'=>$installmentAmounts[$i]
     ]);
    }
    return $new;
