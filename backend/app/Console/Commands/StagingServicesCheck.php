@@ -13,7 +13,7 @@ final class StagingServicesCheck extends Command
 {
     protected $signature = 'staging:check-services
         {--mail-to= : Optional explicit recipient for a real SMTP delivery probe}';
-    protected $description = 'Verify staging-only MySQL/ClamAV preflight, private S3 round trip, and optional test email';
+    protected $description = 'Verify staging MySQL, working ClamAV engine, S3 round trip and optional SMTP message';
 
     public function handle(): int
     {
@@ -41,6 +41,10 @@ final class StagingServicesCheck extends Command
         // probe plus ClamAV signature check must pass.
         if ($this->call('staging:preflight',['--live'=>true])!==self::SUCCESS) {
             $this->error('Staging preflight failed; no storage or mail probe was attempted.');
+            return self::FAILURE;
+        }
+        if ($this->call('staging:check-antivirus')!==self::SUCCESS) {
+            $this->error('ClamAV functional probe failed; no S3 or SMTP request was attempted.');
             return self::FAILURE;
         }
         if ($this->call('backup:check-storage',['--disk'=>'backup'])!==self::SUCCESS) {
