@@ -38,6 +38,9 @@ final class StagingPreflightTest extends TestCase
         config()->set('database.default','mysql');
         config()->set('database.connections.mysql.url',null);
         config()->set('database.connections.mysql.database','aqari_staging');
+        config()->set('database.connections.mysql.host','db');
+        config()->set('database.connections.mysql.port','3306');
+        config()->set('database.connections.mysql.username','aqari_staging');
         config()->set('cache.default','file');
         config()->set('mail.default','smtp');
         config()->set('filesystems.default','local');
