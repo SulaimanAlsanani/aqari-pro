@@ -615,7 +615,10 @@ function drawForm(key,record=null){
   }
   input.name=name;input.id='field-'+name;
   if(record&&record[name]!==undefined&&record[name]!==null)input.value=record[name];
-  if(!['district','address','email','deposit','floor','area','reference','description','unit_id','vendor_id','estimated_cost'].includes(name))input.required=true;
+  const optional=['district','address','email','deposit','floor','area','reference','description','unit_id','vendor_id','estimated_cost'];
+  if(!optional.includes(name) ||
+     (key==='leases'&&name==='unit_id') ||
+     (key==='expenses'&&name==='description'))input.required=true;
   if(type==='file')input.accept='.pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx,.txt,.csv';
   div.append(lab,input);form.appendChild(div);
  }
