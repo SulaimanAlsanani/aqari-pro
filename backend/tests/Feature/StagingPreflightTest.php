@@ -25,9 +25,11 @@ final class StagingPreflightTest extends TestCase
         config()->set('document_security.scan_enabled',false);
 
         self::assertSame(1,Artisan::call('staging:preflight'));
-        self::assertStringContainsString('APP_DEBUG must be false',Artisan::output());
-        self::assertStringContainsString('Staging must use MySQL',Artisan::output());
-        self::assertStringContainsString('Enable anti-malware scanning',Artisan::output());
+        // Artisan::output() consumes the buffered output; fetch it once.
+        $output=Artisan::output();
+        self::assertStringContainsString('APP_DEBUG must be false',$output);
+        self::assertStringContainsString('Staging must use MySQL',$output);
+        self::assertStringContainsString('Enable anti-malware scanning',$output);
     }
 
     public function test_live_checks_never_contact_database_when_configuration_is_invalid(): void
