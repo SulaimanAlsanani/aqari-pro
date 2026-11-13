@@ -544,9 +544,9 @@ function showRenewal(lease){
  form.addEventListener('submit',async event=>{
   event.preventDefault();submit.disabled=true;
   const payload=Object.fromEntries(new FormData(form));
-  payload.total_amount=Number(payload.total_amount);
+  // Preserve the raw decimal string all the way to Laravel validation.
   payload.installments=Number(payload.installments);
-  if(payload.deposit==='')delete payload.deposit;else payload.deposit=Number(payload.deposit);
+  if(payload.deposit==='')delete payload.deposit;
   try{
    await api('/leases/'+lease.id+'/renew',{method:'POST',body:payload});
    notify('تم إنشاء مسودة تجديد العقد وربطها بالعقد السابق');await refresh();
@@ -599,7 +599,17 @@ function drawForm(key,record=null){
   if(type==='choice'){
    input=el('select');
    for(const str of values.split('|')){const [v,t]=str.split(':');const opt=el('option',t);opt.value=v;input.appendChild(opt)}
-  }else{input=el('input');input.type=type==='file'?'file':type; if(type==='number'){input.min='0';input.step='any'}}
+  }else{
+   input=el('input');input.type=type==='file'?'file':type;
+   if(type==='number'){
+    // Money is transmitted as an exact decimal string, never as JS float.
+    if(['total_amount','deposit','amount','estimated_cost'].includes(name)){
+     input.step='0.01';input.min=['total_amount','amount'].includes(name)?'0.01':'0';
+    }else if(['property_id','lease_id','unit_id','tenant_id','entity_id','vendor_id','installments'].includes(name)){
+     input.step='1';input.min='1';
+    }else{input.step='any';input.min='0'}
+   }
+  }
   input.name=name;input.id='field-'+name;
   if(record&&record[name]!==undefined&&record[name]!==null)input.value=record[name];
   if(!['district','address','email','deposit','floor','area','reference','description','unit_id','vendor_id','estimated_cost'].includes(name))input.required=true;
@@ -624,7 +634,7 @@ function drawForm(key,record=null){
     for(const [k,v] of Object.entries(payload))upload.append(k,v);
     await api(url,{method:'POST',body:upload});
    }else{
-    for(const numeric of ['unit_id','tenant_id','entity_id','total_amount','deposit','amount','installments','area','estimated_cost'])
+    for(const numeric of ['unit_id','tenant_id','entity_id','installments','area'])
      if(numeric in payload)payload[numeric]=Number(payload[numeric]);
     await api(url,{method:record?'PATCH':'POST',body:payload,headers:receiptKey?{'Idempotency-Key':receiptKey}:{}});
    }
