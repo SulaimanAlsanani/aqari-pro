@@ -23,7 +23,7 @@ final class LeaseDueDates
         try {
             $start=CarbonImmutable::createFromFormat('!Y-m-d',$startsOn);
             $end=CarbonImmutable::createFromFormat('!Y-m-d',$endsOn);
-        } catch (\\Throwable $error) {
+        } catch (\Throwable $error) {
             throw new InvalidArgumentException('Invalid lease date range.',0,$error);
         }
         if (!$start || !$end || $start->format('Y-m-d')!==$startsOn ||
