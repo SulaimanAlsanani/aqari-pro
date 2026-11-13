@@ -61,6 +61,30 @@ final class BackupStorageCheckTest extends TestCase
         self::assertStringContainsString('Could not remove',Artisan::output());
     }
 
+    public function test_probe_fails_if_adapter_reports_delete_success_but_file_remains(): void
+    {
+        config()->set('filesystems.disks.backup',['driver'=>'s3','visibility'=>'private']);
+        $contents=null;
+        $disk=\Mockery::mock();
+        $disk->shouldReceive('put')->once()->andReturnUsing(
+            function ($path,$data,$options) use (&$contents): bool {
+                $contents=$data;
+                return true;
+            }
+        );
+        $disk->shouldReceive('get')->once()->andReturnUsing(
+            function ($path) use (&$contents) {
+                return $contents;
+            }
+        );
+        $disk->shouldReceive('delete')->once()->andReturn(true);
+        $disk->shouldReceive('exists')->once()->andReturn(true);
+        Storage::shouldReceive('disk')->once()->with('backup')->andReturn($disk);
+
+        self::assertSame(1,Artisan::call('backup:check-storage'));
+        self::assertStringContainsString('Could not verify removal',Artisan::output());
+    }
+
     public function test_storage_preflight_rejects_missing_disk(): void
     {
         self::assertSame(1, Artisan::call('backup:check-storage', ['--disk' => 'missing-backup-disk']));
