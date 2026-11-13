@@ -225,3 +225,4 @@ jobs:
           docker compose -f compose.staging-isolated.yaml config --format json \
             | python3 scripts/check_staging_compose.py
           python3 -m py_compile scripts/check_staging_compose.py
+          python3 -m unittest discover -s tests -p 'test_staging_compose.py' -v
