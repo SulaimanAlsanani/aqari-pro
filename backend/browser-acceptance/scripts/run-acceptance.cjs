@@ -3,8 +3,15 @@ const {spawnSync} = require('node:child_process');
 const {resolveStagingOrigin, resolveAcceptanceMode} = require('../staging-guard.cjs');
 
 const requested = process.argv[2];
+const flags = process.argv.slice(3);
 if (!['read', 'live', 'write'].includes(requested)) {
   console.error('Choose exactly one acceptance mode: read, live, or write.');
+  process.exit(2);
+}
+// Only allow the non-executing --list flag. No arbitrary test path, grep,
+// shard, browser override, config or CLI options can be injected here.
+if (flags.length > 1 || (flags.length === 1 && flags[0] !== '--list')) {
+  console.error('The only supported extra argument is --list (offline discovery).');
   process.exit(2);
 }
 
@@ -26,7 +33,7 @@ try {
   console.error('Install the pinned @playwright/test dependency before running browser checks.');
   process.exit(2);
 }
-const result = spawnSync(process.execPath, [cli, 'test'], {
+const result = spawnSync(process.execPath, [cli, 'test', ...flags], {
   cwd: require('node:path').resolve(__dirname, '..'),
   env,
   stdio: 'inherit',
