@@ -137,6 +137,19 @@ test('one-time synthetic owner journey: property → unit → tenant → lease �
   await navigate('الأقساط', '/api/dues?');
   await expect(page.locator('#view')).toContainText('300.00');
 
+  // Verify the financial report reflects the newly created synthetic receipt.
+  await page.locator('#nav button').filter({hasText:'التقارير المالية'}).first().click();
+  await page.locator('#report-from').fill('2027-01-01');
+  await page.locator('#report-to').fill('2027-12-31');
+  const reportPending = page.waitForResponse(r => r.request().method() === 'GET' &&
+    r.url().startsWith(origin + '/api/reports/cashflow?from=2027-01-01&to=2027-12-31'),
+    {timeout: 15000});
+  await page.locator('#view form button[type="submit"]').click();
+  const reportResponse = await reportPending;
+  expect(reportResponse.status()).toBe(200);
+  expect((await reportResponse.json()).totals.received).toBe('300.00');
+  await expect(page.locator('#notice')).not.toHaveClass(/error/);
+
   await navigate('المرفقات', '/api/documents?');
   await startForm();
   const documentId = await create('/documents', {
@@ -153,6 +166,11 @@ test('one-time synthetic owner journey: property → unit → tenant → lease �
   await documentRow.getByRole('button', {name:'تنزيل'}).click();
   const download = await downloadPending;
   expect(download.suggestedFilename()).toBe('aqari-e2e-proof.txt');
+  const stream = await download.createReadStream();
+  const chunks = [];
+  for await (const chunk of stream) chunks.push(chunk);
+  expect(Buffer.concat(chunks).toString('utf8'))
+    .toBe('Synthetic Aqari E2E staging record; no customer data.\\n');
 
   // No delete/cleanup against a potentially shared environment. Because the
   // server gate requires an empty test owner, this test is intentionally
