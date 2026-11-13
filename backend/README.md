@@ -196,3 +196,11 @@ The `staging:preflight --live` command now checks that ClamAV main/daily databas
 `backup:check-storage` now handles S3 adapter initialization exceptions without treating them as successful checks. It requires its randomly named temporary object to be deleted and confirmed absent, even if the provider reports that the delete operation succeeded. Tests cover broken adapter startup, cleanup refusal, and objects that remain accessible after a reported deletion.
 
 These safeguards are implemented and committed with PHPUnit coverage, but **GitHub Actions and an actual staging host must pass** before calling the restore, malware scanning or external storage readiness verified. See `STAGING_RUNBOOK.md` for first-run `freshclam` initialization and follow-up checks.
+
+## Owner record lookup and dependent entry forms
+
+The owner portal now offers **اختيار من السجلات** alongside the existing numeric ID input when creating units, leases, receipts, expenses and maintenance tickets. The searchable modal calls authenticated, rate-limited `GET /api/lookups/{resource}?q=` where `resource` is one of `properties`, `units`, `tenants`, `leases` or `vendors`. Search may use an ID or human-readable name, property city, unit code, tenant phone or vendor service. Responses contain at most 20 minimal `{id,label}` choices plus a `has_more` hint; users refine the search instead of downloading all owner records.
+
+All lookup queries are scoped to the authenticated owner **before** text matching. The maintenance unit picker supplies `property_id`, so it shows units from the selected property only; changing that property clears any previously selected unit ID. The receipt picker uses `receivable=1` to exclude cancelled and completed leases, matching the payment API's constraints. The server still validates every submitted ID and its owning account independently of the picker.
+
+`OwnerLookupTest` covers ownership boundaries, lookups by related names, phone/city/service search, pagination cap, invalid query inputs and dependent property/receipt filters. `tests/browser/owner-smoke.cjs` tests the picker on mobile and desktop while creating synthetic owner records and maintenance tickets. These checks run as part of the existing Laravel API GitHub Actions workflow.
