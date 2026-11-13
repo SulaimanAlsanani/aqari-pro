@@ -14,6 +14,12 @@ final class MySqlSnapshot
 {
     public static function export(string $target, string $privateDirectory): void
     {
+        // Laravel may resolve DB_URL into discrete fields and omit the
+        // original URL from the instantiated connection's configuration.
+        // Inspect the declared config BEFORE constructing/connecting MySQL.
+        if (!empty(config('database.connections.mysql.url'))) {
+            throw new RuntimeException('DB_URL is not supported by this dump helper; configure discrete DB fields.');
+        }
         $config=DB::connection('mysql')->getConfig();
         if (!empty($config['url'])) {
             throw new RuntimeException('DB_URL is not supported by this dump helper; configure discrete DB fields.');
