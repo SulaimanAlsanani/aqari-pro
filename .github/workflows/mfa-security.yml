@@ -46,6 +46,7 @@ jobs:
           php -l app/Console/Commands/BackupStageRestore.php
           php -l app/Console/Commands/BackupStatus.php
           php -l app/Console/Commands/StagingPreflight.php
+          php -l app/Console/Commands/StagingServicesCheck.php
           php -l app/Support/BackupMonitorEvents.php
           php -l routes/console.php
           php -l app/Support/BackupEnvelope.php
@@ -59,6 +60,7 @@ jobs:
           php -l tests/Feature/OwnerMfaTest.php
           php -l tests/Feature/OwnerPortfolioRecoverySmokeTest.php
           php -l tests/Feature/StagingPreflightTest.php
+          php -l tests/Feature/StagingServicesCheckTest.php
           php -l tests/Feature/OwnerSessionTest.php
           php -l tests/Feature/BackupStorageCheckTest.php
           php -l tests/Feature/BackupMakeGuardTest.php
@@ -74,7 +76,7 @@ jobs:
           php -l tests/Unit/BackupStagedFilesVerifierTest.php
           php -l tests/Unit/TotpTest.php
       - name: Run TOTP vectors and owner MFA integration tests
-        run: php artisan test --filter='TotpTest|OwnerMfaTest|OwnerSessionTest|BackupStorageCheckTest|BackupMakeGuardTest|BackupEnvelopeTest|BackupArchiveValidatorTest|BackupVerifyTest|BackupStageRestoreTest|BackupStatusTest|BackupMonitorEventsTest|MySqlSnapshotTest|BackupMySqlStageTest|BackupAttachmentAuditTest|BackupStagedFilesVerifierTest|OwnerPortfolioRecoverySmokeTest|StagingPreflightTest'
+        run: php artisan test --filter='TotpTest|OwnerMfaTest|OwnerSessionTest|BackupStorageCheckTest|BackupMakeGuardTest|BackupEnvelopeTest|BackupArchiveValidatorTest|BackupVerifyTest|BackupStageRestoreTest|BackupStatusTest|BackupMonitorEventsTest|MySqlSnapshotTest|BackupMySqlStageTest|BackupAttachmentAuditTest|BackupStagedFilesVerifierTest|OwnerPortfolioRecoverySmokeTest|StagingPreflightTest|StagingServicesCheckTest'
       - name: Check portal JavaScript syntax
         run: node --check public/app/app.js
       - name: Validate isolated MySQL restore drill syntax and safety
