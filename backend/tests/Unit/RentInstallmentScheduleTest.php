@@ -37,11 +37,11 @@ final class RentInstallmentScheduleTest extends TestCase
     public function test_zero_value_installments_and_invalid_frequencies_fail_closed(): void
     {
         foreach ([['0.01',2],['0.11',12],['0.00',1],['1200',3]] as [$amount,$count]) {
-            $this->expectException(InvalidArgumentException::class);
             try {
                 RentInstallmentSchedule::amounts($amount,$count);
-            } finally {
-                // Each scenario is additionally exercised independently below.
+                self::fail('Invalid installment schedule was accepted.');
+            } catch (InvalidArgumentException $exception) {
+                self::assertNotSame('',$exception->getMessage());
             }
         }
     }
