@@ -1,7 +1,7 @@
 <?php
 namespace App\Http\Controllers\Api;
 
-use App\Models\{Document,Due,Expense,Lease,MaintenanceTicket,Payment,Property,Tenant,Unit,Vendor};
+use App\Models\{Document,Due,Expense,Lease,MaintenanceTicket,Payment,Property,Tenant,Unit,User,Vendor};
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 
@@ -36,23 +36,25 @@ final class StagingE2eController extends Controller
             abort(404);
         }
 
-        // A shared or previously populated owner must never be used for
-        // acceptance writes; even a run interrupted midway blocks reruns.
+        // A browser write test must only run in an EMPTY disposable database:
+        // no other users, no existing domain or financial records anywhere.
+        // Owner-scoped checks alone would miss customer data belonging to others.
         $ownerId=$user->id;
-        $hasData=Property::where('user_id',$ownerId)->exists()
-            || Tenant::where('user_id',$ownerId)->exists()
-            || Document::where('user_id',$ownerId)->exists()
-            || Expense::whereHas('property',fn($q)=>$q->where('user_id',$ownerId))->exists()
-            || MaintenanceTicket::whereHas('property',fn($q)=>$q->where('user_id',$ownerId))->exists()
-            || Vendor::where('user_id',$ownerId)->exists()
-            || Unit::whereHas('property',fn($q)=>$q->where('user_id',$ownerId))->exists()
-            || Lease::whereHas('unit.property',fn($q)=>$q->where('user_id',$ownerId))->exists()
-            || Payment::whereHas('lease.unit.property',fn($q)=>$q->where('user_id',$ownerId))->exists()
-            || Due::whereHas('lease.unit.property',fn($q)=>$q->where('user_id',$ownerId))->exists();
+        $hasData=User::whereKeyNot($ownerId)->exists()
+            || Property::query()->exists()
+            || Unit::query()->exists()
+            || Tenant::query()->exists()
+            || Lease::query()->exists()
+            || Payment::query()->exists()
+            || Due::query()->exists()
+            || Document::query()->exists()
+            || Expense::query()->exists()
+            || MaintenanceTicket::query()->exists()
+            || Vendor::query()->exists();
 
         if ($hasData) return response()->json([
             'allowed'=>false,
-            'reason'=>'Dedicated staging test owner already has records; provision a fresh account for another run.',
+            'reason'=>'Staging is not an empty disposable database. Use a newly provisioned isolated database.',
         ],409);
 
         return response()->json([
