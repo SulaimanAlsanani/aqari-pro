@@ -61,6 +61,18 @@ final class OwnerPortfolioRecoverySmokeTest extends TestCase
         $this->postJson('/api/leases/'.$leaseId.'/payments',$receipt)
             ->assertOk()->assertJsonPath('id',$payment);
 
+        // Replaying the receipt with altered financial data must never
+        // silently overwrite the original payment or its allocations.
+        $this->postJson('/api/leases/'.$leaseId.'/payments',[
+            ...$receipt, 'amount'=>'601.00',
+        ])->assertUnprocessable()->assertJsonValidationErrors('idempotency_key');
+
+        // More than the outstanding total cannot be booked as a receipt.
+        $this->withHeader('Idempotency-Key','recovery-smoke-002');
+        $this->postJson('/api/leases/'.$leaseId.'/payments',[
+            ...$receipt, 'amount'=>'601.00',
+        ])->assertUnprocessable()->assertJsonValidationErrors('amount');
+
         $this->getJson('/api/dues')->assertOk()
             ->assertJsonPath('data.0.paid_amount','600.00')
             ->assertJsonPath('data.0.balance_amount','0.00')
