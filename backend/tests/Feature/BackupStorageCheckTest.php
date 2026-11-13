@@ -66,7 +66,7 @@ final class BackupStorageCheckTest extends TestCase
         Storage::shouldReceive('disk')->once()->with('backup')->andReturn($disk);
 
         self::assertSame(1,Artisan::call('backup:check-storage'));
-        self::assertStringContainsString('Could not remove',Artisan::output());
+        self::assertStringContainsString('Could not verify removal',Artisan::output());
     }
 
     public function test_probe_fails_if_adapter_reports_delete_success_but_file_remains(): void
