@@ -64,6 +64,59 @@ final class OwnerLookupTest extends TestCase
         $this->getJson('/api/lookups/properties?q=%25')->assertOk()->assertJsonCount(0,'data');
     }
 
+    public function test_unit_choices_are_restricted_to_selected_property_and_owner(): void
+    {
+        $owner=$this->makeOwner('property-filter@example.test');
+        $other=$this->makeOwner('property-filter-other@example.test');
+        $one=$owner->properties()->create(['name'=>'Building A','city'=>'Riyadh','type'=>'residential']);
+        $two=$owner->properties()->create(['name'=>'Building B','city'=>'Riyadh','type'=>'residential']);
+        $foreign=$other->properties()->create(['name'=>'Building C','city'=>'Riyadh','type'=>'residential']);
+        $unitOne=$one->units()->create(['code'=>'A-101','type'=>'apartment']);
+        $two->units()->create(['code'=>'B-101','type'=>'apartment']);
+        $foreign->units()->create(['code'=>'C-101','type'=>'apartment']);
+        $this->actingAs($owner,'sanctum');
+
+        $this->getJson('/api/lookups/units?property_id='.$one->id)->assertOk()
+            ->assertJsonCount(1,'data')->assertJsonPath('data.0.id',$unitOne->id);
+        $this->getJson('/api/lookups/units?property_id='.$foreign->id)->assertOk()
+            ->assertJsonCount(0,'data');
+        $this->getJson('/api/lookups/units?property_id=nope')->assertUnprocessable()
+            ->assertJsonValidationErrors('property_id');
+    }
+
+    public function test_receipt_picker_excludes_cancelled_and_completed_leases(): void
+    {
+        $owner=$this->makeOwner('lease-filter@example.test');
+        $building=$owner->properties()->create(['name'=>'Sunrise','city'=>'Riyadh','type'=>'residential']);
+        $tenant=$owner->tenants()->create(['name'=>'Tenant','phone'=>'0500000000']);
+        $ids=[];
+        foreach (['draft','active','cancelled','completed'] as $status) {
+            $unit=$building->units()->create(['code'=>'Unit-'.$status,'type'=>'apartment']);
+            $lease=$unit->leases()->create([
+                'tenant_id'=>$tenant->id,'starts_on'=>'2027-01-01','ends_on'=>'2027-12-31',
+                'total_amount'=>'1200.00','deposit'=>'0.00','status'=>$status
+            ]);
+            $ids[$status]=$lease->id;
+        }
+        $this->actingAs($owner,'sanctum');
+        $this->getJson('/api/lookups/leases')->assertOk()->assertJsonCount(4,'data');
+        $result=$this->getJson('/api/lookups/leases?receivable=1')->assertOk()
+            ->assertJsonCount(2,'data')->json('data');
+        self::assertSame([$ids['draft'],$ids['active']],array_column($result,'id'));
+    }
+
+    public function test_search_supports_city_tenant_phone_and_vendor_service(): void
+    {
+        $owner=$this->makeOwner('lookup-multi@example.test');
+        $owner->properties()->create(['name'=>'Residence','city'=>'Dammam','type'=>'residential']);
+        $owner->tenants()->create(['name'=>'Tenant Person','phone'=>'0551234567']);
+        $owner->vendors()->create(['name'=>'Expert Co','service'=>'Electrical maintenance']);
+        $this->actingAs($owner,'sanctum');
+        $this->getJson('/api/lookups/properties?q=Dammam')->assertOk()->assertJsonCount(1,'data');
+        $this->getJson('/api/lookups/tenants?q=055123')->assertOk()->assertJsonCount(1,'data');
+        $this->getJson('/api/lookups/vendors?q=Electrical')->assertOk()->assertJsonCount(1,'data');
+    }
+
     public function test_lookup_refuses_guest_bad_resource_and_unbounded_query(): void
     {
         $this->getJson('/api/lookups/properties')->assertUnauthorized();
