@@ -56,6 +56,10 @@ jobs:
           php -l app/Support/RentInstallmentSchedule.php
           php -l app/Http/Controllers/Api/PortfolioController.php
           php -l app/Http/Controllers/Api/LeaseRenewalController.php
+          php -l app/Http/Controllers/Api/OperationsController.php
+          php -l app/Http/Controllers/Api/ExpenseController.php
+          php -l app/Http/Controllers/Api/MaintenanceWorkflowController.php
+          php -l app/Http/Controllers/Api/HandoverDamageController.php
           php -l app/Support/BackupArchiveValidator.php
           php -l app/Support/BackupAttachmentAudit.php
           php -l app/Support/BackupStagedFilesVerifier.php
