@@ -24,7 +24,13 @@ button.secondary{background:#fff;color:#126440;border:1px solid #c8dacc;border-r
 input,select{width:100%;border:1px solid #c5d8cb;border-radius:8px;padding:10px;color:#173d2e;background:white}
 label{display:block;font-weight:700;margin:8px 0 5px}
 input:focus,select:focus,button:focus-visible{outline:2px solid #c39f57;outline-offset:2px}
-.field{min-width:180px}.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 16px}
+.field{min-width:180px}.lookup-trigger{margin-top:7px;font-size:12px}
+.lookup-dialog{width:min(620px,calc(100vw - 24px));max-height:85vh;overflow:auto;border:1px solid #d4e1d6;border-radius:14px;padding:0;box-shadow:0 14px 55px #102f234d;color:#173d2e}
+.lookup-dialog::backdrop{background:#0a241f88}
+.lookup-dialog .panel{margin:0;border:0}
+.lookup-results{display:grid;gap:7px;max-height:46vh;overflow:auto;padding:4px 2px}
+.lookup-choice{text-align:right;white-space:normal;overflow-wrap:anywhere}
+.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 16px}
 .actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:18px}
 .metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:20px}
 .metric{border:1px solid #dfebe3;border-top:3px solid #b99b61;border-radius:10px;padding:16px;background:#fff}
