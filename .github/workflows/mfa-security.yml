@@ -124,3 +124,31 @@ jobs:
           python3 backend/scripts/mysql_isolated_restore.py \
             --stage "$PWD/$STAGE" --app-storage "$PWD/backend/storage/app"
           rm -rf "$STAGE"
+
+  staging-compose-guard:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - name: Render staging configuration with dummy non-production secrets
+        env:
+          STAGING_APP_KEY: "base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+          STAGING_APP_URL: "https://staging.example.invalid"
+          STAGING_DB_PASSWORD: "dummy-ci-only-password"
+          STAGING_MYSQL_ROOT_PASSWORD: "dummy-ci-only-root"
+          STAGING_MAIL_HOST: "smtp.example.invalid"
+          STAGING_MAIL_USERNAME: "ci-staging"
+          STAGING_MAIL_PASSWORD: "dummy-ci-mail"
+          STAGING_MAIL_FROM_ADDRESS: "noreply@example.invalid"
+          STAGING_BACKUP_S3_KEY: "dummy-ci-s3-key"
+          STAGING_BACKUP_S3_SECRET: "dummy-ci-s3-secret"
+          STAGING_BACKUP_S3_BUCKET: "ci-staging-only"
+          STAGING_BACKUP_ENCRYPTION_KEY: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+        run: |
+          set -euo pipefail
+          docker compose -f compose.staging-isolated.yaml config --format json \
+            | python3 scripts/check_staging_compose.py
+          python3 -m py_compile scripts/check_staging_compose.py
