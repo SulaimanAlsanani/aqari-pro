@@ -1,0 +1,12 @@
+# Dependencies and browser test artifacts are never versioned.
+node_modules/
+playwright-report/
+test-results/
+blob-report/
+*.trace
+*.zip
+*.webm
+*.png
+.env
+.env.*
+!.env.example
