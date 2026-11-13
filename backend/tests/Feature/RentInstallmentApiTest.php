@@ -122,6 +122,37 @@ final class RentInstallmentApiTest extends TestCase
         ])->assertUnprocessable()->assertJsonValidationErrors('amount');
     }
 
+    public function test_lease_dates_must_use_canonical_yyyy_mm_dd_format(): void
+    {
+        [$unitId,$tenantId]=$this->setupOwner();
+        foreach ([
+            ['2027-1-01','2027-12-31','starts_on'],
+            ['2027-01-01','2027-12-31T00:00:00','ends_on'],
+        ] as [$start,$end,$field]) {
+            $data=$this->payload($unitId,$tenantId,'1200.00',2);
+            $data['starts_on']=$start;
+            $data['ends_on']=$end;
+            $this->postJson('/api/leases',$data)
+                ->assertUnprocessable()->assertJsonValidationErrors($field);
+        }
+        self::assertSame(0,Lease::query()->count());
+    }
+
+    public function test_payment_date_and_amount_must_be_canonical_and_bounded(): void
+    {
+        [$unitId,$tenantId]=$this->setupOwner();
+        $leaseId=$this->postJson('/api/leases',$this->payload($unitId,$tenantId,'1200.00',2))
+            ->assertCreated()->json('id');
+
+        $this->postJson('/api/leases/'.$leaseId.'/payments',[
+            'amount'=>'1.00','paid_on'=>'2027-01-10T12:34:56','method'=>'cash',
+        ])->assertUnprocessable()->assertJsonValidationErrors('paid_on');
+        $this->postJson('/api/leases/'.$leaseId.'/payments',[
+            'amount'=>'99999999999.99','paid_on'=>'2027-01-10','method'=>'cash',
+        ])->assertUnprocessable()->assertJsonValidationErrors('amount');
+        $this->getJson('/api/payments')->assertOk()->assertJsonPath('total',0);
+    }
+
     public function test_creation_rejects_more_installments_than_cents_or_invalid_decimals(): void
     {
         [$unitId,$tenantId]=$this->setupOwner();
