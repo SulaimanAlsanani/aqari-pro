@@ -25,7 +25,9 @@ jobs:
         run: |
           set -euo pipefail
           results="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${GITHUB_SHA}&per_page=100")"
-          for workflow in "Laravel API checks" "Backend container validation"; do
+          # Release gate: all independent security, container, API, and
+          # isolated restore checks must have succeeded on this exact commit.
+          for workflow in "Laravel API checks" "Backend container validation" "Aqari Pro MFA security tests"; do
             conclusion="$(jq -r --arg name "$workflow"               '[.workflow_runs[] | select(.name == $name)] | sort_by(.created_at) | last | .conclusion // ""' <<<"$results")"
             if [ "$conclusion" != "success" ]; then
               echo "FAIL: $workflow is not successful on exact staging commit $GITHUB_SHA ($conclusion)" >&2
