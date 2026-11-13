@@ -138,9 +138,13 @@ class RestoreDrillSafetyTest(unittest.TestCase):
             calls.append(args)
             if args[:3] == ["docker", "context", "inspect"]:
                 return type("Done", (), {"stdout": b"unix:///var/run/docker.sock\n"})()
+            if args[1] == "exec" and "cat" in args and "/proc/1/comm" in args:
+                return type("Done", (), {"stdout": b"mysqld\n"})()
             if args[1] == "exec" and "mysql" in args:
                 if "--execute" in args:
                     sql = args[args.index("--execute") + 1]
+                    if sql == "SELECT 1":
+                        return type("Done", (), {"stdout": b"1\n"})()
                     if "TABLE_NAME='documents'" in sql:
                         return type("Done", (), {"stdout": b"aqari_restore_probe\n"})()
                     if "HEX(path)" in sql:
