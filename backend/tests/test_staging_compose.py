@@ -60,6 +60,17 @@ class StagingComposeGuardTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 module.validate(config)
 
+    def test_malformed_volume_mounts_fail_cleanly(self):
+        for invalid in (
+            ["staging_mysql:/var/lib/mysql"],
+            [{"type":"volume","source":"staging_mysql"}],
+            None,
+        ):
+            config=copy.deepcopy(valid_compose())
+            config["services"]["db"]["volumes"]=invalid
+            with self.assertRaises(ValueError):
+                module.validate(config)
+
     def test_database_exposure_and_foreign_networks_are_rejected(self):
         for modify in (
             lambda x: x["services"]["db"].update(ports=[{"published":"3306"}]),
