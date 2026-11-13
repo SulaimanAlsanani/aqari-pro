@@ -174,3 +174,11 @@ The `browser-acceptance/` runner now selects **one** test family: `npm test` run
 Both initial lease creation and renewal use `App\\Support\\RentInstallmentSchedule` to calculate positive two-decimal rent installments using **integer halalas (cents)** rather than IEEE-754 floating point conversion. The schedule distributes any remainder one cent at a time across the first installments and preserves the total. Contracts with more installments than whole cents are rejected, rather than creating zero-value receivables. The API also rejects rent amounts with more than two decimal places and constrains the accepted amount to at most 9,999,999,999.99 SAR.
 
 The owner portal retains rent, deposit and payment amounts as decimal strings and sets 0.01 increments in money inputs. Tests cover creation, renewal, rounding remainders, and invalid near-zero amounts. The implementation is committed but a green CI and staging browser test are still needed before treating the financial workflow as verified.
+
+## Owner portal navigation and financial precision follow-up
+
+Recent hardening also prevents stale asynchronous section responses from replacing the owner's currently selected page. Navigation, alerts, deposit reporting, and reconciliation page loads have request-epoch checks, and the financial report ignores responses from views that have already been closed. The read-only Playwright owner acceptance scenario includes rapid navigation with a delayed API response.
+
+The cashflow dashboard now normalizes sums to two decimal places and uses BCMath for the net amount rather than subtracting JavaScript/PHP floating point numbers. Expenses, maintenance actual costs, repair estimates, and damage estimates validate two-decimal precision with bounded maximums. The owner UI preserves decimal string inputs for rents, payments, deposits, damage estimates and maintenance final costs; record identifiers still use integer conversion.
+
+The API regression tests cover a small four-installment lease split, partial receipts, refusing a one-halalah overpayment, refusing fractional-halalah expenses, and exact dashboard net values. These are source changes; live browser and production-shape MySQL acceptance testing remain outstanding.
