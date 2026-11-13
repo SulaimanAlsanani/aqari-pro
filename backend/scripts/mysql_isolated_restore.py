@@ -164,6 +164,7 @@ def run_drill(sql: Path, *, image: str = IMAGE) -> None:
         raise ValueError("Remote or overridden Docker contexts are not supported")
     # A selected remote Docker context can exist even with both environment variables unset.
     # Explicitly inspect the active daemon endpoint before provisioning any container.
+    print("RESTORE-DRILL: validating local Docker context", file=sys.stderr, flush=True)
     endpoint = run_command(["docker", "context", "inspect", "--format", "{{.Endpoints.docker.Host}}"], timeout=15)
     docker_host = endpoint.stdout.decode("utf-8", errors="replace").strip()
     if not docker_host.startswith("unix:///") or "\\n" in docker_host:
@@ -173,6 +174,7 @@ def run_drill(sql: Path, *, image: str = IMAGE) -> None:
     created = False
     try:
         # All resources, including data files, stay in the isolated disposable container.
+        print("RESTORE-DRILL: starting a disposable networkless MySQL container", file=sys.stderr, flush=True)
         run_command([
             "docker", "run", "--detach", "--rm", "--network", "none",
             "--name", name, "--label", "aqari.restore-drill=ephemeral",
@@ -198,6 +200,7 @@ def run_drill(sql: Path, *, image: str = IMAGE) -> None:
         if not ready:
             raise RuntimeError("Isolated MySQL instance failed readiness check")
 
+        print("RESTORE-DRILL: disposable MySQL is ready; importing staged SQL", file=sys.stderr, flush=True)
         with sql.open("rb") as stream:
             run_command([
                 "docker", "exec", "--interactive", "--env", "MYSQL_PWD=" + password,
@@ -206,6 +209,7 @@ def run_drill(sql: Path, *, image: str = IMAGE) -> None:
                 "--max-allowed-packet=64M",
             ], input_file=stream, timeout=300)
 
+        print("RESTORE-DRILL: SQL import completed; checking restored tables", file=sys.stderr, flush=True)
         # Run table-level consistency checks on the disposable instance.
         run_command([
             "docker", "exec", "--env", "MYSQL_PWD=" + password, name,
@@ -229,6 +233,7 @@ def run_drill(sql: Path, *, image: str = IMAGE) -> None:
             raise RuntimeError("Could not inspect recovered MySQL table count") from exc
         if tables < 1:
             raise RuntimeError("Restored MySQL contains no application tables")
+        print("RESTORE-DRILL: table checks completed; identifying restored domain schema", file=sys.stderr, flush=True)
         # Find exactly one application schema containing the documents table.
         schema_result = run_command([
             "docker", "exec", "--env", "MYSQL_PWD=" + password, name, "mysql",
@@ -265,6 +270,7 @@ def run_drill(sql: Path, *, image: str = IMAGE) -> None:
             except (UnicodeError, ValueError) as exc:
                 raise RuntimeError("Could not read isolated integrity check result") from exc
 
+        print("RESTORE-DRILL: validating owner relations and private attachments", file=sys.stderr, flush=True)
         domain_checks = verify_domain_integrity(fetch_scalar)
         document_count = reconcile_documents(doc_result.stdout, sql.parent)
         print(f"PASS: isolated MySQL import, mysqlcheck and attachment reconciliation complete; "
