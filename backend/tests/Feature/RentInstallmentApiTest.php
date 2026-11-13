@@ -44,6 +44,36 @@ final class RentInstallmentApiTest extends TestCase
         self::assertSame(['0.02','0.01','0.01','0.01'],$amounts);
     }
 
+    public function test_partial_receipts_allocate_every_halalah_and_reject_excess_collection(): void
+    {
+        [$unitId,$tenantId]=$this->setupOwner();
+        $leaseId=$this->postJson('/api/leases',$this->payload($unitId,$tenantId,'0.05',4))
+            ->assertCreated()->json('id');
+
+        $first=$this->postJson('/api/leases/'.$leaseId.'/payments',[
+            'amount'=>'0.03','paid_on'=>'2027-01-05','method'=>'cash',
+        ])->assertCreated();
+        $allocations=$first->json('allocations');
+        self::assertCount(2,$allocations);
+        self::assertSame(
+            ['0.02','0.01'],
+            array_map(fn($item)=>(string)$item['amount'],$allocations)
+        );
+
+        $second=$this->postJson('/api/leases/'.$leaseId.'/payments',[
+            'amount'=>'0.02','paid_on'=>'2027-01-06','method'=>'cash',
+        ])->assertCreated();
+        self::assertCount(2,$second->json('allocations'));
+
+        $dues=$this->getJson('/api/dues')->assertOk();
+        foreach ($dues->json('data') as $due) {
+            self::assertSame('0.00',(string)$due['balance_amount']);
+        }
+        $this->postJson('/api/leases/'.$leaseId.'/payments',[
+            'amount'=>'0.01','paid_on'=>'2027-01-07','method'=>'cash',
+        ])->assertUnprocessable()->assertJsonValidationErrors('amount');
+    }
+
     public function test_creation_rejects_more_installments_than_cents_or_invalid_decimals(): void
     {
         [$unitId,$tenantId]=$this->setupOwner();
