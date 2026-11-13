@@ -2,11 +2,6 @@ name: Laravel API checks
 on:
   push:
     branches: [feature/production-foundation]
-    paths:
-      - "backend/**"
-      - ".github/workflows/backend-ci.yml"
-      - ".github/workflows/staging-deploy.yml"
-      - "docs/DEPLOYMENT_RUNBOOK.md"
   pull_request:
     paths:
       - "backend/**"
