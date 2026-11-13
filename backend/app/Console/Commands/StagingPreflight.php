@@ -67,6 +67,13 @@ final class StagingPreflight extends Command
             && !empty($disk['bucket']),
             'Encrypted backups require a private S3 bucket'
         );
+        // Keep staging storage names visibly distinct to reduce the chance
+        // of testing against a production backup bucket.
+        $bucket=(string)($disk['bucket']??'');
+        $check(
+            preg_match('/(^|[-_.])stag(e|ing)([-_.]|$)/i',$bucket)===1,
+            'Staging S3 bucket name must explicitly identify staging'
+        );
         $key=(string)config('backup.encryption_key');
         $check(strlen(base64_decode($key,true)?:'')===32, 'Set independent 32-byte BACKUP_ENCRYPTION_KEY');
 
