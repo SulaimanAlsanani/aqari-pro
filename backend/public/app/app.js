@@ -42,7 +42,7 @@ const lookupResources={
  property_id:'properties',unit_id:'units',tenant_id:'tenants',
  lease_id:'leases',vendor_id:'vendors'
 };
-function showLookupPicker(resource,target,label){
+function showLookupPicker(resource,target,label,filters={}){
  const dialog=el('dialog');dialog.className='lookup-dialog';
  dialog.setAttribute('aria-label','اختيار '+label);
  const panel=el('section',null,'panel');
@@ -64,7 +64,8 @@ function showLookupPicker(resource,target,label){
   const current=++generation;
   status.textContent='جاري البحث...';results.replaceChildren();
   try{
-   const response=await api('/lookups/'+resource+'?q='+encodeURIComponent(search.value.trim()));
+   const params=new URLSearchParams({...filters,q:search.value.trim()});
+   const response=await api('/lookups/'+resource+'?'+params.toString());
    if(!dialog.open||current!==generation)return;
    if(!Array.isArray(response.data))throw Error('استجابة البحث غير صالحة');
    status.textContent=response.data.length?
@@ -678,7 +679,18 @@ function drawForm(key,record=null){
   if(!record&&type==='number'&&Object.prototype.hasOwnProperty.call(lookupResources,name)){
    const picker=el('button','اختيار من السجلات','secondary');
    picker.type='button';picker.classList.add('lookup-trigger');
-   picker.addEventListener('click',()=>showLookupPicker(lookupResources[name],input,label));
+   picker.addEventListener('click',()=>{
+    const filters={};
+    if(key==='tickets'&&name==='unit_id'){
+     const id=form.elements.namedItem('property_id')?.value;
+     if(!/^[1-9][0-9]*$/.test(id||'')){
+      notify('اختر العقار أولًا حتى تظهر وحداته فقط',true);return;
+     }
+     filters.property_id=id;
+    }
+    if(key==='payments'&&name==='lease_id')filters.receivable='1';
+    showLookupPicker(lookupResources[name],input,label,filters);
+   });
    div.appendChild(picker);
   }
   form.appendChild(div);
