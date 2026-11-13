@@ -62,3 +62,9 @@ docker compose --env-file "$STAGING_ENV_FILE" -f compose.staging-isolated.yaml \
 Replace the example mailbox with an actual authorized test inbox before execution. This sends a real generic test email **only when the option is supplied** and only after the MySQL/ClamAV and private S3 checks pass. A successful SMTP call means the configured transport accepted the message; the operator must still confirm inbox delivery. No customer data is included.
 
 The command refuses non-staging environments and invalid recipient addresses, and requires an SMTP mailer before attempting remote probes when a recipient is supplied. Never use production SMTP credentials or the production S3 bucket for staging. The command has no automated schedule, and is not a substitute for an encrypted-backup recovery drill, email deliverability monitoring or HTTPS browser tests.
+
+## Read-only browser acceptance
+
+The new `browser-acceptance/` suite uses Playwright to check the actual server-hosted owner portal after the HTTPS proxy, MySQL, ClamAV and S3 checks succeed. Read `browser-acceptance/README.md` before running. It requires a matched, explicitly allowlisted staging HTTPS hostname and (for the owner journey) a dedicated synthetic owner account.
+
+Execute `npm run check` first to validate JavaScript and the production-target safety guard; then `npm test` on the authorized staging host. It verifies login, dashboard, property/unit/tenant/lease/due/payment/document lists, cashflow and logout without creating financial records. Browser traces, screenshots and videos are disabled. **The GitHub CI job performs offline syntax/guard checks only**; it does not perform a live browser acceptance test, and missing test credentials cause the authenticated browser journey to skip.
