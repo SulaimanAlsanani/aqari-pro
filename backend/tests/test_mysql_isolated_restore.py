@@ -131,6 +131,22 @@ class RestoreDrillSafetyTest(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             module.verify_domain_integrity(scalar)
 
+    def test_native_mysql_table_check_requires_all_core_tables_to_report_ok(self):
+        tables = (*module.DOMAIN_TABLES, "documents")
+        rows = "".join(
+            f"aqari_restore_probe.{table}\tcheck\tstatus\tOK\n"
+            for table in tables
+        ).encode()
+        self.assertEqual(module.verify_table_check_results(rows, "aqari_restore_probe"), len(tables))
+        for invalid in (
+            rows.rsplit(b"\n", 2)[0] + b"\n",
+            rows.replace(b"\tstatus\tOK", b"\tstatus\tcorrupt", 1),
+            rows.replace(b"aqari_restore_probe.users", b"production.users", 1),
+            rows + b"malformed\n",
+        ):
+            with self.assertRaises(RuntimeError):
+                module.verify_table_check_results(invalid, "aqari_restore_probe")
+
     def test_docker_container_is_networkless_and_mountless(self):
         calls = []
 
@@ -145,6 +161,12 @@ class RestoreDrillSafetyTest(unittest.TestCase):
                     sql = args[args.index("--execute") + 1]
                     if sql == "SELECT 1":
                         return type("Done", (), {"stdout": b"1\n"})()
+                    if sql.startswith("CHECK TABLE "):
+                        rows = [
+                            f"aqari_restore_probe.{table}\tcheck\tstatus\tOK\n"
+                            for table in (*module.DOMAIN_TABLES, "documents")
+                        ]
+                        return type("Done", (), {"stdout": "".join(rows).encode()})()
                     if "TABLE_NAME='documents'" in sql:
                         return type("Done", (), {"stdout": b"aqari_restore_probe\n"})()
                     if "HEX(path)" in sql:
@@ -162,11 +184,17 @@ class RestoreDrillSafetyTest(unittest.TestCase):
                 with patch.object(module.subprocess, "run") as cleanup:
                     module.run_drill(self.sql)
                     cleanup.assert_called_once()
-        check_calls = [args for args in calls if args[:2] == ["docker", "exec"] and "mysqlcheck" in args]
+        check_calls = [
+            args for args in calls
+            if args[:2] == ["docker", "exec"] and "--execute" in args
+            and args[args.index("--execute") + 1].startswith("CHECK TABLE ")
+        ]
         self.assertEqual(len(check_calls), 1)
-        self.assertNotIn("--all-databases", check_calls[0])
-        self.assertIn("--databases", check_calls[0])
-        self.assertEqual(check_calls[0][check_calls[0].index("--databases") + 1], "aqari_restore_probe")
+        self.assertNotIn("mysqlcheck", str(calls))
+        self.assertEqual(
+            check_calls[0][check_calls[0].index("--database") + 1],
+            "aqari_restore_probe",
+        )
         launch = next(args for args in calls if args[:2] == ["docker", "run"])
         self.assertEqual(launch[:2], ["docker", "run"])
         self.assertEqual(launch[launch.index("--network") + 1], "none")
