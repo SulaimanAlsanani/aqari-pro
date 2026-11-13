@@ -236,7 +236,7 @@ function showMaintenanceResolution(ticket){
  form.addEventListener('submit',async event=>{
   event.preventDefault();submit.disabled=true;
   const values=Object.fromEntries(new FormData(form));
-  const payload={actual_cost:Number(values.actual_cost),resolved_on:values.resolved_on};
+  const payload={actual_cost:values.actual_cost,resolved_on:values.resolved_on};
   if(values.description.trim())payload.description=values.description.trim();
   try{await api('/tickets/'+ticket.id+'/resolve',{method:'POST',body:payload});notify('تم إغلاق البلاغ وتسجيل تكلفته بنجاح');await refresh()}
   catch(error){notify(error.message,true);submit.disabled=false}
@@ -285,7 +285,7 @@ async function showDepositLedger(lease){
   submit.type='submit';back.type='button';back.addEventListener('click',()=>refresh());actions.append(submit,back);form.append(actions);
   form.addEventListener('submit',async event=>{
    event.preventDefault();submit.disabled=true;
-   const data=Object.fromEntries(new FormData(form));data.amount=Number(data.amount);
+   const data=Object.fromEntries(new FormData(form)); // Keep deposit money as decimal text.
    if(!data.reason)delete data.reason;if(!data.reference)delete data.reference;
    if(data.kind!=='deduction'||!data.handover_damage_id)delete data.handover_damage_id;
    else data.handover_damage_id=Number(data.handover_damage_id);
@@ -411,7 +411,7 @@ async function showHandoverDamages(lease){
    form.addEventListener('submit',async event=>{
     event.preventDefault();submit.disabled=true;
     try{
-     await api('/leases/'+lease.id+'/damages',{method:'POST',body:{description:description.value.trim(),estimated_cost:Number(cost.value)}});
+     await api('/leases/'+lease.id+'/damages',{method:'POST',body:{description:description.value.trim(),estimated_cost:cost.value}});
      notify('تم حفظ التلفيات. يمكنك الآن إرفاق صور الإثبات.');await showHandoverDamages(lease);
     }catch(err){notify(err.message,true);submit.disabled=false}
    });
