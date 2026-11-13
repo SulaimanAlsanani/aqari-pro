@@ -13,7 +13,7 @@ class OperationsController extends Controller{
   $this->ownedProperty($request,$property);
   $data=$request->validate([
    'category'=>'required|string|max:80','description'=>'required|string|max:300',
-   'amount'=>'required|numeric|gt:0','incurred_on'=>'required|date'
+   'amount'=>'required|numeric|gt:0|decimal:0,2|max:9999999999.99','incurred_on'=>'required|date'
   ]);
   return response()->json($property->expenses()->create($data),201);
  }
@@ -22,7 +22,7 @@ class OperationsController extends Controller{
   $data=$request->validate([
    'unit_id'=>'nullable|integer','vendor_id'=>'nullable|integer','title'=>'required|string|max:250',
    'description'=>'nullable|string|max:5000','priority'=>'required|in:low,normal,high,urgent',
-   'estimated_cost'=>'nullable|numeric|min:0'
+   'estimated_cost'=>'nullable|numeric|min:0|decimal:0,2|max:9999999999.99'
   ]);
   if(isset($data['unit_id']))abort_unless($property->units()->whereKey($data['unit_id'])->exists(),422);
   if(isset($data['vendor_id']))abort_unless(Vendor::where('user_id',$request->user()->id)->whereKey($data['vendor_id'])->exists(),422);
@@ -63,13 +63,15 @@ class OperationsController extends Controller{
   $leaseIds=Lease::whereHas('unit.property',fn($q)=>$q->where('user_id',$uid))->select('id');
   $received=Payment::whereIn('lease_id',$leaseIds)->whereNull('voided_at')->sum('amount');
   $expenses=Expense::whereIn('property_id',$propertyIds)->sum('amount');
+  $received=bcadd((string)$received,'0',2);
+  $expenses=bcadd((string)$expenses,'0',2);
   return response()->json([
    'properties'=>Property::where('user_id',$uid)->count(),
    'units'=>Unit::whereIn('property_id',$propertyIds)->count(),
    'tenants'=>\App\Models\Tenant::where('user_id',$uid)->count(),
-   'received'=>(string)$received,
-   'expenses'=>(string)$expenses,
-   'net_cashflow'=>number_format((float)$received-(float)$expenses,2,'.',''),
+   'received'=>$received,
+   'expenses'=>$expenses,
+   'net_cashflow'=>bcsub($received,$expenses,2),
    'open_tickets'=>MaintenanceTicket::whereIn('property_id',$propertyIds)->whereIn('status',['open','in_progress'])->count()
   ]);
  }
