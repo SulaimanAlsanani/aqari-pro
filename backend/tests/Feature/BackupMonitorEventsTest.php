@@ -2,6 +2,7 @@
 namespace Tests\Feature;
 
 use App\Support\BackupMonitorEvents;
+use App\Mail\BackupHealthAlert;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
@@ -31,6 +32,9 @@ final class BackupMonitorEventsTest extends TestCase
         BackupMonitorEvents::record('stale');
         BackupMonitorEvents::record('unknown');
         Mail::assertSentCount(1);
+        Mail::assertSent(BackupHealthAlert::class, fn(BackupHealthAlert $mail) =>
+            $mail->state==='stale' && $mail->hasTo('ops@example.test')
+        );
     }
 
     public function test_disabled_alerts_do_not_email(): void
