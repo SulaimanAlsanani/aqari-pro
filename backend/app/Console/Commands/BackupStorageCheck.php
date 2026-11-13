@@ -61,8 +61,10 @@ class BackupStorageCheck extends Command
             if ($disk !== null) {
                 // A remote upload may leave a partial object even on failure.
                 try {
-                    if (!$disk->delete($path)) {
-                        $this->error('Could not remove the backup verification probe.');
+                    if (!$disk->delete($path) || $disk->exists($path)) {
+                        // Some S3-compatible adapters report a successful
+                        // delete even when the object remains available.
+                        $this->error('Could not verify removal of the backup probe.');
                         $cleanupOk = false;
                     }
                 } catch (Throwable $exception) {
