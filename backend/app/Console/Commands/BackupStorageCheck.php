@@ -35,41 +35,45 @@ class BackupStorageCheck extends Command
         }
 
         $path = 'healthchecks/'.Str::uuid().'.bin';
-        $payload = random_bytes(64);
-        $disk = Storage::disk($name);
+        $success = false;
         $cleanupOk = true;
+        $disk = null;
 
         try {
+            // Disk creation may itself fail (bad adapter, credentials, invalid
+            // endpoint). Include it in the guarded block.
+            $disk = Storage::disk($name);
+            $payload = random_bytes(64);
             if (!$disk->put($path, $payload, ['visibility' => 'private'])) {
                 throw new \RuntimeException('Probe upload failed.');
             }
-            // A failed remote upload can still leave a partial object; cleanup is unconditional.
             $read = $disk->get($path);
-            if (!is_string($read) || !hash_equals(hash('sha256', $payload), hash('sha256', $read))) {
-                throw new \RuntimeException('Probe integrity mismatch.');
+            if (!is_string($read) || !hash_equals(
+                hash('sha256', $payload), hash('sha256', $read)
+            )) {
+                throw new \\RuntimeException('Probe integrity mismatch.');
             }
-            $this->info('Backup storage write and read verified; checking cleanup.');
+            $success = true;
         } catch (Throwable $exception) {
             report($exception);
             $this->error('Backup storage verification failed; inspect protected server logs.');
-            return self::FAILURE;
         } finally {
-            // Removal must also succeed; handled by the check below.
-            {
+            if ($disk !== null) {
+                // A remote upload may leave a partial object even on failure.
                 try {
                     if (!$disk->delete($path)) {
-                        $this->error('Could not remove verification probe: '.$path);
+                        $this->error('Could not remove the backup verification probe.');
                         $cleanupOk = false;
                     }
                 } catch (Throwable $exception) {
                     report($exception);
-                    $this->error('Could not remove verification probe; inspect protected server logs.');
+                    $this->error('Could not remove the backup verification probe.');
                     $cleanupOk = false;
                 }
             }
         }
 
-        if (!$cleanupOk) {
+        if (!$success || !$cleanupOk) {
             return self::FAILURE;
         }
         $this->info('Private backup storage probe completed and removed.');
