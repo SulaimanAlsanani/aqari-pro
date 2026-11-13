@@ -78,7 +78,13 @@ async function main() {
       await page.locator('#nav button').filter({ hasText: 'الوحدات' }).click();
       await page.locator('#sectionTitle').getByText('الوحدات').waitFor();
       await page.locator('#view button').filter({ hasText: '+ إضافة سجل' }).click();
-      await page.locator('#field-property_id').fill(propertyId);
+      await page.locator('#field-property_id').locator('..')
+        .getByRole('button', { name: 'اختيار من السجلات' }).click();
+      const propertyPicker = page.getByRole('dialog', { name: 'اختيار رقم العقار' });
+      await propertyPicker.locator('input[type=search]').fill('عقار اختبار المتصفح ' + viewport.width);
+      await propertyPicker.getByRole('button', { name: new RegExp('عقار اختبار المتصفح ' + viewport.width) })
+        .click();
+      assert.equal(await page.locator('#field-property_id').inputValue(), propertyId);
       await page.locator('#field-code').fill('U-' + viewport.width);
       await page.locator('#field-type').fill('apartment');
       await page.locator('#view form button[type=submit]').click();
@@ -101,8 +107,18 @@ async function main() {
       await page.locator('#nav button').filter({ hasText: 'العقود' }).click();
       await page.locator('#sectionTitle').getByText('العقود').waitFor();
       await page.locator('#view button').filter({ hasText: '+ إضافة سجل' }).click();
-      await page.locator('#field-unit_id').fill(unitId);
-      await page.locator('#field-tenant_id').fill(tenantId);
+      await page.locator('#field-unit_id').locator('..')
+        .getByRole('button', { name: 'اختيار من السجلات' }).click();
+      const unitPicker = page.getByRole('dialog', { name: 'اختيار رقم الوحدة' });
+      await unitPicker.locator('input[type=search]').fill('U-' + viewport.width);
+      await unitPicker.getByRole('button', { name: new RegExp('U-' + viewport.width) }).click();
+      assert.equal(await page.locator('#field-unit_id').inputValue(), unitId);
+      await page.locator('#field-tenant_id').locator('..')
+        .getByRole('button', { name: 'اختيار من السجلات' }).click();
+      const tenantPicker = page.getByRole('dialog', { name: 'اختيار رقم المستأجر' });
+      await tenantPicker.locator('input[type=search]').fill('مستأجر اختبار المتصفح ' + viewport.width);
+      await tenantPicker.getByRole('button', { name: new RegExp('مستأجر اختبار المتصفح ' + viewport.width) }).click();
+      assert.equal(await page.locator('#field-tenant_id').inputValue(), tenantId);
       await page.locator('#field-starts_on').fill('2025-01-01');
       await page.locator('#field-ends_on').fill('2025-12-31');
       await page.locator('#field-total_amount').fill('1200');
@@ -121,7 +137,12 @@ async function main() {
       await page.locator('#nav button').filter({ hasText: 'المقبوضات' }).click();
       await page.locator('#sectionTitle').getByText('المقبوضات').waitFor();
       await page.locator('#view button').filter({ hasText: '+ إضافة سجل' }).click();
-      await page.locator('#field-lease_id').fill(leaseId);
+      await page.locator('#field-lease_id').locator('..')
+        .getByRole('button', { name: 'اختيار من السجلات' }).click();
+      const leasePicker = page.getByRole('dialog', { name: 'اختيار رقم العقد' });
+      await leasePicker.locator('input[type=search]').fill(leaseId);
+      await leasePicker.getByRole('button', { name: new RegExp('عقد #' + leaseId + ' ') }).click();
+      assert.equal(await page.locator('#field-lease_id').inputValue(), leaseId);
       await page.locator('#field-amount').fill('1200');
       await page.locator('#field-paid_on').fill('2025-12-31');
       await page.locator('#field-method').selectOption('bank_transfer');
