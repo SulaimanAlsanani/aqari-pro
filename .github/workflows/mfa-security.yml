@@ -39,6 +39,7 @@ jobs:
           php -l app/Support/Totp.php
           php -l app/Http/Controllers/Api/MfaController.php
           php -l app/Http/Controllers/Api/AuthController.php
+          php -l app/Http/Controllers/Api/StagingE2eController.php
           php -l app/Http/Controllers/Api/SessionController.php
           php -l app/Console/Commands/BackupStorageCheck.php
           php -l app/Console/Commands/BackupMake.php
@@ -48,6 +49,8 @@ jobs:
           php -l app/Console/Commands/StagingPreflight.php
           php -l app/Console/Commands/StagingServicesCheck.php
           php -l app/Support/BackupMonitorEvents.php
+          php -l config/staging.php
+          php -l routes/api.php
           php -l routes/console.php
           php -l app/Support/BackupEnvelope.php
           php -l app/Support/BackupArchiveValidator.php
@@ -60,6 +63,7 @@ jobs:
           php -l tests/Feature/OwnerMfaTest.php
           php -l tests/Feature/OwnerPortfolioRecoverySmokeTest.php
           php -l tests/Feature/StagingPreflightTest.php
+          php -l tests/Feature/StagingE2eReadinessTest.php
           php -l tests/Feature/StagingServicesCheckTest.php
           php -l tests/Feature/OwnerSessionTest.php
           php -l tests/Feature/BackupStorageCheckTest.php
@@ -76,7 +80,7 @@ jobs:
           php -l tests/Unit/BackupStagedFilesVerifierTest.php
           php -l tests/Unit/TotpTest.php
       - name: Run TOTP vectors and owner MFA integration tests
-        run: php artisan test --filter='TotpTest|OwnerMfaTest|OwnerSessionTest|BackupStorageCheckTest|BackupMakeGuardTest|BackupEnvelopeTest|BackupArchiveValidatorTest|BackupVerifyTest|BackupStageRestoreTest|BackupStatusTest|BackupMonitorEventsTest|MySqlSnapshotTest|BackupMySqlStageTest|BackupAttachmentAuditTest|BackupStagedFilesVerifierTest|OwnerPortfolioRecoverySmokeTest|StagingPreflightTest|StagingServicesCheckTest'
+        run: php artisan test --filter='TotpTest|OwnerMfaTest|OwnerSessionTest|BackupStorageCheckTest|BackupMakeGuardTest|BackupEnvelopeTest|BackupArchiveValidatorTest|BackupVerifyTest|BackupStageRestoreTest|BackupStatusTest|BackupMonitorEventsTest|MySqlSnapshotTest|BackupMySqlStageTest|BackupAttachmentAuditTest|BackupStagedFilesVerifierTest|OwnerPortfolioRecoverySmokeTest|StagingPreflightTest|StagingServicesCheckTest|StagingE2eReadinessTest'
       - name: Check portal JavaScript syntax
         run: node --check public/app/app.js
       - name: Validate browser staging target policy and Playwright test syntax
@@ -84,6 +88,7 @@ jobs:
           node --check browser-acceptance/playwright.config.cjs
           node --check browser-acceptance/staging-guard.cjs
           node --check browser-acceptance/tests/owner-portal.spec.cjs
+          node --check browser-acceptance/tests/owner-write.spec.cjs
           node --test browser-acceptance/tests/staging-guard.test.cjs
       - name: Validate isolated MySQL restore drill syntax and safety
         run: |
