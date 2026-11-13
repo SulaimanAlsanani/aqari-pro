@@ -3,6 +3,7 @@
 let accessToken=null,active='overview',user=null;
 let resetToken=null,resetEmail=null;
 let refreshEpoch=0; // Prevent late API responses from replacing a newer section.
+let reconciliationEpoch=0; // Prevent older reconciliation pages replacing newer pages.
 const $=id=>document.getElementById(id);
 const sections=[
  ['overview','لوحة أملاكي'],['alerts','التنبيهات'],['properties','العقارات'],['units','الوحدات'],['tenants','المستأجرون'],
@@ -995,9 +996,10 @@ async function showAlerts(epoch=refreshEpoch){
  view.append(expiring);
 }
 async function showReconciliation(page=1,epoch=refreshEpoch){
+ const pageEpoch=++reconciliationEpoch;
  const view=$('view');view.replaceChildren(el('p','جاري مطابقة العقود والمدفوعات...','muted'));
  const data=await api('/reconciliation?page='+page);
- if(epoch!==refreshEpoch||active!=='reconciliation')return;
+ if(epoch!==refreshEpoch||pageEpoch!==reconciliationEpoch||active!=='reconciliation')return;
  view.replaceChildren();
  const info=el('div',null,'panel'),heading=el('h3','فحص التوافق بين الأقساط والمقبوضات');
  info.append(heading,el('p','تتم المطابقة داخل حساب المالك فقط؛ أي اختلاف يظهر للمراجعة ولا يجري تعديله تلقائيًا.','muted'));
