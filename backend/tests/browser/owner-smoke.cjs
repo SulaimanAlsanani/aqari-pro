@@ -175,6 +175,15 @@ async function main() {
       await maintenanceDialog.locator('input[type=search]').fill('U-' + viewport.width);
       await maintenanceDialog.getByRole('button', { name: new RegExp('U-' + viewport.width) }).click();
       assert.equal(await page.locator('#field-unit_id').inputValue(), unitId);
+      await page.locator('#field-property_id').fill('');
+      assert.equal(await page.locator('#field-unit_id').inputValue(), '',
+        'changing the maintenance property must clear the previous unit');
+      await page.locator('#field-property_id').fill(propertyId);
+      await maintenanceUnitPicker.click();
+      const updatedDialog = page.getByRole('dialog', { name: 'اختيار رقم الوحدة' });
+      await updatedDialog.locator('input[type=search]').fill('U-' + viewport.width);
+      await updatedDialog.getByRole('button', { name: new RegExp('U-' + viewport.width) }).click();
+      assert.equal(await page.locator('#field-unit_id').inputValue(), unitId);
       await page.locator('#field-title').fill('بلاغ صيانة تجريبي ' + viewport.width);
       await page.locator('#field-priority').selectOption('normal');
       await page.locator('#view form button[type=submit]').click();
