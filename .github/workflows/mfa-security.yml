@@ -56,6 +56,7 @@ jobs:
           php -l database/migrations/2026_11_12_120000_add_mfa_to_users_table.php
           php -l database/migrations/2026_11_12_130000_add_mfa_pending_expiry_to_users_table.php
           php -l tests/Feature/OwnerMfaTest.php
+          php -l tests/Feature/OwnerPortfolioRecoverySmokeTest.php
           php -l tests/Feature/OwnerSessionTest.php
           php -l tests/Feature/BackupStorageCheckTest.php
           php -l tests/Feature/BackupMakeGuardTest.php
@@ -71,7 +72,7 @@ jobs:
           php -l tests/Unit/BackupStagedFilesVerifierTest.php
           php -l tests/Unit/TotpTest.php
       - name: Run TOTP vectors and owner MFA integration tests
-        run: php artisan test --filter='TotpTest|OwnerMfaTest|OwnerSessionTest|BackupStorageCheckTest|BackupMakeGuardTest|BackupEnvelopeTest|BackupArchiveValidatorTest|BackupVerifyTest|BackupStageRestoreTest|BackupStatusTest|BackupMonitorEventsTest|MySqlSnapshotTest|BackupMySqlStageTest|BackupAttachmentAuditTest|BackupStagedFilesVerifierTest'
+        run: php artisan test --filter='TotpTest|OwnerMfaTest|OwnerSessionTest|BackupStorageCheckTest|BackupMakeGuardTest|BackupEnvelopeTest|BackupArchiveValidatorTest|BackupVerifyTest|BackupStageRestoreTest|BackupStatusTest|BackupMonitorEventsTest|MySqlSnapshotTest|BackupMySqlStageTest|BackupAttachmentAuditTest|BackupStagedFilesVerifierTest|OwnerPortfolioRecoverySmokeTest'
       - name: Check portal JavaScript syntax
         run: node --check public/app/app.js
       - name: Validate isolated MySQL restore drill syntax and safety
