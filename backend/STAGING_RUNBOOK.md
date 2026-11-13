@@ -20,7 +20,11 @@ docker compose --env-file "$STAGING_ENV_FILE" -f compose.staging-isolated.yaml c
 docker compose --env-file "$STAGING_ENV_FILE" -f compose.staging-isolated.yaml up -d --build
 docker compose --env-file "$STAGING_ENV_FILE" -f compose.staging-isolated.yaml ps
 docker compose --env-file "$STAGING_ENV_FILE" -f compose.staging-isolated.yaml exec -T app php artisan staging:preflight
+# ClamAV signatures live in a separate persistent staging volume. A new volume
+# normally has no usable definitions; refresh explicitly before the live gate:
+docker compose --env-file "$STAGING_ENV_FILE" -f compose.staging-isolated.yaml exec -T app freshclam --stdout
 docker compose --env-file "$STAGING_ENV_FILE" -f compose.staging-isolated.yaml exec -T app php artisan staging:preflight --live
+docker compose --env-file "$STAGING_ENV_FILE" -f compose.staging-isolated.yaml exec -T app php artisan staging:check-antivirus
 docker compose --env-file "$STAGING_ENV_FILE" -f compose.staging-isolated.yaml exec -T app php artisan migrate:status
 curl --fail --silent --show-error http://127.0.0.1:18080/up
 ```
@@ -37,7 +41,7 @@ The staging stack is not production-ready by itself: CI must pass, SMTP delivery
 
 ## Live readiness safeguards
 
-The optional `staging:preflight --live` checks **read-only** MySQL connectivity using `SELECT 1` and ensures a local ClamAV executable and both main/daily signature databases are present. It **will not open a database connection if any static staging isolation rule fails**. This avoids trusting a misconfigured database endpoint simply because the command was invoked. The check does not execute a malware scan or prove signatures are current; inspect `freshclam` update logs and perform a safe scanner test separately.
+The optional `staging:preflight --live` checks **read-only** MySQL connectivity using `SELECT 1` and ensures a local ClamAV executable and both main/daily signature databases are present. It **will not open a database connection if any static staging isolation rule fails**. This avoids trusting a misconfigured database endpoint simply because the command was invoked. After refreshing signatures with `freshclam` (staging container only), run `staging:check-antivirus`: it checks a harmless clean file and a standard non-malicious EICAR antivirus test pattern, requiring ClamAV to accept the former and reject the latter. The preflight signature-file check alone does not establish engine functionality or database freshness. Review signature-update logs and schedule a separately reviewed refresh policy before deployment.
 
 After the live preflight, conduct `backup:check-storage` with staging-specific S3 credentials and verify SMTP delivery without sending production messages. Both are separate operational gates; neither is performed by the preflight. Record the outcome of each gate in the deployment checklist, without recording credentials. Do not proceed to application/browser acceptance until these checks pass and the staging HTTPS reverse proxy is independently verified.
 
@@ -50,7 +54,7 @@ docker compose --env-file "$STAGING_ENV_FILE" -f compose.staging-isolated.yaml \
   exec -T app php artisan staging:check-services
 ```
 
-This command first re-runs the live staging configuration, read-only MySQL and ClamAV-signature checks. **Only if these succeed** does it call `backup:check-storage` to upload, read, verify and remove a random 64-byte object in the *staging* S3-compatible bucket. If any prerequisite fails, no S3 or SMTP action is attempted. It does not access live owner documents or perform a database restore.
+This command first re-runs the live staging configuration, read-only MySQL and ClamAV-signature checks, then verifies ClamAV can detect the harmless EICAR test pattern. **Only if all these succeed** does it call `backup:check-storage` to upload, read, verify and remove a random 64-byte object in the *staging* S3-compatible bucket. If any prerequisite fails, no S3 or SMTP action is attempted. It does not access live owner documents or perform a database restore.
 
 To explicitly test SMTP submission to an operator-controlled **staging test mailbox**:
 
@@ -80,3 +84,9 @@ The authenticated server-side `/api/staging/e2e-readiness` denies access unless 
 ### Browser acceptance command safety (November 2026)
 
 Use `npm test` for basic read-only tests, `npm run test:live` for a real read-only acceptance run with mandatory staging-owner credentials, and **only** `npm run test:write` for the explicitly confirmed synthetic finance/document write test. The Playwright configuration selects only the matching test file; normal `npm test` never schedules `owner-write.spec.cjs`. Always validate the hostname, staging API database configuration and synthetic account before granting write approval.
+
+### ClamAV initialisation and signature upkeep
+
+The standalone staging image includes `freshclam` and `clamscan`, but Docker does not automatically update the persisted signature volume. After the app container first starts, run `docker compose --env-file "$STAGING_ENV_FILE" -f compose.staging-isolated.yaml exec -T app freshclam --stdout` on the dedicated staging host, then `php artisan staging:preflight --live` and `php artisan staging:check-antivirus` inside that same container. The functional probe creates and deletes harmless ephemeral files, never scans owner data, and must exit successfully before the S3/SMTP service check.
+
+Refresh signatures regularly using a **separately managed, operator-approved** staging update schedule. Update failures should block new deployments and alert operations. A newly deployed container with an uninitialized or stale signature volume must not be considered ready for uploads. Do not run `freshclam` against production infrastructure as part of this staging procedure.
