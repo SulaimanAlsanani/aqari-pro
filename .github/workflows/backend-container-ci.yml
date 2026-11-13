@@ -3,11 +3,9 @@ on:
   push:
     branches: [feature/production-foundation]
     paths:
-      - "backend/Dockerfile"
-      - "backend/.docker/**"
-      - "backend/compose.yaml"
-      - "backend/composer.json"
-      - "backend/scripts/**"
+      # Deployment requires a successful container check for the exact SHA.
+      # Any backend change can affect the built image or runtime behavior.
+      - "backend/**"
       - ".github/workflows/backend-container-ci.yml"
       - ".github/workflows/staging-deploy.yml"
       - "docs/DEPLOYMENT_RUNBOOK.md"
