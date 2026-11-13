@@ -61,6 +61,23 @@ final class RentInstallmentApiTest extends TestCase
         self::assertCount(1,$dates);
     }
 
+    public function test_month_end_lease_installments_keep_calendar_dates_without_overflow(): void
+    {
+        [$unitId,$tenantId]=$this->setupOwner();
+        $data=$this->payload($unitId,$tenantId,'1200.00',12);
+        $data['starts_on']='2027-01-31';
+        $data['ends_on']='2028-01-30';
+
+        $id=$this->postJson('/api/leases',$data)->assertCreated()->json('id');
+        $dates=Lease::findOrFail($id)->dues()->orderBy('sequence')->get()
+            ->map(fn($due)=>$due->due_on->toDateString())->all();
+        self::assertCount(12,$dates);
+        self::assertSame('2027-01-31',$dates[0]);
+        self::assertSame('2027-02-28',$dates[1]);
+        self::assertSame('2027-03-31',$dates[2]);
+        self::assertSame('2027-12-31',$dates[11]);
+    }
+
     public function test_partial_receipts_allocate_every_halalah_and_reject_excess_collection(): void
     {
         [$unitId,$tenantId,$propertyId]=$this->setupOwner();
