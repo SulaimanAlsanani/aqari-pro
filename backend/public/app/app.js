@@ -2,6 +2,7 @@
 'use strict';
 let accessToken=null,active='overview',user=null;
 let resetToken=null,resetEmail=null;
+let refreshEpoch=0; // Prevent late API responses from replacing a newer section.
 const $=id=>document.getElementById(id);
 const sections=[
  ['overview','لوحة أملاكي'],['alerts','التنبيهات'],['properties','العقارات'],['units','الوحدات'],['tenants','المستأجرون'],
@@ -41,6 +42,7 @@ function showAuthPanel(mode='login'){
  $(mode==='forgot'?'forgotPanel':mode==='reset'?'resetPanel':'loginPanel').classList.remove('hidden');
 }
 function resetAuth(){
+ refreshEpoch++;
  accessToken=null;user=null;showAuthPanel('login');$('workspace').classList.add('hidden');$('logout').classList.add('hidden');$('password').value='';$('mfaLoginCode').value='';$('mfaLoginField').classList.add('hidden');
 }
 async function api(path,options={}){
@@ -757,10 +759,11 @@ async function download(id,name){
   setTimeout(()=>URL.revokeObjectURL(url),4000);
  }catch(err){notify(err.message,true)}
 }
-async function showDepositReport(){
+async function showDepositReport(epoch=refreshEpoch){
  const view=$('view');
  view.replaceChildren(el('p','جاري تحميل تقرير التأمينات...','muted'));
  const report=await api('/reports/deposits');
+ if(epoch!==refreshEpoch||active!=='deposit-report')return;
  view.replaceChildren();
  const info=el('section',null,'panel');
  info.append(el('h3','أرصدة تأمينات المستأجرين'),el('p','هذه الأرصدة أمانات محتفظ بها، وليست إيرادات إيجارية. التقرير تراكمي حتى '+report.as_of+'.','muted'));
@@ -799,6 +802,7 @@ async function showCashflow(){
   try{
    const query=new URLSearchParams(new FormData(form));
    const data=await api('/reports/cashflow?'+query.toString());
+   if(active!=='reports'||!view.contains(result))return;
    result.replaceChildren(el('h3','ملخص الفترة: '+data.from+' إلى '+data.to));
    const metrics=el('div',null,'metrics');
    for(const [label,value] of [['المقبوضات',data.totals.received],['المصروفات',data.totals.expenses],['صافي التدفق',data.totals.net]]){
@@ -815,7 +819,7 @@ async function showCashflow(){
     tbody.appendChild(tr);
    }
    table.append(tbody);wrap.append(table);result.append(wrap);
-  }catch(error){notify(error.message,true)}finally{button.disabled=false}
+  }catch(error){if(active==='reports'&&view.contains(result))notify(error.message,true)}finally{button.disabled=false}
  });
  form.requestSubmit();
 }
@@ -960,9 +964,10 @@ function showAccount(){
  });
  section.append(h,explanation,form);view.append(section);showMfaSettings();showSessionSettings();
 }
-async function showAlerts(){
+async function showAlerts(epoch=refreshEpoch){
  const view=$('view');view.replaceChildren(el('p','جاري تحميل التنبيهات...','muted'));
  const data=await api('/alerts');
+ if(epoch!==refreshEpoch||active!=='alerts')return;
  view.replaceChildren();
  const metrics=el('div',null,'metrics');
  for(const [label,value] of [['أقساط متأخرة',data.overdue_count],['أقساط خلال 30 يومًا',data.upcoming_count],['عقود تنتهي خلال 30 يومًا',data.expiring_leases.length]]){
@@ -989,9 +994,10 @@ async function showAlerts(){
  }
  view.append(expiring);
 }
-async function showReconciliation(page=1){
+async function showReconciliation(page=1,epoch=refreshEpoch){
  const view=$('view');view.replaceChildren(el('p','جاري مطابقة العقود والمدفوعات...','muted'));
  const data=await api('/reconciliation?page='+page);
+ if(epoch!==refreshEpoch||active!=='reconciliation')return;
  view.replaceChildren();
  const info=el('div',null,'panel'),heading=el('h3','فحص التوافق بين الأقساط والمقبوضات');
  info.append(heading,el('p','تتم المطابقة داخل حساب المالك فقط؛ أي اختلاف يظهر للمراجعة ولا يجري تعديله تلقائيًا.','muted'));
@@ -1020,19 +1026,28 @@ async function showReconciliation(page=1){
  }
 }
 async function refresh(page=1){
- $('sectionTitle').textContent=sections.find(x=>x[0]===active)?.[1]||'عقاري برو';
+ const epoch=++refreshEpoch,section=active;
+ $('sectionTitle').textContent=sections.find(x=>x[0]===section)?.[1]||'عقاري برو';
  const view=$('view');view.replaceChildren(el('p','جاري تحميل البيانات...','muted'));
  try{
-  if(active==='overview'){drawOverview(await api('/overview'));return}
-  if(active==='alerts'){await showAlerts();return}
-  if(active==='reports'){await showCashflow();return}
-  if(active==='deposit-report'){await showDepositReport();return}
-  if(active==='reconciliation'){await showReconciliation();return}
-  if(active==='account'){showAccount();return}
-  const url=active==='properties'?'/portfolio':'/'+active;
+  if(section==='overview'){
+   const data=await api('/overview');
+   if(epoch===refreshEpoch&&active===section)drawOverview(data);
+   return;
+  }
+  if(section==='alerts'){await showAlerts(epoch);return}
+  if(section==='reports'){await showCashflow();return}
+  if(section==='deposit-report'){await showDepositReport(epoch);return}
+  if(section==='reconciliation'){await showReconciliation(1,epoch);return}
+  if(section==='account'){showAccount();return}
+  const url=section==='properties'?'/portfolio':'/'+section;
   const data=await api(url+'?page='+page);
-  drawList(active==='properties'?data.properties:data,active);
- }catch(err){view.replaceChildren(el('p',err.message,'muted'));notify(err.message,true)}
+  if(epoch!==refreshEpoch||active!==section)return;
+  drawList(section==='properties'?data.properties:data,section);
+ }catch(err){
+  if(epoch!==refreshEpoch||active!==section)return;
+  view.replaceChildren(el('p',err.message,'muted'));notify(err.message,true)
+ }
 }
 // Consume reset credentials without retaining the one-time token in the browser URL.
 const resetQuery=new URLSearchParams(window.location.search);
