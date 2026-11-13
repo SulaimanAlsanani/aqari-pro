@@ -10,7 +10,7 @@ class MaintenanceWorkflowController extends Controller {
  public function resolve(Request $request,MaintenanceTicket $ticket) {
   abort_unless($ticket->property()->where('user_id',$request->user()->id)->exists(),404);
   $data=$request->validate([
-   'actual_cost'=>['required','numeric','min:0','decimal:0,2'],
+   'actual_cost'=>['required','numeric','min:0','decimal:0,2','max:9999999999.99'],
    'resolved_on'=>['required','date','before_or_equal:today'],
    'description'=>['nullable','string','max:300']
   ]);
