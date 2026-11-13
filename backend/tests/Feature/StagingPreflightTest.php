@@ -2,6 +2,7 @@
 namespace Tests\Feature;
 
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 final class StagingPreflightTest extends TestCase
@@ -27,6 +28,13 @@ final class StagingPreflightTest extends TestCase
         self::assertStringContainsString('APP_DEBUG must be false',Artisan::output());
         self::assertStringContainsString('Staging must use MySQL',Artisan::output());
         self::assertStringContainsString('Enable anti-malware scanning',Artisan::output());
+    }
+
+    public function test_live_checks_never_contact_database_when_configuration_is_invalid(): void
+    {
+        DB::shouldReceive('connection')->never();
+        self::assertSame(1,Artisan::call('staging:preflight',['--live'=>true]));
+        self::assertStringContainsString('APP_ENV must be staging',Artisan::output());
     }
 
     public function test_hardened_staging_configuration_passes_without_network_requests(): void
