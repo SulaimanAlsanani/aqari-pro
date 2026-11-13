@@ -209,14 +209,7 @@ def run_drill(sql: Path, *, image: str = IMAGE) -> None:
                 "--max-allowed-packet=64M",
             ], input_file=stream, timeout=300)
 
-        print("RESTORE-DRILL: SQL import completed; checking restored tables", file=sys.stderr, flush=True)
-        # Run table-level consistency checks on the disposable instance.
-        run_command([
-            "docker", "exec", "--env", "MYSQL_PWD=" + password, name,
-            "mysqlcheck", "--protocol=socket", "-uroot",
-            "--all-databases", "--check", "--silent",
-        ], timeout=120)
-
+        print("RESTORE-DRILL: SQL import completed; discovering restored schema", file=sys.stderr, flush=True)
         # The dump uses --databases, so it may create/select its own schema.
         # This query is scoped to the isolated instance and verifies usable tables exist.
         query = ("SELECT COUNT(*) FROM information_schema.tables "
@@ -247,6 +240,15 @@ def run_drill(sql: Path, *, image: str = IMAGE) -> None:
         if len(schemas) != 1 or not re.fullmatch(r"[A-Za-z0-9_]+", schemas[0]):
             raise RuntimeError("Expected exactly one restored application documents table")
         schema = schemas[0]
+        # Validate only the restored application schema, not system databases
+        # such as performance_schema that may contain unsupported table types.
+        print("RESTORE-DRILL: checking restored application tables", file=sys.stderr, flush=True)
+        run_command([
+            "docker", "exec", "--env", "MYSQL_PWD=" + password, name,
+            "mysqlcheck", "--protocol=socket", "-uroot",
+            "--databases", schema, "--check", "--silent",
+        ], timeout=120)
+
         doc_result = run_command([
             "docker", "exec", "--env", "MYSQL_PWD=" + password, name, "mysql",
             "--protocol=socket", "-uroot", "--batch", "--raw", "--skip-column-names",
