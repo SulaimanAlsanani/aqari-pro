@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 use App\Models\{Lease,Unit};
 use Carbon\CarbonImmutable;
 use App\Support\RentInstallmentSchedule;
+use App\Support\LeaseDueDates;
 use InvalidArgumentException;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
@@ -46,12 +47,14 @@ class LeaseRenewalController extends Controller {
     'deposit'=>$data['deposit']??0,
     'status'=>'draft'
    ]);
-   $count=count($installmentAmounts);
-   for($i=0;$i<$count;$i++){
-    $dueDate=$start->addMonthsNoOverflow($i*(12/$count));
+   // The renewal is a full year; use the same deterministic schedule
+   // validation as an ordinary lease, including month-end handling.
+   $dueDates=LeaseDueDates::forTerm(
+    $start->toDateString(),$end->toDateString(),count($installmentAmounts)
+   );
+   foreach($installmentAmounts as $i=>$amount){
     $new->dues()->create([
-     'sequence'=>$i+1,'due_on'=>$dueDate->toDateString(),
-     'amount'=>$installmentAmounts[$i]
+     'sequence'=>$i+1,'due_on'=>$dueDates[$i],'amount'=>$amount
     ]);
    }
    return $new;
