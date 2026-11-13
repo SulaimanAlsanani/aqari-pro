@@ -695,6 +695,17 @@ function drawForm(key,record=null){
   }
   form.appendChild(div);
  }
+ // A maintenance unit belongs to its selected property. Never preserve an
+ // old unit ID when the operator changes that property.
+ if(key==='tickets'&&!record){
+  const propertyField=form.elements.namedItem('property_id');
+  const unitField=form.elements.namedItem('unit_id');
+  if(propertyField&&unitField){
+   propertyField.addEventListener('input',()=>{
+    if(unitField.value!=='')unitField.value='';
+   });
+  }
+ }
  const actions=el('div',null,'actions'),save=el('button','حفظ','primary');save.type='submit';
  const cancel=el('button','إلغاء','secondary');cancel.type='button';cancel.addEventListener('click',()=>refresh());
  actions.append(save,cancel);form.appendChild(actions);
