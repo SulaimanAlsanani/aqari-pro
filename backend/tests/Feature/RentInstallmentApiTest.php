@@ -22,7 +22,7 @@ final class RentInstallmentApiTest extends TestCase
         $unit=$property->units()->create(['code'=>'P-101','type'=>'apartment']);
         $tenant=$owner->tenants()->create(['name'=>'Precision tenant','phone'=>'0500000000']);
         $this->actingAs($owner,'sanctum');
-        return [$unit->id,$tenant->id];
+        return [$unit->id,$tenant->id,$property->id];
     }
 
     private function payload(int $unitId,int $tenantId,string $amount,int $installments): array
@@ -46,7 +46,7 @@ final class RentInstallmentApiTest extends TestCase
 
     public function test_partial_receipts_allocate_every_halalah_and_reject_excess_collection(): void
     {
-        [$unitId,$tenantId]=$this->setupOwner();
+        [$unitId,$tenantId,$propertyId]=$this->setupOwner();
         $leaseId=$this->postJson('/api/leases',$this->payload($unitId,$tenantId,'0.05',4))
             ->assertCreated()->json('id');
 
@@ -69,6 +69,20 @@ final class RentInstallmentApiTest extends TestCase
         foreach ($dues->json('data') as $due) {
             self::assertSame('0.00',(string)$due['balance_amount']);
         }
+
+        $this->postJson('/api/properties/'.$propertyId.'/expenses',[
+            'category'=>'maintenance','description'=>'Synthetic one-halalah cost',
+            'amount'=>'0.001','incurred_on'=>'2027-01-06',
+        ])->assertUnprocessable()->assertJsonValidationErrors('amount');
+        $this->postJson('/api/properties/'.$propertyId.'/expenses',[
+            'category'=>'maintenance','description'=>'Synthetic one-halalah cost',
+            'amount'=>'0.01','incurred_on'=>'2027-01-06',
+        ])->assertCreated();
+        $this->getJson('/api/overview')->assertOk()
+            ->assertJsonPath('received','0.05')
+            ->assertJsonPath('expenses','0.01')
+            ->assertJsonPath('net_cashflow','0.04');
+
         $this->postJson('/api/leases/'.$leaseId.'/payments',[
             'amount'=>'0.01','paid_on'=>'2027-01-07','method'=>'cash',
         ])->assertUnprocessable()->assertJsonValidationErrors('amount');
