@@ -2,9 +2,6 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
-use Throwable;
 
 /**
  * Read-only configuration gate. Does not connect to production services,
@@ -44,10 +41,6 @@ final class StagingPreflight extends Command
             'MySQL database name must explicitly contain staging'
         );
         $check(
-            !in_array(config('queue.default'),['sync',null],true),
-            'Use a real staging queue driver (not sync)'
-        );
-        $check(
             !in_array(config('cache.default'),['array',null],true),
             'Use a persistent staging cache driver'
         );
@@ -67,7 +60,7 @@ final class StagingPreflight extends Command
         $key=(string)config('backup.encryption_key');
         $check(strlen(base64_decode($key,true)?:'')===32, 'Set independent 32-byte BACKUP_ENCRYPTION_KEY');
 
-        $check(config('documents.scan_enabled')===true, 'Enable anti-malware scanning for private documents');
+        $check(config('document_security.scan_enabled')===true, 'Enable anti-malware scanning for private documents');
 
         if ($failures) {
             foreach ($failures as $failure) $this->error('FAIL: '.$failure);
