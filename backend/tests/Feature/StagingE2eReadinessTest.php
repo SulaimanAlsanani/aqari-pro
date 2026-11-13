@@ -10,6 +10,27 @@ final class StagingE2eReadinessTest extends TestCase
 {
     use RefreshDatabase;
 
+    // This fixture temporarily changes the default connection to an isolated
+    // connection named mysql, backed by the same in-memory SQLite PDO. Restore
+    // the original before RefreshDatabase rolls back its test transaction;
+    // otherwise the next test sees "There is already an active transaction".
+    private string $originalConnection;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->originalConnection=(string)config('database.default');
+    }
+
+    protected function tearDown(): void
+    {
+        config()->set('database.default',$this->originalConnection);
+        // The synthetic mysql connection shares the test PDO and must not
+        // outlive this test or interfere with later cases.
+        if (app()->bound('db')) DB::disconnect('mysql');
+        parent::tearDown();
+    }
+
     public function test_production_and_default_configuration_never_expose_write_readiness(): void
     {
         $user=User::create(['name'=>'E2E test','email'=>'aqari-e2e-owner@example.test','password'=>'test-password-long']);
