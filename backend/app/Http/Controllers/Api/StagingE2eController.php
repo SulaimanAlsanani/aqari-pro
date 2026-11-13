@@ -1,10 +1,9 @@
 <?php
 namespace App\Http\Controllers\Api;
 
-use App\Models\{Document,Due,Expense,Lease,MaintenanceTicket,Payment,Property,Tenant,Unit,User};
+use App\Models\{Document,Due,Expense,Lease,MaintenanceTicket,Payment,Property,Tenant,Unit,Vendor};
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
-use Illuminate\Support\Facades\DB;
 
 /**
  * Authenticated, read-only, default-deny gate for synthetic browser writes.
@@ -17,7 +16,11 @@ final class StagingE2eController extends Controller
         $user=$request->user();
         $email=(string)config('staging.e2e_owner_email','');
         $db=config('database.connections.mysql',[]);
+        $url=parse_url((string)config('app.url'));
+        $host=is_array($url)?strtolower((string)($url['host']??'')):'';
         if (!app()->environment('staging') ||
+            !is_array($url) || ($url['scheme']??'')!=='https' ||
+            !preg_match('/(^|[.-])stag(e|ing)([.-]|$)/D',$host) ||
             config('app.debug')!==false ||
             config('staging.e2e_write_enabled')!==true ||
             config('database.default')!=='mysql' ||
@@ -41,6 +44,7 @@ final class StagingE2eController extends Controller
             || Document::where('user_id',$ownerId)->exists()
             || Expense::whereHas('property',fn($q)=>$q->where('user_id',$ownerId))->exists()
             || MaintenanceTicket::whereHas('property',fn($q)=>$q->where('user_id',$ownerId))->exists()
+            || Vendor::where('user_id',$ownerId)->exists()
             || Unit::whereHas('property',fn($q)=>$q->where('user_id',$ownerId))->exists()
             || Lease::whereHas('unit.property',fn($q)=>$q->where('user_id',$ownerId))->exists()
             || Payment::whereHas('lease.unit.property',fn($q)=>$q->where('user_id',$ownerId))->exists()
