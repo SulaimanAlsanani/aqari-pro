@@ -6,6 +6,8 @@ use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Carbon\CarbonImmutable;
+use App\Support\RentInstallmentSchedule;
+use InvalidArgumentException;
 
 class PortfolioController extends Controller {
  public function index(Request $request){
@@ -35,26 +37,28 @@ class PortfolioController extends Controller {
   return response()->json($request->user()->tenants()->create($data),201);
  }
  public function storeLease(Request $request){
-  $data=$request->validate(['unit_id'=>'required|integer','tenant_id'=>'required|integer','starts_on'=>'required|date','ends_on'=>'required|date|after:starts_on','total_amount'=>'required|numeric|gt:0','deposit'=>'nullable|numeric|min:0','installments'=>'required|integer|in:1,2,4,12']);
+  $data=$request->validate(['unit_id'=>'required|integer','tenant_id'=>'required|integer','starts_on'=>'required|date','ends_on'=>'required|date|after:starts_on','total_amount'=>'required|numeric|gt:0|decimal:0,2|max:9999999999.99','deposit'=>'nullable|numeric|min:0|decimal:0,2|max:9999999999.99','installments'=>'required|integer|in:1,2,4,12']);
+  try {
+   $installmentAmounts=RentInstallmentSchedule::amounts($data['total_amount'],(int)$data['installments']);
+  } catch (InvalidArgumentException $exception) {
+   throw ValidationException::withMessages(['total_amount'=>'يجب أن يكون كل قسط على الأقل 0.01 ريال، ويجب إدخال مبلغ بخانتين عشريتين كحد أقصى']);
+  }
   $uid=$request->user()->id;
   $unit=Unit::whereHas('property',fn($q)=>$q->where('user_id',$uid))->findOrFail($data['unit_id']);
   $tenant=Tenant::where('user_id',$uid)->findOrFail($data['tenant_id']);
-  $lease=DB::transaction(function()use($unit,$tenant,$data){
+  $lease=DB::transaction(function()use($unit,$tenant,$data,$installmentAmounts){
    // Lock the shared unit row; prevents concurrent overlapping leases on the same unit.
    Unit::whereKey($unit->id)->lockForUpdate()->firstOrFail();
    if(Lease::where('unit_id',$unit->id)->where('status','!=','cancelled')->where('starts_on','<=',$data['ends_on'])->where('ends_on','>=',$data['starts_on'])->exists())
     throw ValidationException::withMessages(['starts_on'=>'توجد مدة إيجارية متداخلة مع عقد آخر للوحدة']);
    $lease=$unit->leases()->create(['tenant_id'=>$tenant->id,'starts_on'=>$data['starts_on'],'ends_on'=>$data['ends_on'],'total_amount'=>$data['total_amount'],'deposit'=>$data['deposit']??0,'status'=>'draft']);
-   $n=(int)$data['installments'];
-   $cents=(int)round((float)$data['total_amount']*100);
-   $base=intdiv($cents,$n);$remainder=$cents%$n;
+   $n=count($installmentAmounts);
    $start=CarbonImmutable::parse($data['starts_on']);
    $last=CarbonImmutable::parse($data['ends_on']);
    for($i=0;$i<$n;$i++){
     $dueOn=$start->addMonthsNoOverflow($i*(12/$n));
     if($dueOn->greaterThan($last))$dueOn=$last;
-    $pennies=$base+($i<$remainder?1:0);
-    $lease->dues()->create(['sequence'=>$i+1,'due_on'=>$dueOn->toDateString(),'amount'=>number_format($pennies/100,2,'.','')]);
+    $lease->dues()->create(['sequence'=>$i+1,'due_on'=>$dueOn->toDateString(),'amount'=>$installmentAmounts[$i]]);
    }
    return $lease;
   });
