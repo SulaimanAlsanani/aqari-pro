@@ -4,9 +4,6 @@ on:
   push:
     branches:
       - feature/production-foundation
-    paths:
-      - 'backend/**'
-      - '.github/workflows/mfa-security.yml'
   pull_request:
     paths:
       - 'backend/**'
