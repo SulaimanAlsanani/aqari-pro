@@ -158,6 +158,11 @@ class RestoreDrillSafetyTest(unittest.TestCase):
                 with patch.object(module.subprocess, "run") as cleanup:
                     module.run_drill(self.sql)
                     cleanup.assert_called_once()
+        check_calls = [args for args in calls if args[:2] == ["docker", "exec"] and "mysqlcheck" in args]
+        self.assertEqual(len(check_calls), 1)
+        self.assertNotIn("--all-databases", check_calls[0])
+        self.assertIn("--databases", check_calls[0])
+        self.assertEqual(check_calls[0][check_calls[0].index("--databases") + 1], "aqari_restore_probe")
         launch = next(args for args in calls if args[:2] == ["docker", "run"])
         self.assertEqual(launch[:2], ["docker", "run"])
         self.assertEqual(launch[launch.index("--network") + 1], "none")
