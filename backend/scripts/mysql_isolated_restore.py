@@ -157,6 +157,32 @@ def verify_domain_integrity(fetch_scalar) -> int:
     return len(DOMAIN_CHECKS)
 
 
+
+def verify_table_check_results(rows: bytes, schema: str) -> int:
+    """Require an explicit successful CHECK TABLE status for each core table."""
+    expected = {schema + "." + name for name in (*DOMAIN_TABLES, "documents")}
+    passed = set()
+    try:
+        content = rows.decode("utf-8", errors="strict")
+    except UnicodeError as exc:
+        raise RuntimeError("Invalid restored MySQL table check response") from exc
+    if len(content) > 1024 * 1024:
+        raise RuntimeError("Restored MySQL table check response exceeds limit")
+    for line in content.splitlines():
+        cols = line.split("\t")
+        if len(cols) != 4 or cols[0] not in expected:
+            raise RuntimeError("Unexpected restored MySQL table check response")
+        table, operation, level, message = cols
+        if operation != "check" or level != "status" or message != "OK":
+            raise RuntimeError("Restored MySQL table integrity check did not pass")
+        if table in passed:
+            raise RuntimeError("Duplicate MySQL table check response")
+        passed.add(table)
+    if passed != expected:
+        raise RuntimeError("One or more restored MySQL core tables were not verified")
+    return len(passed)
+
+
 def run_drill(sql: Path, *, image: str = IMAGE) -> None:
     if image != IMAGE:
         raise ValueError("Only the pinned MySQL major/minor image is supported")
@@ -254,33 +280,18 @@ def run_drill(sql: Path, *, image: str = IMAGE) -> None:
         if len(schemas) != 1 or not re.fullmatch(r"[A-Za-z0-9_]+", schemas[0]):
             raise RuntimeError("Expected exactly one restored application documents table")
         schema = schemas[0]
-        # Validate only the restored application schema, not system databases
-        # such as performance_schema that may contain unsupported table types.
+        # The MySQL 8.4 image does not include mysqlcheck (exit code 127).
+        # Use the existing mysql client to CHECK TABLE and verify every result.
         print("RESTORE-DRILL: checking restored application tables", file=sys.stderr, flush=True)
-        try:
-            run_command([
-                "docker", "exec", "--env", "MYSQL_PWD=" + password, name,
-                "mysqlcheck", "--protocol=socket", "-uroot",
-                "--databases", schema, "--check", "--silent",
-            ], timeout=120)
-        except subprocess.CalledProcessError as error:
-            # Only emit pre-approved error categories, never raw client logs.
-            details=(error.stderr or b"").lower()
-            category="unknown"
-            for label, needles in (
-                ("unavailable_client", (b"executable file not found", b"no such file or directory")),
-                ("unknown_option", (b"unknown option", b"unknown variable")),
-                ("authentication", (b"access denied", b"error 1045")),
-                ("connection", (b"can't connect", b"error 2002")),
-                ("table_integrity", (b"corrupt", b"error", b"failed")),
-            ):
-                if any(needle in details for needle in needles):
-                    category=label
-                    break
-            print(f"RESTORE-DRILL: isolated table check failed (category={category}, code={error.returncode})",
-                  file=sys.stderr, flush=True)
-            raise
-        print("RESTORE-DRILL: application table check completed; querying document records",
+        core_tables=(*DOMAIN_TABLES, "documents")
+        checks="CHECK TABLE " + ", ".join(chr(96)+name+chr(96) for name in core_tables)
+        table_result=run_command([
+            "docker", "exec", "--env", "MYSQL_PWD=" + password, name, "mysql",
+            "--protocol=socket", "-uroot", "--batch", "--raw", "--skip-column-names",
+            "--database", schema, "--execute", checks,
+        ], timeout=120)
+        verified_tables=verify_table_check_results(table_result.stdout,schema)
+        print(f"RESTORE-DRILL: verified {verified_tables} core tables; querying documents",
               file=sys.stderr, flush=True)
 
         doc_result = run_command([
@@ -309,7 +320,7 @@ def run_drill(sql: Path, *, image: str = IMAGE) -> None:
         print("RESTORE-DRILL: validating owner relations and private attachments", file=sys.stderr, flush=True)
         domain_checks = verify_domain_integrity(fetch_scalar)
         document_count = reconcile_documents(doc_result.stdout, sql.parent)
-        print(f"PASS: isolated MySQL import, mysqlcheck and attachment reconciliation complete; "
+        print(f"PASS: isolated MySQL import, CHECK TABLE and attachment reconciliation complete; "
               f"{tables} tables, {document_count} documents, {domain_checks} domain checks.")
         print("No live database connection or production attachments were modified.")
     finally:
