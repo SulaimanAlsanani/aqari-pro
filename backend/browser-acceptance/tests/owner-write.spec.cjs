@@ -6,6 +6,7 @@ const password = process.env.STAGING_TEST_OWNER_PASSWORD;
 const writeEnabled = process.env.STAGING_E2E_WRITE_CONFIRMATION === 'ALLOW_ONE_TIME_SYNTHETIC_WRITES';
 
 test('one-time synthetic owner journey: property → unit → tenant → lease → receipt → document', async ({page, baseURL}) => {
+  test.setTimeout(150000);
   test.skip(!writeEnabled || !email || !password,
     'Requires explicit one-time write confirmation and dedicated staging test owner secrets.');
 
@@ -85,6 +86,9 @@ test('one-time synthetic owner journey: property → unit → tenant → lease �
     expect(response.status(), 'Failed to create synthetic test record').toBe(201);
     const result = await response.json();
     expect(Number.isInteger(result.id) && result.id > 0).toBe(true);
+    // The UI submits asynchronously and reloads the owner-scoped list.
+    // Wait for that refresh before navigating to the next section.
+    await expect(page.locator('#view form')).toHaveCount(0, {timeout:15000});
     await expect(page.locator('#notice')).not.toHaveClass(/error/);
     return result.id;
   };
