@@ -29,7 +29,7 @@ class BackupStorageCheck extends Command
             $this->error('Backup preflight requires an S3-compatible private disk, not local or public storage.');
             return self::FAILURE;
         }
-        if (($config['visibility'] ?? 'private') !== 'private') {
+        if (($config['visibility'] ?? null) !== 'private') {
             $this->error('Backup storage must be private.');
             return self::FAILURE;
         }
