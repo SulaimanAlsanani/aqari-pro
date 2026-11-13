@@ -38,6 +38,60 @@ function el(tag,text,className){
  const e=document.createElement(tag);if(text!==undefined&&text!==null)e.textContent=String(text);if(className)e.className=className;return e;
 }
 function notify(msg,error=false){const n=$('notice');n.textContent=msg;n.classList.toggle('error',error)}
+const lookupResources={
+ property_id:'properties',unit_id:'units',tenant_id:'tenants',
+ lease_id:'leases',vendor_id:'vendors'
+};
+function showLookupPicker(resource,target,label){
+ const dialog=el('dialog');dialog.className='lookup-dialog';
+ dialog.setAttribute('aria-label','اختيار '+label);
+ const panel=el('section',null,'panel');
+ const heading=el('h3','اختيار '+label);
+ const help=el('p','ابحث بالاسم أو رمز الوحدة أو رقم السجل. تظهر سجلات حسابك فقط.','muted');
+ const search=el('input');search.type='search';search.placeholder='اكتب للبحث...';
+ search.setAttribute('aria-label','البحث عن '+label);
+ const status=el('p','تحميل السجلات...','muted');
+ const results=el('div',null,'lookup-results');
+ const actions=el('div',null,'actions'),cancel=el('button','إغلاق','secondary');
+ cancel.type='button';cancel.addEventListener('click',()=>dialog.close());
+ actions.append(cancel);panel.append(heading,help,search,status,results,actions);
+ dialog.append(panel);document.body.append(dialog);
+ let generation=0,timer=null;
+ dialog.addEventListener('close',()=>{
+  generation++;if(timer!==null)clearTimeout(timer);dialog.remove();
+ });
+ async function load(){
+  const current=++generation;
+  status.textContent='جاري البحث...';results.replaceChildren();
+  try{
+   const response=await api('/lookups/'+resource+'?q='+encodeURIComponent(search.value.trim()));
+   if(!dialog.open||current!==generation)return;
+   if(!Array.isArray(response.data))throw Error('استجابة البحث غير صالحة');
+   status.textContent=response.data.length?
+    (response.has_more?'توجد نتائج أخرى؛ اكتب جزءًا من الاسم لتضييق البحث.':'اختر السجل المطلوب:'):
+    'لا توجد سجلات مطابقة. أنشئ السجل من قسمه أولًا.';
+   for(const item of response.data){
+    if(!Number.isSafeInteger(item.id)||item.id<1||typeof item.label!=='string')continue;
+    const choice=el('button','#'+item.id+' — '+item.label,'secondary lookup-choice');
+    choice.type='button';
+    choice.addEventListener('click',()=>{
+     target.value=String(item.id);
+     target.dispatchEvent(new Event('input',{bubbles:true}));
+     dialog.close();
+     target.focus();
+    });
+    results.append(choice);
+   }
+  }catch(error){
+   if(current===generation&&dialog.open)status.textContent=error.message;
+  }
+ }
+ search.addEventListener('input',()=>{
+  if(timer!==null)clearTimeout(timer);
+  timer=setTimeout(load,300);
+ });
+ dialog.showModal();search.focus();load();
+}
 function showAuthPanel(mode='login'){
  for(const id of ['loginPanel','forgotPanel','resetPanel'])$(id).classList.add('hidden');
  $(mode==='forgot'?'forgotPanel':mode==='reset'?'resetPanel':'loginPanel').classList.remove('hidden');
@@ -620,7 +674,14 @@ function drawForm(key,record=null){
      (key==='leases'&&name==='unit_id') ||
      (key==='expenses'&&name==='description'))input.required=true;
   if(type==='file')input.accept='.pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx,.txt,.csv';
-  div.append(lab,input);form.appendChild(div);
+  div.append(lab,input);
+  if(!record&&type==='number'&&Object.prototype.hasOwnProperty.call(lookupResources,name)){
+   const picker=el('button','اختيار من السجلات','secondary');
+   picker.type='button';picker.classList.add('lookup-trigger');
+   picker.addEventListener('click',()=>showLookupPicker(lookupResources[name],input,label));
+   div.appendChild(picker);
+  }
+  form.appendChild(div);
  }
  const actions=el('div',null,'actions'),save=el('button','حفظ','primary');save.type='submit';
  const cancel=el('button','إلغاء','secondary');cancel.type='button';cancel.addEventListener('click',()=>refresh());
