@@ -72,7 +72,17 @@ final class StagingE2eReadinessTest extends TestCase
         $this->getJson('/api/staging/e2e-readiness')->assertOk()
             ->assertJson(['allowed'=>true,'environment'=>'staging','owner_id'=>$user->id]);
 
-        // Any existing record makes the non-idempotent write drill unsafe to repeat.
+        // Any other user is evidence of a shared or previously used database.
+        $other=User::create([
+            'name'=>'Unrelated owner',
+            'email'=>'someone-else@example.test',
+            'password'=>'test-password-long',
+        ]);
+        $this->getJson('/api/staging/e2e-readiness')->assertStatus(409)
+            ->assertJson(['allowed'=>false]);
+        $other->delete();
+
+        // Any existing domain record blocks another non-idempotent run.
         $user->properties()->create([
             'name'=>'Previously written synthetic property',
             'city'=>'Riyadh','type'=>'residential',
