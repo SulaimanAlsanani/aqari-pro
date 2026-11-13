@@ -19,6 +19,14 @@ final class BackupStorageCheckTest extends TestCase
         self::assertSame(1, Artisan::call('backup:check-storage'));
     }
 
+    public function test_storage_preflight_requires_explicit_private_visibility(): void
+    {
+        config()->set('filesystems.disks.backup', ['driver' => 's3']);
+        Storage::shouldReceive('disk')->never();
+        self::assertSame(1, Artisan::call('backup:check-storage'));
+        self::assertStringContainsString('Backup storage must be private', Artisan::output());
+    }
+
     public function test_storage_preflight_round_trips_and_removes_private_probe(): void
     {
         config()->set('filesystems.disks.backup', ['driver' => 's3', 'visibility' => 'private']);
