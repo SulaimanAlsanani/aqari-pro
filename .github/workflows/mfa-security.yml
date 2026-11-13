@@ -32,6 +32,8 @@ jobs:
           extensions: mbstring, dom, fileinfo, pdo_sqlite, sqlite3, bcmath, openssl, zip
           tools: composer:v2
           coverage: none
+      - name: Create Laravel runtime directories before Composer scripts
+        run: mkdir -p bootstrap/cache storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs
       - name: Install PHP dependencies
         run: composer install --prefer-dist --no-interaction --no-progress
       - name: Validate PHP syntax in MFA-related files
