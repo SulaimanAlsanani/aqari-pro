@@ -27,6 +27,7 @@ use App\Http\Controllers\Api\LeaseSettlementController;
 use App\Http\Controllers\Api\UnitHandoverController;
 use App\Http\Controllers\Api\HandoverDamageController;
 use App\Http\Controllers\Api\DamageDisputeController;
+use App\Http\Controllers\Api\StagingE2eController;
 
 Route::post('/login',[AuthController::class,'login'])->middleware('throttle:owner-login');
 Route::post('/password/forgot',[PasswordResetController::class,'requestLink'])->middleware('throttle:3,1');
@@ -34,6 +35,7 @@ Route::post('/password/reset',[PasswordResetController::class,'reset'])->middlew
 
 Route::middleware('auth:sanctum')->group(function () {
  Route::get('/me',[AuthController::class,'me']);
+ Route::get('/staging/e2e-readiness',[StagingE2eController::class,'readiness'])->middleware('throttle:5,1');
  Route::get('/account/sessions',[SessionController::class,'index']);
  Route::delete('/account/sessions/others',[SessionController::class,'revokeOthers'])->middleware('throttle:3,1');
  Route::delete('/account/sessions/{token}',[SessionController::class,'revoke'])->whereNumber('token')->middleware('throttle:5,1');
