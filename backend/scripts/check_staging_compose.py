@@ -59,8 +59,10 @@ def validate(compose: dict) -> None:
         if service.get("privileged") is True or service.get("network_mode") == "host":
             raise ValueError("Privileged/host networking forbidden")
         mounts = service.get("volumes", [])
-        if any(v.get("type") != "volume" for v in mounts):
-            raise ValueError("Host binds and anonymous mounts are forbidden")
+        if not isinstance(mounts, list) or any(
+            not isinstance(v, dict) or v.get("type") != "volume" for v in mounts
+        ):
+            raise ValueError("Host binds, anonymous and malformed mounts are forbidden")
         actual = {(v.get("source"), v.get("target")) for v in mounts}
         if len(actual) != len(mounts) or actual != expected_mounts[service_name]:
             raise ValueError("Staging service volume mounts do not match the approved set")
