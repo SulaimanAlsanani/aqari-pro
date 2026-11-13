@@ -5,8 +5,8 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
-use Carbon\CarbonImmutable;
 use App\Support\RentInstallmentSchedule;
+use App\Support\LeaseDueDates;
 use InvalidArgumentException;
 
 class PortfolioController extends Controller {
@@ -43,22 +43,24 @@ class PortfolioController extends Controller {
   } catch (InvalidArgumentException $exception) {
    throw ValidationException::withMessages(['total_amount'=>'يجب أن يكون كل قسط على الأقل 0.01 ريال، ويجب إدخال مبلغ بخانتين عشريتين كحد أقصى']);
   }
+  try {
+   $dueDates=LeaseDueDates::forTerm($data['starts_on'],$data['ends_on'],(int)$data['installments']);
+  } catch (InvalidArgumentException $exception) {
+   throw ValidationException::withMessages(['installments'=>'مدة العقد أقصر من عدد الأقساط المطلوب؛ يجب تعديل المدة أو عدد الأقساط']);
+  }
   $uid=$request->user()->id;
   $unit=Unit::whereHas('property',fn($q)=>$q->where('user_id',$uid))->findOrFail($data['unit_id']);
   $tenant=Tenant::where('user_id',$uid)->findOrFail($data['tenant_id']);
-  $lease=DB::transaction(function()use($unit,$tenant,$data,$installmentAmounts){
+  $lease=DB::transaction(function()use($unit,$tenant,$data,$installmentAmounts,$dueDates){
    // Lock the shared unit row; prevents concurrent overlapping leases on the same unit.
    Unit::whereKey($unit->id)->lockForUpdate()->firstOrFail();
    if(Lease::where('unit_id',$unit->id)->where('status','!=','cancelled')->where('starts_on','<=',$data['ends_on'])->where('ends_on','>=',$data['starts_on'])->exists())
     throw ValidationException::withMessages(['starts_on'=>'توجد مدة إيجارية متداخلة مع عقد آخر للوحدة']);
    $lease=$unit->leases()->create(['tenant_id'=>$tenant->id,'starts_on'=>$data['starts_on'],'ends_on'=>$data['ends_on'],'total_amount'=>$data['total_amount'],'deposit'=>$data['deposit']??0,'status'=>'draft']);
-   $n=count($installmentAmounts);
-   $start=CarbonImmutable::parse($data['starts_on']);
-   $last=CarbonImmutable::parse($data['ends_on']);
-   for($i=0;$i<$n;$i++){
-    $dueOn=$start->addMonthsNoOverflow($i*(12/$n));
-    if($dueOn->greaterThan($last))$dueOn=$last;
-    $lease->dues()->create(['sequence'=>$i+1,'due_on'=>$dueOn->toDateString(),'amount'=>$installmentAmounts[$i]]);
+   foreach($installmentAmounts as $i=>$amount){
+    $lease->dues()->create([
+     'sequence'=>$i+1,'due_on'=>$dueDates[$i],'amount'=>$amount
+    ]);
    }
    return $lease;
   });
