@@ -71,6 +71,9 @@ test('one-time synthetic owner journey: property → unit → tenant → lease �
     const form = page.locator('#view form');
     for (const [name, value] of Object.entries(values)) {
       const input = form.locator('[name="' + name + '"]');
+      if (['total_amount','deposit','amount','estimated_cost'].includes(name)) {
+        await expect(input).toHaveAttribute('step','0.01');
+      }
       if (await input.evaluate(el => el.tagName === 'SELECT')) {
         await input.selectOption(String(value));
       } else {
