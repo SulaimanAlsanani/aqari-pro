@@ -47,6 +47,7 @@ jobs:
           php -l app/Console/Commands/BackupStageRestore.php
           php -l app/Console/Commands/BackupStatus.php
           php -l app/Console/Commands/StagingPreflight.php
+          php -l app/Support/ClamAvSignatureHealth.php
           php -l app/Console/Commands/StagingServicesCheck.php
           php -l app/Console/Commands/StagingAntivirusCheck.php
           php -l app/Support/BackupMonitorEvents.php
@@ -75,6 +76,7 @@ jobs:
           php -l tests/Feature/StagingE2eReadinessTest.php
           php -l tests/Feature/StagingServicesCheckTest.php
           php -l tests/Feature/StagingAntivirusCheckTest.php
+          php -l tests/Unit/ClamAvSignatureHealthTest.php
           php -l tests/Feature/OwnerSessionTest.php
           php -l tests/Feature/BackupStorageCheckTest.php
           php -l tests/Feature/BackupMakeGuardTest.php
@@ -93,7 +95,7 @@ jobs:
           php -l tests/Unit/BackupStagedFilesVerifierTest.php
           php -l tests/Unit/TotpTest.php
       - name: Run TOTP vectors and owner MFA integration tests
-        run: php artisan test --filter='TotpTest|OwnerMfaTest|OwnerSessionTest|BackupStorageCheckTest|BackupMakeGuardTest|BackupEnvelopeTest|BackupArchiveValidatorTest|BackupVerifyTest|BackupStageRestoreTest|BackupStatusTest|BackupMonitorEventsTest|MySqlSnapshotTest|BackupMySqlStageTest|BackupAttachmentAuditTest|BackupStagedFilesVerifierTest|OwnerPortfolioRecoverySmokeTest|StagingPreflightTest|StagingServicesCheckTest|StagingAntivirusCheckTest|StagingE2eReadinessTest|RentInstallmentScheduleTest|LeaseDueDatesTest|RentInstallmentApiTest|LeaseLifecycleTest'
+        run: php artisan test --filter='TotpTest|OwnerMfaTest|OwnerSessionTest|BackupStorageCheckTest|BackupMakeGuardTest|BackupEnvelopeTest|BackupArchiveValidatorTest|BackupVerifyTest|BackupStageRestoreTest|BackupStatusTest|BackupMonitorEventsTest|MySqlSnapshotTest|BackupMySqlStageTest|BackupAttachmentAuditTest|BackupStagedFilesVerifierTest|OwnerPortfolioRecoverySmokeTest|StagingPreflightTest|StagingServicesCheckTest|StagingAntivirusCheckTest|ClamAvSignatureHealthTest|StagingE2eReadinessTest|RentInstallmentScheduleTest|LeaseDueDatesTest|RentInstallmentApiTest|LeaseLifecycleTest'
       - name: Check portal JavaScript syntax
         run: node --check public/app/app.js
       - name: Validate browser staging target policy and Playwright test syntax
