@@ -4,6 +4,7 @@ namespace App\Support;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use App\Mail\BackupHealthAlert;
 use Throwable;
 
 /**
@@ -52,13 +53,7 @@ final class BackupMonitorEvents
         }
 
         try {
-            Mail::raw(
-                'Aqari Pro backup monitoring requires attention. Status: '.$state.
-                '. Review the protected operational logs and verify the most recent encrypted backup.',
-                static function ($message) use ($recipient): void {
-                    $message->to($recipient)->subject('Aqari Pro: backup monitoring alert');
-                }
-            );
+            Mail::to($recipient)->send(new BackupHealthAlert($state));
             Log::info('Backup alert submitted to the configured mail transport.');
         } catch (Throwable $exception) {
             Cache::forget($key);
