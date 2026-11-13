@@ -87,6 +87,7 @@ jobs:
         run: |
           node --check browser-acceptance/playwright.config.cjs
           node --check browser-acceptance/staging-guard.cjs
+          node --check browser-acceptance/scripts/run-acceptance.cjs
           node --check browser-acceptance/tests/owner-portal.spec.cjs
           node --check browser-acceptance/tests/owner-write.spec.cjs
           node --test browser-acceptance/tests/staging-guard.test.cjs
