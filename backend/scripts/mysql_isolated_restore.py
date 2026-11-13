@@ -257,11 +257,31 @@ def run_drill(sql: Path, *, image: str = IMAGE) -> None:
         # Validate only the restored application schema, not system databases
         # such as performance_schema that may contain unsupported table types.
         print("RESTORE-DRILL: checking restored application tables", file=sys.stderr, flush=True)
-        run_command([
-            "docker", "exec", "--env", "MYSQL_PWD=" + password, name,
-            "mysqlcheck", "--protocol=socket", "-uroot",
-            "--databases", schema, "--check", "--silent",
-        ], timeout=120)
+        try:
+            run_command([
+                "docker", "exec", "--env", "MYSQL_PWD=" + password, name,
+                "mysqlcheck", "--protocol=socket", "-uroot",
+                "--databases", schema, "--check", "--silent",
+            ], timeout=120)
+        except subprocess.CalledProcessError as error:
+            # Only emit pre-approved error categories, never raw client logs.
+            details=(error.stderr or b"").lower()
+            category="unknown"
+            for label, needles in (
+                ("unavailable_client", (b"executable file not found", b"no such file or directory")),
+                ("unknown_option", (b"unknown option", b"unknown variable")),
+                ("authentication", (b"access denied", b"error 1045")),
+                ("connection", (b"can't connect", b"error 2002")),
+                ("table_integrity", (b"corrupt", b"error", b"failed")),
+            ):
+                if any(needle in details for needle in needles):
+                    category=label
+                    break
+            print(f"RESTORE-DRILL: isolated table check failed (category={category}, code={error.returncode})",
+                  file=sys.stderr, flush=True)
+            raise
+        print("RESTORE-DRILL: application table check completed; querying document records",
+              file=sys.stderr, flush=True)
 
         doc_result = run_command([
             "docker", "exec", "--env", "MYSQL_PWD=" + password, name, "mysql",
