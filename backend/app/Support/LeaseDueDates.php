@@ -20,8 +20,12 @@ final class LeaseDueDates
             throw new InvalidArgumentException('Unsupported rent payment frequency.');
         }
 
-        $start=CarbonImmutable::createFromFormat('!Y-m-d',$startsOn);
-        $end=CarbonImmutable::createFromFormat('!Y-m-d',$endsOn);
+        try {
+            $start=CarbonImmutable::createFromFormat('!Y-m-d',$startsOn);
+            $end=CarbonImmutable::createFromFormat('!Y-m-d',$endsOn);
+        } catch (\\Throwable $error) {
+            throw new InvalidArgumentException('Invalid lease date range.',0,$error);
+        }
         if (!$start || !$end || $start->format('Y-m-d')!==$startsOn ||
             $end->format('Y-m-d')!==$endsOn || $end->lessThanOrEqualTo($start)) {
             throw new InvalidArgumentException('Invalid lease date range.');
