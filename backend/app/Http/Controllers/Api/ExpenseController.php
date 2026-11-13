@@ -13,7 +13,7 @@ class ExpenseController extends Controller {
   $input=$request->validate([
    'category'=>['sometimes','required','string','max:80'],
    'description'=>['sometimes','required','string','max:300'],
-   'amount'=>['sometimes','required','numeric','gt:0','decimal:0,2'],
+   'amount'=>['sometimes','required','numeric','gt:0','decimal:0,2','max:9999999999.99'],
    'incurred_on'=>['sometimes','required','date']
   ]);
   $expense->update($input);
