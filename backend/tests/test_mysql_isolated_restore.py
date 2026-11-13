@@ -100,6 +100,37 @@ class RestoreDrillSafetyTest(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             module.reconcile_documents(rows, self.stage)
 
+    def test_restored_property_relations_pass(self):
+        def scalar(query):
+            if "information_schema.tables" in query:
+                return len(module.DOMAIN_TABLES)
+            return 0
+        self.assertEqual(module.verify_domain_integrity(scalar), len(module.DOMAIN_CHECKS))
+
+    def test_missing_critical_property_tables_fails_closed(self):
+        with self.assertRaises(RuntimeError):
+            module.verify_domain_integrity(lambda query: len(module.DOMAIN_TABLES) - 1)
+
+    def test_orphan_lease_or_payment_fails_domain_audit(self):
+        def scalar(query):
+            if "information_schema.tables" in query:
+                return len(module.DOMAIN_TABLES)
+            if "LEFT JOIN leases l" in query:
+                return 1
+            return 0
+        with self.assertRaises(RuntimeError):
+            module.verify_domain_integrity(scalar)
+
+    def test_cross_owner_lease_fails_domain_audit(self):
+        def scalar(query):
+            if "information_schema.tables" in query:
+                return len(module.DOMAIN_TABLES)
+            if "p.user_id<>t.user_id" in query:
+                return 1
+            return 0
+        with self.assertRaises(RuntimeError):
+            module.verify_domain_integrity(scalar)
+
     def test_docker_container_is_networkless_and_mountless(self):
         calls = []
 
@@ -114,6 +145,10 @@ class RestoreDrillSafetyTest(unittest.TestCase):
                         return type("Done", (), {"stdout": b"aqari_restore_probe\n"})()
                     if "HEX(path)" in sql:
                         return type("Done", (), {"stdout": b""})()
+                    if "table_schema=DATABASE()" in sql:
+                        return type("Done", (), {"stdout": str(len(module.DOMAIN_TABLES)).encode() + b"\n"})()
+                    if any(mark in sql for mark in ("LEFT JOIN", "p.user_id<>t.user_id")):
+                        return type("Done", (), {"stdout": b"0\n"})()
                     return type("Done", (), {"stdout": b"3\n"})()
                 return type("Done", (), {"stdout": b""})()
             return type("Done", (), {"stdout": b"ok\n"})()
