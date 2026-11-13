@@ -160,6 +160,29 @@ async function main() {
       assert.ok(matchedPayment, 'payment belongs to the newly created lease');
       assert.equal(await page.locator('#notice.error').count(), 0, 'no record creation errors');
 
+      // Maintenance form must require a selected property before it offers units.
+      await page.locator('#nav button').filter({ hasText: 'الصيانة' }).click();
+      await page.locator('#sectionTitle').getByText('الصيانة').waitFor();
+      await page.locator('#view button').filter({ hasText: '+ إضافة سجل' }).click();
+      const maintenanceUnitPicker = page.locator('#field-unit_id').locator('..')
+        .getByRole('button', { name: 'اختيار من السجلات' });
+      await maintenanceUnitPicker.click();
+      assert.equal(await page.getByRole('dialog', { name: 'اختيار رقم الوحدة' }).count(), 0,
+        'maintenance unit picker needs a property first');
+      await page.locator('#field-property_id').fill(propertyId);
+      await maintenanceUnitPicker.click();
+      const maintenanceDialog = page.getByRole('dialog', { name: 'اختيار رقم الوحدة' });
+      await maintenanceDialog.locator('input[type=search]').fill('U-' + viewport.width);
+      await maintenanceDialog.getByRole('button', { name: new RegExp('U-' + viewport.width) }).click();
+      assert.equal(await page.locator('#field-unit_id').inputValue(), unitId);
+      await page.locator('#field-title').fill('بلاغ صيانة تجريبي ' + viewport.width);
+      await page.locator('#field-priority').selectOption('normal');
+      await page.locator('#view form button[type=submit]').click();
+      await page.locator('#view td').filter({ hasText: 'بلاغ صيانة تجريبي ' + viewport.width }).first()
+        .waitFor({ timeout: 15000 });
+      assert.equal(await page.locator('#notice.error').count(), 0,
+        'scoped maintenance ticket submitted without error');
+
       await page.locator('#nav button').filter({ hasText: 'أرصدة التأمينات' }).click();
       await page.getByText('أرصدة تأمينات المستأجرين').waitFor({ timeout: 15000 });
       await page.locator('#nav button').filter({ hasText: 'مطابقة الحسابات' }).click();
