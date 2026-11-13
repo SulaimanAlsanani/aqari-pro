@@ -168,3 +168,9 @@ The test intentionally leaves synthetic finance records intact, so it is one-tim
 
 ## Browser acceptance mode separation (default deny)
 The `browser-acceptance/` runner now selects **one** test family: `npm test` runs the read-only visitor/owner scenarios only, `npm run test:live` requires staging-owner credentials and fails before browser startup when missing, and `npm run test:write` is the separate one-time synthetic property/contract/collection/document scenario. The write suite is never selected by normal `npm test`, regardless of leftover confirmation variables. All three modes still enforce the exact approved staging HTTPS host; write requires an additional explicit confirmation and server-side `staging/e2e-readiness` gate.
+
+## Exact-cent rent and lease renewal calculation
+
+Both initial lease creation and renewal use `App\\Support\\RentInstallmentSchedule` to calculate positive two-decimal rent installments using **integer halalas (cents)** rather than IEEE-754 floating point conversion. The schedule distributes any remainder one cent at a time across the first installments and preserves the total. Contracts with more installments than whole cents are rejected, rather than creating zero-value receivables. The API also rejects rent amounts with more than two decimal places and constrains the accepted amount to at most 9,999,999,999.99 SAR.
+
+The owner portal retains rent, deposit and payment amounts as decimal strings and sets 0.01 increments in money inputs. Tests cover creation, renewal, rounding remainders, and invalid near-zero amounts. The implementation is committed but a green CI and staging browser test are still needed before treating the financial workflow as verified.
