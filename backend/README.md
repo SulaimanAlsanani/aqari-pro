@@ -152,3 +152,9 @@ Run `php artisan staging:preflight` after securely configuring and caching the *
 For example, the staging database might be named `aqari_staging`; do not reuse production database credentials or APP_KEY. On the isolated host, use `php artisan config:clear && php artisan staging:preflight`. This preflight does not start HTTP, connect to the database, check live backups, test actual SMTP delivery, or prove Docker is safe. It is only the first configuration gate before a full staging rehearsal. Record its output in deployment logs and stop deployment on any failure.
 
 Do not run `php artisan test` or destructive migrations against a production database. CI test suites use an independent in-memory database. A staging release still needs a manually reviewed database connection, private storage, HTTPS certificate, ClamAV availability, backup verification and recovery rehearsal.
+
+## Standalone staging Docker stack
+
+A new `compose.staging-isolated.yaml` defines a separate Docker Compose project (`aqari-pro-staging`) with MySQL 8.4 on an internal-only network, an application endpoint bound to `127.0.0.1:18080`, separate named storage volumes and application outbound access for external SMTP/S3. It deliberately contains no public HTTPS gateway: add a separately hardened reverse proxy and DNS/certificate before browser testing. The existing `compose.yaml` and `compose.staging.yaml` are not used for this standalone stack.
+
+See `STAGING_RUNBOOK.md` for a safe staging setup using secrets stored outside the source/build directory, reviewed boot commands, read-only `staging:preflight` and `migrate:status`, and browser/recovery acceptance gates. GitHub Actions includes a non-deploying `staging-compose-guard` job that renders Compose with **synthetic CI credentials** and checks ports and network isolation. This does not prove host availability or production readiness.
