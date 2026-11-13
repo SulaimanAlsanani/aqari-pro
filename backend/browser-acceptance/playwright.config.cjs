@@ -4,6 +4,7 @@ const {resolveStagingOrigin} = require('./staging-guard.cjs');
 
 module.exports = defineConfig({
   testDir: './tests',
+  testMatch: '**/*.spec.cjs',
   timeout: 30000,
   expect: {timeout: 8000},
   retries: 0,
