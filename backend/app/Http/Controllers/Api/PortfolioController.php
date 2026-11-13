@@ -37,7 +37,7 @@ class PortfolioController extends Controller {
   return response()->json($request->user()->tenants()->create($data),201);
  }
  public function storeLease(Request $request){
-  $data=$request->validate(['unit_id'=>'required|integer','tenant_id'=>'required|integer','starts_on'=>'required|date','ends_on'=>'required|date|after:starts_on','total_amount'=>'required|numeric|gt:0|decimal:0,2|max:9999999999.99','deposit'=>'nullable|numeric|min:0|decimal:0,2|max:9999999999.99','installments'=>'required|integer|in:1,2,4,12']);
+  $data=$request->validate(['unit_id'=>'required|integer','tenant_id'=>'required|integer','starts_on'=>'required|date_format:Y-m-d','ends_on'=>'required|date_format:Y-m-d|after:starts_on','total_amount'=>'required|numeric|gt:0|decimal:0,2|max:9999999999.99','deposit'=>'nullable|numeric|min:0|decimal:0,2|max:9999999999.99','installments'=>'required|integer|in:1,2,4,12']);
   try {
    $installmentAmounts=RentInstallmentSchedule::amounts($data['total_amount'],(int)$data['installments']);
   } catch (InvalidArgumentException $exception) {
@@ -70,8 +70,8 @@ class PortfolioController extends Controller {
   $uid=$request->user()->id;
   abort_unless($lease->unit()->whereHas('property',fn($q)=>$q->where('user_id',$uid))->exists(),404);
   $data=$request->validate([
-   'amount'=>['required','numeric','gt:0','decimal:0,2'],
-   'paid_on'=>['required','date'],
+   'amount'=>['required','numeric','gt:0','decimal:0,2','max:9999999999.99'],
+   'paid_on'=>['required','date_format:Y-m-d'],
    'method'=>['required','in:bank_transfer,cash,card'],
    'reference'=>['nullable','string','max:120']
   ]);
