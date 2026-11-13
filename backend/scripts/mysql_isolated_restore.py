@@ -185,20 +185,34 @@ def run_drill(sql: Path, *, image: str = IMAGE) -> None:
             image, "--skip-networking",
         ])
         created = True
-        # Docker exec passes only the random *disposable* password, not production credentials.
+        # The official MySQL Docker entrypoint first runs a *temporary*
+        # bootstrap server. mysqladmin ping may return success even when its
+        # root credentials are not yet configured, or before the bootstrap
+        # daemon is replaced by the final server. Wait for the final PID 1
+        # process AND a properly authenticated SQL query.
+        print("RESTORE-DRILL: waiting for final authenticated MySQL server", file=sys.stderr, flush=True)
         ready = False
         for _ in range(60):
             try:
-                run_command([
-                    "docker", "exec", "--env", "MYSQL_PWD=" + password, name,
-                    "mysqladmin", "--protocol=socket", "-uroot", "ping",
+                init = run_command([
+                    "docker", "exec", name, "cat", "/proc/1/comm",
                 ], timeout=10)
-                ready = True
-                break
+                if init.stdout.strip() != b"mysqld":
+                    time.sleep(2)
+                    continue
+                sql_ready = run_command([
+                    "docker", "exec", "--env", "MYSQL_PWD=" + password, name,
+                    "mysql", "--protocol=socket", "-uroot", "--batch",
+                    "--skip-column-names", "--execute", "SELECT 1",
+                ], timeout=10)
+                if sql_ready.stdout.strip() == b"1":
+                    ready = True
+                    break
             except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
-                time.sleep(2)
+                pass
+            time.sleep(2)
         if not ready:
-            raise RuntimeError("Isolated MySQL instance failed readiness check")
+            raise RuntimeError("Final isolated MySQL server did not pass authenticated readiness")
 
         print("RESTORE-DRILL: disposable MySQL is ready; importing staged SQL", file=sys.stderr, flush=True)
         with sql.open("rb") as stream:
