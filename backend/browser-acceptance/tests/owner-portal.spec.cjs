@@ -82,6 +82,30 @@ test('staging test owner can view portfolio, reports, and log out', async ({page
     }
   }
 
+  // Regression: a delayed response for a previous section must never
+  // replace the data table of the owner's current selection.
+  await page.route(url => url.origin === baseURL && url.pathname === '/api/units', async route => {
+    await new Promise(resolve => setTimeout(resolve, 800));
+    await route.continue();
+  });
+  const delayedUnits = page.waitForResponse(r =>
+    r.url().startsWith(baseURL + '/api/units?') && r.request().method() === 'GET',
+    {timeout: 15000}
+  );
+  const tenantsResponse = page.waitForResponse(r =>
+    r.url().startsWith(baseURL + '/api/tenants?') && r.request().method() === 'GET',
+    {timeout: 15000}
+  );
+  await page.locator('#nav button').filter({hasText:'الوحدات'}).first().click();
+  await page.locator('#nav button').filter({hasText:'المستأجرون'}).first().click();
+  expect((await tenantsResponse).status()).toBe(200);
+  expect((await delayedUnits).status()).toBe(200);
+  await expect(page.locator('#sectionTitle')).toHaveText('المستأجرون');
+  await expect(page.locator('#view thead')).toContainText('المستأجر');
+  await page.waitForTimeout(100);
+  await expect(page.locator('#view thead')).toContainText('المستأجر');
+  await expect(page.locator('#notice')).not.toHaveClass(/error/);
+
   const logoutResponse = page.waitForResponse(r =>
     r.url().startsWith(baseURL + '/api/logout') && r.request().method() === 'POST',
     {timeout: 15000}
