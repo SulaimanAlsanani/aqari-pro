@@ -182,3 +182,9 @@ Recent hardening also prevents stale asynchronous section responses from replaci
 The cashflow dashboard now normalizes sums to two decimal places and uses BCMath for the net amount rather than subtracting JavaScript/PHP floating point numbers. Expenses, maintenance actual costs, repair estimates, and damage estimates validate two-decimal precision with bounded maximums. The owner UI preserves decimal string inputs for rents, payments, deposits, damage estimates and maintenance final costs; record identifiers still use integer conversion.
 
 The API regression tests cover a small four-installment lease split, partial receipts, refusing a one-halalah overpayment, refusing fractional-halalah expenses, and exact dashboard net values. These are source changes; live browser and production-shape MySQL acceptance testing remain outstanding.
+
+## Contract duration and due-date scheduling safeguard
+
+Lease creation and renewal now use `App\\Support\\LeaseDueDates` for due dates, in addition to the integer-cent amount allocator. A supported frequency (1, 2, 4 or 12 installments per year) must fit inside the contract's actual start/end dates. Invalid short terms fail validation on `installments`; the API no longer silently clamps excessive installments onto the contract's final date. Month-end due dates use Carbon's no-overflow calendar logic (for example January 31 → February 28). The first payment is due on the first lease day.
+
+The companion `LeaseDueDatesTest` and `RentInstallmentApiTest` cover annual/month-end calendars and rejection of too-short contracts without inserting a lease. Actual calendar and database integration must pass CI before this is considered release-approved.
