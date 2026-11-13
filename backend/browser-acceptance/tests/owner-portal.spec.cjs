@@ -54,23 +54,32 @@ test('staging test owner can view portfolio, reports, and log out', async ({page
   await expect(page.locator('#notice')).not.toHaveClass(/error/);
 
   const navigation = [
-    ['العقارات', 'لوحة أملاكي'], // title is actually the section label (checked below)
-    ['الوحدات', 'الوحدات'],
-    ['المستأجرون', 'المستأجرون'],
-    ['العقود', 'العقود'],
-    ['الأقساط', 'الأقساط'],
-    ['المقبوضات', 'المقبوضات'],
-    ['المرفقات', 'المرفقات'],
-    ['التقارير المالية', 'التقارير المالية'],
+    ['العقارات', '/api/portfolio?'],
+    ['الوحدات', '/api/units?'],
+    ['المستأجرون', '/api/tenants?'],
+    ['العقود', '/api/leases?'],
+    ['الأقساط', '/api/dues?'],
+    ['المقبوضات', '/api/payments?'],
+    ['المرفقات', '/api/documents?'],
+    ['التقارير المالية', '/api/reports/cashflow?'],
   ];
-  for (const [label, expectedTitle] of navigation) {
-    const button = page.locator('#nav button').filter({hasText: label}).first();
-    await button.click();
-    const title = label === 'العقارات' ? 'العقارات' : expectedTitle;
-    await expect(page.locator('#sectionTitle')).toHaveText(title);
-    await expect(page.locator('#view')).not.toContainText('جاري تحميل البيانات', {timeout: 15000});
+  for (const [label, endpoint] of navigation) {
+    // The actual endpoint is explicitly checked below; a 200 response
+    // confirms the view fetched its own owner-scoped resource.
+    const expectedResponse = page.waitForResponse(r =>
+      r.url().startsWith(baseURL + endpoint) && r.request().method() === 'GET',
+      {timeout: 15000}
+    );
+    await page.locator('#nav button').filter({hasText: label}).first().click();
+    const result = await expectedResponse;
+    expect(result.status()).toBe(200);
+    await expect(page.locator('#sectionTitle')).toHaveText(label);
     await expect(page.locator('#notice')).not.toHaveClass(/error/);
-    await expect(page.locator('#view')).not.toBeEmpty();
+    if (label === 'التقارير المالية') {
+      await expect(page.locator('#view .metrics .metric').first()).toBeVisible();
+    } else {
+      await expect(page.locator('#view .table-wrap table')).toBeVisible();
+    }
   }
 
   const logoutResponse = page.waitForResponse(r =>
