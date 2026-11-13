@@ -188,3 +188,11 @@ The API regression tests cover a small four-installment lease split, partial rec
 Lease creation and renewal now use `App\\Support\\LeaseDueDates` for due dates, in addition to the integer-cent amount allocator. A supported frequency (1, 2, 4 or 12 installments per year) must fit inside the contract's actual start/end dates. Invalid short terms fail validation on `installments`; the API no longer silently clamps excessive installments onto the contract's final date. Month-end due dates use Carbon's no-overflow calendar logic (for example January 31 → February 28). The first payment is due on the first lease day.
 
 The companion `LeaseDueDatesTest` and `RentInstallmentApiTest` cover annual/month-end calendars and rejection of too-short contracts without inserting a lease. Actual calendar and database integration must pass CI before this is considered release-approved.
+
+## Staging antivirus and S3 readiness hardening
+
+The `staging:preflight --live` command now checks that ClamAV main/daily databases exist, are nonempty and that the daily signature file has a plausible, recent modification time. The default daily freshness limit is **168 hours**, configurable through `STAGING_SIGNATURE_MAX_AGE_HOURS` in `compose.staging-isolated.yaml`. An actual clean/EICAR harmless scanner test is performed separately by `staging:check-antivirus` and automatically required by `staging:check-services` **before** attempting any real S3 or SMTP operation.
+
+`backup:check-storage` now handles S3 adapter initialization exceptions without treating them as successful checks. It requires its randomly named temporary object to be deleted and confirmed absent, even if the provider reports that the delete operation succeeded. Tests cover broken adapter startup, cleanup refusal, and objects that remain accessible after a reported deletion.
+
+These safeguards are implemented and committed with PHPUnit coverage, but **GitHub Actions and an actual staging host must pass** before calling the restore, malware scanning or external storage readiness verified. See `STAGING_RUNBOOK.md` for first-run `freshclam` initialization and follow-up checks.
