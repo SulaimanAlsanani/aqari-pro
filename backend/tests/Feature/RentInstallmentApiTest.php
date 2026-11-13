@@ -54,6 +54,18 @@ final class RentInstallmentApiTest extends TestCase
         self::assertSame(0,Lease::query()->count());
     }
 
+    public function test_renewal_rejects_zero_value_installments_without_creating_a_contract(): void
+    {
+        [$unitId,$tenantId]=$this->setupOwner();
+        $oldId=$this->postJson('/api/leases',$this->payload($unitId,$tenantId,'12.00',1))
+            ->assertCreated()->json('id');
+        $this->postJson('/api/leases/'.$oldId.'/activate')->assertOk();
+        $this->postJson('/api/leases/'.$oldId.'/renew',[
+            'total_amount'=>'0.11','installments'=>12,
+        ])->assertUnprocessable()->assertJsonValidationErrors('total_amount');
+        self::assertSame(1,Lease::query()->count());
+    }
+
     public function test_renewal_uses_identical_precise_money_split(): void
     {
         [$unitId,$tenantId]=$this->setupOwner();
