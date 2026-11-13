@@ -32,6 +32,11 @@ final class StagingServicesCheck extends Command
             return self::FAILURE;
         }
 
+        if ($recipient!==null && config('mail.default')!=='smtp') {
+            $this->error('SMTP mailer required for a real staging email check.');
+            return self::FAILURE;
+        }
+
         // Before remote S3 or SMTP actions, the config and actual MySQL
         // probe plus ClamAV signature check must pass.
         if ($this->call('staging:preflight',['--live'=>true])!==self::SUCCESS) {
@@ -45,10 +50,6 @@ final class StagingServicesCheck extends Command
 
         if ($recipient!==null) {
             // Explicit opt-in: SMTP delivery produces a real email.
-            if (config('mail.default')!=='smtp') {
-                $this->error('SMTP mailer required for a real staging email check.');
-                return self::FAILURE;
-            }
             try {
                 Mail::raw(
                     'Aqari Pro isolated staging mail delivery test. No user or financial data is included.',
