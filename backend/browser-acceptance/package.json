@@ -2,10 +2,12 @@
   "name": "aqari-pro-staging-browser-acceptance",
   "private": true,
   "version": "0.1.0",
-  "description": "Read-only owner portal browser checks for explicitly isolated staging hosts",
+  "description": "Staging-only browser acceptance with opt-in synthetic writes",
   "scripts": {
-    "test": "playwright test",
-    "check": "node --check tests/owner-portal.spec.cjs && node --check tests/owner-write.spec.cjs && node --check playwright.config.cjs && node --check staging-guard.cjs && node --test tests/staging-guard.test.cjs"
+    "test": "node scripts/run-acceptance.cjs read",
+    "check": "node --check scripts/run-acceptance.cjs && node --check playwright.config.cjs && node --check staging-guard.cjs && node --check tests/owner-portal.spec.cjs && node --check tests/owner-write.spec.cjs && node --test tests/staging-guard.test.cjs",
+    "test:live": "node scripts/run-acceptance.cjs live",
+    "test:write": "node scripts/run-acceptance.cjs write"
   },
   "devDependencies": {
     "@playwright/test": "1.56.1"
