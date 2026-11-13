@@ -3,6 +3,7 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
+use App\Support\ClamAvSignatureHealth;
 use Throwable;
 
 /**
@@ -95,14 +96,15 @@ final class StagingPreflight extends Command
                 $scanner!=='' && is_file($scanner) && is_executable($scanner),
                 'ClamAV executable is not available'
             );
-            $signaturePaths=[
-                '/var/lib/clamav/main.cvd','/var/lib/clamav/main.cld',
-                '/var/lib/clamav/daily.cvd','/var/lib/clamav/daily.cld',
-            ];
-            $hasMain=is_file($signaturePaths[0]) || is_file($signaturePaths[1]);
-            $hasDaily=is_file($signaturePaths[2]) || is_file($signaturePaths[3]);
-            $check($hasMain && $hasDaily,
-                'ClamAV main and daily signature databases are required');
+            $signatures=ClamAvSignatureHealth::inspect(
+                (string)config('document_security.signature_dir','/var/lib/clamav'),
+                time(),
+                (int)config('document_security.signature_max_age_hours',168)
+            );
+            $check($signatures['main'] && $signatures['daily'],
+                'Nonempty ClamAV main and daily signature databases are required');
+            $check($signatures['daily_fresh'],
+                'ClamAV daily signatures are missing or older than the configured threshold');
         }
 
         if ($failures) {
