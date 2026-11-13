@@ -53,7 +53,7 @@ final class StagingPreflightTest extends TestCase
         config()->set('mail.default','smtp');
         config()->set('filesystems.default','local');
         config()->set('filesystems.disks.backup',[
-            'driver'=>'s3','visibility'=>'private','bucket'=>'isolated-test-bucket',
+            'driver'=>'s3','visibility'=>'private','bucket'=>'isolated-staging-test-bucket',
         ]);
         config()->set('backup.encryption_key',base64_encode(random_bytes(32)));
         config()->set('document_security.scan_enabled',true);
