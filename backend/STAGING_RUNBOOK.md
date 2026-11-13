@@ -20,6 +20,7 @@ docker compose --env-file "$STAGING_ENV_FILE" -f compose.staging-isolated.yaml c
 docker compose --env-file "$STAGING_ENV_FILE" -f compose.staging-isolated.yaml up -d --build
 docker compose --env-file "$STAGING_ENV_FILE" -f compose.staging-isolated.yaml ps
 docker compose --env-file "$STAGING_ENV_FILE" -f compose.staging-isolated.yaml exec -T app php artisan staging:preflight
+docker compose --env-file "$STAGING_ENV_FILE" -f compose.staging-isolated.yaml exec -T app php artisan staging:preflight --live
 docker compose --env-file "$STAGING_ENV_FILE" -f compose.staging-isolated.yaml exec -T app php artisan migrate:status
 curl --fail --silent --show-error http://127.0.0.1:18080/up
 ```
@@ -33,3 +34,9 @@ The first-time isolated empty staging database requires an explicit, reviewed `p
 After the reverse proxy and certificate are verified, test login/MFA, property and unit lists, lease schedules, collection/receipt idempotency, cashflow, tenant statements, secure document upload/download, and cross-owner authorization. Run the isolated MySQL restore drill from a verified staged encrypted backup on a separate rehearsal host; do not import backup SQL into this live staging app automatically.
 
 The staging stack is not production-ready by itself: CI must pass, SMTP delivery and ClamAV scanning must be proven, private S3 access tested, monitoring/retention added, and a real end-to-end restore rehearsal completed. The Compose `config` command can reveal interpolated secrets; use `--quiet` on operator machines and do not publish rendered configuration or shell history.
+
+## Live readiness safeguards
+
+The optional `staging:preflight --live` checks **read-only** MySQL connectivity using `SELECT 1` and ensures a local ClamAV executable and both main/daily signature databases are present. It **will not open a database connection if any static staging isolation rule fails**. This avoids trusting a misconfigured database endpoint simply because the command was invoked. The check does not execute a malware scan or prove signatures are current; inspect `freshclam` update logs and perform a safe scanner test separately.
+
+After the live preflight, conduct `backup:check-storage` with staging-specific S3 credentials and verify SMTP delivery without sending production messages. Both are separate operational gates; neither is performed by the preflight. Record the outcome of each gate in the deployment checklist, without recording credentials. Do not proceed to application/browser acceptance until these checks pass and the staging HTTPS reverse proxy is independently verified.
