@@ -170,7 +170,7 @@ test('one-time synthetic owner journey: property → unit → tenant → lease �
   const chunks = [];
   for await (const chunk of stream) chunks.push(chunk);
   expect(Buffer.concat(chunks).toString('utf8'))
-    .toBe('Synthetic Aqari E2E staging record; no customer data.\\n');
+    .toBe('Synthetic Aqari E2E staging record; no customer data.\n');
 
   // No delete/cleanup against a potentially shared environment. Because the
   // server gate requires an empty test owner, this test is intentionally
