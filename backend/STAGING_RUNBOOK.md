@@ -40,3 +40,25 @@ The staging stack is not production-ready by itself: CI must pass, SMTP delivery
 The optional `staging:preflight --live` checks **read-only** MySQL connectivity using `SELECT 1` and ensures a local ClamAV executable and both main/daily signature databases are present. It **will not open a database connection if any static staging isolation rule fails**. This avoids trusting a misconfigured database endpoint simply because the command was invoked. The check does not execute a malware scan or prove signatures are current; inspect `freshclam` update logs and perform a safe scanner test separately.
 
 After the live preflight, conduct `backup:check-storage` with staging-specific S3 credentials and verify SMTP delivery without sending production messages. Both are separate operational gates; neither is performed by the preflight. Record the outcome of each gate in the deployment checklist, without recording credentials. Do not proceed to application/browser acceptance until these checks pass and the staging HTTPS reverse proxy is independently verified.
+
+## Gated live service checks (staging only)
+
+After `staging:preflight --live` passes, run the new command on the isolated staging host:
+
+```bash
+docker compose --env-file "$STAGING_ENV_FILE" -f compose.staging-isolated.yaml \
+  exec -T app php artisan staging:check-services
+```
+
+This command first re-runs the live staging configuration, read-only MySQL and ClamAV-signature checks. **Only if these succeed** does it call `backup:check-storage` to upload, read, verify and remove a random 64-byte object in the *staging* S3-compatible bucket. If any prerequisite fails, no S3 or SMTP action is attempted. It does not access live owner documents or perform a database restore.
+
+To explicitly test SMTP submission to an operator-controlled **staging test mailbox**:
+
+```bash
+docker compose --env-file "$STAGING_ENV_FILE" -f compose.staging-isolated.yaml \
+  exec -T app php artisan staging:check-services --mail-to=test-inbox@example.test
+```
+
+Replace the example mailbox with an actual authorized test inbox before execution. This sends a real generic test email **only when the option is supplied** and only after the MySQL/ClamAV and private S3 checks pass. A successful SMTP call means the configured transport accepted the message; the operator must still confirm inbox delivery. No customer data is included.
+
+The command refuses non-staging environments and invalid recipient addresses, and requires an SMTP mailer before attempting remote probes when a recipient is supplied. Never use production SMTP credentials or the production S3 bucket for staging. The command has no automated schedule, and is not a substitute for an encrypted-backup recovery drill, email deliverability monitoring or HTTPS browser tests.
