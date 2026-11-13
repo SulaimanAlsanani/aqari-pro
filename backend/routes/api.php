@@ -28,6 +28,7 @@ use App\Http\Controllers\Api\UnitHandoverController;
 use App\Http\Controllers\Api\HandoverDamageController;
 use App\Http\Controllers\Api\DamageDisputeController;
 use App\Http\Controllers\Api\StagingE2eController;
+use App\Http\Controllers\Api\OwnerLookupController;
 
 Route::post('/login',[AuthController::class,'login'])->middleware('throttle:owner-login');
 Route::post('/password/forgot',[PasswordResetController::class,'requestLink'])->middleware('throttle:3,1');
@@ -45,6 +46,7 @@ Route::middleware('auth:sanctum')->group(function () {
  Route::post('/account/mfa/disable',[MfaController::class,'disable'])->middleware('throttle:3,1');
  Route::post('/logout',[AuthController::class,'logout']);
  Route::post('/account/change-password',[AuthController::class,'changePassword'])->middleware('throttle:3,1');
+ Route::get('/lookups/{resource}',[OwnerLookupController::class,'index'])->middleware('throttle:90,1');
  Route::get('/portfolio',[PortfolioController::class,'index']);
  Route::get('/overview',[OperationsController::class,'overview']);
  Route::get('/alerts',[AlertsController::class,'index']);
