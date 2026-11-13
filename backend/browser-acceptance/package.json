@@ -5,7 +5,7 @@
   "description": "Read-only owner portal browser checks for explicitly isolated staging hosts",
   "scripts": {
     "test": "playwright test",
-    "check": "node --check tests/owner-portal.spec.cjs && node --check playwright.config.cjs && node --check staging-guard.cjs && node --test tests/staging-guard.test.cjs"
+    "check": "node --check tests/owner-portal.spec.cjs && node --check tests/owner-write.spec.cjs && node --check playwright.config.cjs && node --check staging-guard.cjs && node --test tests/staging-guard.test.cjs"
   },
   "devDependencies": {
     "@playwright/test": "1.56.1"
