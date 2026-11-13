@@ -1,0 +1,78 @@
+# Standalone staging stack. Never combine this with compose.yaml or production volumes.
+# Public HTTPS is intentionally external to this stack.
+name: aqari-pro-staging
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:18080:80"
+    environment:
+      APP_NAME: "Aqari Pro Staging"
+      APP_ENV: staging
+      APP_DEBUG: "false"
+      APP_KEY: "${STAGING_APP_KEY:?Provide independent staging APP_KEY}"
+      APP_URL: "${STAGING_APP_URL:?Provide HTTPS staging URL}"
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_DATABASE: aqari_staging
+      DB_USERNAME: aqari_staging
+      DB_PASSWORD: "${STAGING_DB_PASSWORD:?Provide staging DB password}"
+      FILESYSTEM_DISK: local
+      CACHE_STORE: file
+      SESSION_DRIVER: file
+      SESSION_SECURE_COOKIE: "true"
+      LOG_CHANNEL: stderr
+      DOCUMENT_SCAN_ENABLED: "true"
+      MAIL_MAILER: smtp
+      MAIL_HOST: "${STAGING_MAIL_HOST:?Provide staging mail host}"
+      MAIL_PORT: "${STAGING_MAIL_PORT:-587}"
+      MAIL_USERNAME: "${STAGING_MAIL_USERNAME:?Provide staging SMTP user}"
+      MAIL_PASSWORD: "${STAGING_MAIL_PASSWORD:?Provide staging SMTP password}"
+      MAIL_FROM_ADDRESS: "${STAGING_MAIL_FROM_ADDRESS:?Provide staging sender}"
+      BACKUP_S3_KEY: "${STAGING_BACKUP_S3_KEY:?Provide staging S3 key}"
+      BACKUP_S3_SECRET: "${STAGING_BACKUP_S3_SECRET:?Provide staging S3 secret}"
+      BACKUP_S3_REGION: "${STAGING_BACKUP_S3_REGION:-us-east-1}"
+      BACKUP_S3_BUCKET: "${STAGING_BACKUP_S3_BUCKET:?Provide staging S3 bucket}"
+      BACKUP_S3_ENDPOINT: "${STAGING_BACKUP_S3_ENDPOINT:-}"
+      BACKUP_ENCRYPTION_KEY: "${STAGING_BACKUP_ENCRYPTION_KEY:?Provide staging backup encryption key}"
+      BACKUP_MONITOR_ENABLED: "false"
+      BACKUP_ALERT_ENABLED: "false"
+    volumes:
+      - staging_private:/var/www/html/storage
+      - staging_clamav:/var/lib/clamav
+    depends_on:
+      db:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - internal
+  db:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: aqari_staging
+      MYSQL_USER: aqari_staging
+      MYSQL_PASSWORD: "${STAGING_DB_PASSWORD:?Provide staging DB password}"
+      MYSQL_ROOT_PASSWORD: "${STAGING_MYSQL_ROOT_PASSWORD:?Provide staging root password}"
+    volumes:
+      - staging_mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping --protocol=socket --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - internal
+networks:
+  internal:
+    internal: true
+volumes:
+  staging_mysql:
+  staging_private:
+  staging_clamav:
