@@ -44,6 +44,23 @@ final class RentInstallmentApiTest extends TestCase
         self::assertSame(['0.02','0.01','0.01','0.01'],$amounts);
     }
 
+    public function test_short_leases_reject_installment_frequencies_that_create_duplicate_end_dates(): void
+    {
+        [$unitId,$tenantId]=$this->setupOwner();
+        $data=$this->payload($unitId,$tenantId,'1200.00',12);
+        $data['ends_on']='2027-02-28';
+
+        $this->postJson('/api/leases',$data)
+            ->assertUnprocessable()->assertJsonValidationErrors('installments');
+        self::assertSame(0,Lease::query()->count());
+
+        $data['installments']=1;
+        $leaseId=$this->postJson('/api/leases',$data)
+            ->assertCreated()->json('id');
+        $dates=Lease::findOrFail($leaseId)->dues()->orderBy('sequence')->pluck('due_on')->all();
+        self::assertCount(1,$dates);
+    }
+
     public function test_partial_receipts_allocate_every_halalah_and_reject_excess_collection(): void
     {
         [$unitId,$tenantId,$propertyId]=$this->setupOwner();
