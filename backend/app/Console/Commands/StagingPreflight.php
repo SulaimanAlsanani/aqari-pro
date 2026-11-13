@@ -41,6 +41,14 @@ final class StagingPreflight extends Command
             'MySQL database name must explicitly contain staging'
         );
         $check(
+            ($mysql['host']??null)==='db' && (string)($mysql['port']??'')==='3306',
+            'Staging MySQL must use its internal Compose db service'
+        );
+        $check(
+            ($mysql['username']??null)==='aqari_staging',
+            'Staging must use the dedicated aqari_staging DB account'
+        );
+        $check(
             !in_array(config('cache.default'),['array',null],true),
             'Use a persistent staging cache driver'
         );
