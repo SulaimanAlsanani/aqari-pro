@@ -2,6 +2,8 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
+use Throwable;
 
 /**
  * Read-only configuration gate. Does not connect to production services,
@@ -9,7 +11,7 @@ use Illuminate\Console\Command;
  */
 final class StagingPreflight extends Command
 {
-    protected $signature = 'staging:preflight';
+    protected $signature = 'staging:preflight {--live : Check actual MySQL connectivity and ClamAV signatures without writing data}';
     protected $description = 'Validate Aqari Pro isolated staging configuration before a recovery rehearsal';
 
     public function handle(): int
@@ -70,13 +72,41 @@ final class StagingPreflight extends Command
 
         $check(config('document_security.scan_enabled')===true, 'Enable anti-malware scanning for private documents');
 
+        // Live checks are opt-in. Never connect to databases after a failed
+        // configuration guard: the configured endpoint could be production.
+        if (!$failures && $this->option('live')) {
+            try {
+                $result=DB::connection('mysql')->select('SELECT 1 AS ready');
+                $check(count($result)===1 && (int)($result[0]->ready??0)===1,
+                    'Staging MySQL read-only probe returned an unexpected result');
+            } catch (Throwable $exception) {
+                // Do not expose connection strings, secrets or SQL driver details.
+                $check(false,'Staging MySQL read-only probe failed');
+            }
+            $scanner=(string)config('document_security.clamscan_binary','');
+            $check(
+                $scanner!=='' && is_file($scanner) && is_executable($scanner),
+                'ClamAV executable is not available'
+            );
+            $signaturePaths=[
+                '/var/lib/clamav/main.cvd','/var/lib/clamav/main.cld',
+                '/var/lib/clamav/daily.cvd','/var/lib/clamav/daily.cld',
+            ];
+            $hasMain=is_file($signaturePaths[0]) || is_file($signaturePaths[1]);
+            $hasDaily=is_file($signaturePaths[2]) || is_file($signaturePaths[3]);
+            $check($hasMain && $hasDaily,
+                'ClamAV main and daily signature databases are required');
+        }
+
         if ($failures) {
             foreach ($failures as $failure) $this->error('FAIL: '.$failure);
             $this->error('Staging preflight failed: '.count($failures).' configuration guard(s).');
             return self::FAILURE;
         }
         $this->info('PASS: staging configuration guards satisfied.');
-        $this->warn('This does NOT verify real S3, SMTP, malware engine, database connectivity or restore readiness.');
+        $this->warn($this->option('live')
+            ? 'This does NOT verify S3, SMTP delivery, an actual malware scan, restore or HTTPS reachability.'
+            : 'Configuration only; run staging:preflight --live to check MySQL connectivity and ClamAV files.');
         return self::SUCCESS;
     }
 }
