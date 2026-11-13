@@ -46,6 +46,11 @@ final class OwnerSessionTest extends TestCase
         $this->withHeaders($headers)->deleteJson('/api/account/sessions/'.$token->accessToken->id, [
             'password'=>'strong-password-for-testing',
         ])->assertOk()->assertJsonPath('current_revoked',true);
+        $this->assertDatabaseMissing('personal_access_tokens',['id'=>$token->accessToken->id]);
+        // Laravel's HTTP test client reuses the application/auth guard across
+        // requests, unlike independent real HTTP requests. Clear cached user
+        // authentication so the next request revalidates the revoked token.
+        app('auth')->forgetGuards();
         $this->withHeaders($headers)->getJson('/api/me')->assertUnauthorized();
     }
 
