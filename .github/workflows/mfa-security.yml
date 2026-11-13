@@ -52,6 +52,7 @@ jobs:
           php -l app/Console/Commands/StagingAntivirusCheck.php
           php -l app/Support/BackupMonitorEvents.php
           php -l config/staging.php
+          php -l config/document_security.php
           php -l routes/api.php
           php -l routes/console.php
           php -l app/Support/BackupEnvelope.php
