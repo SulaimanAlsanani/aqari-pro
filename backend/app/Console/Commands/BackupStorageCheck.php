@@ -51,7 +51,7 @@ class BackupStorageCheck extends Command
             if (!is_string($read) || !hash_equals(
                 hash('sha256', $payload), hash('sha256', $read)
             )) {
-                throw new \\RuntimeException('Probe integrity mismatch.');
+                throw new \RuntimeException('Probe integrity mismatch.');
             }
             $success = true;
         } catch (Throwable $exception) {
