@@ -139,6 +139,49 @@ jobs:
             --stage "$PWD/$STAGE" --app-storage "$PWD/backend/storage/app"
           rm -rf "$STAGE"
 
+  browser-playwright-discovery:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: backend/browser-acceptance
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned Playwright test runner without browsers
+        run: npm install --ignore-scripts --no-audit --no-fund --no-package-lock
+      - name: Run offline staging target and CLI guard tests
+        run: npm run check
+      - name: Verify read-only test discovery without launching browsers
+        env:
+          STAGING_BASE_URL: https://staging.ci.invalid
+          STAGING_ALLOWED_HOST: staging.ci.invalid
+        run: |
+          set -euo pipefail
+          npm test -- --list > /tmp/aqari-read-specs.txt
+          grep -Fq "owner-portal.spec.cjs" /tmp/aqari-read-specs.txt
+          if grep -Fq "owner-write.spec.cjs" /tmp/aqari-read-specs.txt; then
+            echo "Unsafe: write tests discovered by default" >&2
+            exit 1
+          fi
+      - name: Verify one-time write test is isolated in discovery-only mode
+        env:
+          STAGING_BASE_URL: https://staging.ci.invalid
+          STAGING_ALLOWED_HOST: staging.ci.invalid
+          STAGING_TEST_OWNER_EMAIL: aqari-e2e-ci@example.invalid
+          STAGING_TEST_OWNER_PASSWORD: synthetic-not-a-real-secret
+          STAGING_E2E_WRITE_CONFIRMATION: ALLOW_ONE_TIME_SYNTHETIC_WRITES
+        run: |
+          set -euo pipefail
+          npm run test:write -- --list > /tmp/aqari-write-specs.txt
+          grep -Fq "owner-write.spec.cjs" /tmp/aqari-write-specs.txt
+          if grep -Fq "owner-portal.spec.cjs" /tmp/aqari-write-specs.txt; then
+            echo "Unsafe: read tests discovered in write-only mode" >&2
+            exit 1
+          fi
+
   staging-compose-guard:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
