@@ -147,7 +147,7 @@ CI includes the test in the Laravel security/integration job. This is **not** ev
 
 ## Staging configuration preflight
 
-Run `php artisan staging:preflight` after securely configuring and caching the **isolated staging** environment. This read-only gate refuses to pass unless `APP_ENV=staging`, `APP_DEBUG=false`, and the application URL uses non-local HTTPS. It requires a MySQL database whose configured name contains `staging`, a persistent cache, an external SMTP mailer, a private local document disk, an S3-compatible **private** backup bucket, an independent 32-byte backup key, and enabled document malware scanning.
+Run `php artisan staging:preflight` after securely configuring and caching the **isolated staging** environment. This read-only gate refuses to pass unless `APP_ENV=staging`, `APP_DEBUG=false`, and the application URL uses non-local HTTPS. It requires the dedicated internal Compose MySQL host `db` on port 3306 with username `aqari_staging` and a MySQL database whose configured name contains `staging`, a persistent cache, an external SMTP mailer, a private local document disk, an S3-compatible **private** backup bucket, an independent 32-byte backup key, and enabled document malware scanning.
 
 For example, the staging database might be named `aqari_staging`; do not reuse production database credentials or APP_KEY. On the isolated host, use `php artisan config:clear && php artisan staging:preflight`. This preflight does not start HTTP, connect to the database, check live backups, test actual SMTP delivery, or prove Docker is safe. It is only the first configuration gate before a full staging rehearsal. Record its output in deployment logs and stop deployment on any failure.
 
