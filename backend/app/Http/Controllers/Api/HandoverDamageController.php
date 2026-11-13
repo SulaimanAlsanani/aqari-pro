@@ -40,7 +40,7 @@ class HandoverDamageController extends Controller {
   $this->owned($request,$lease);
   $data=$request->validate([
    'description'=>['required','string','min:10','max:500'],
-   'estimated_cost'=>['required','numeric','gt:0','decimal:0,2']
+   'estimated_cost'=>['required','numeric','gt:0','decimal:0,2','max:9999999999.99']
   ]);
   return DB::transaction(function()use($lease,$data){
    $locked=Lease::whereKey($lease->id)->lockForUpdate()->firstOrFail();
