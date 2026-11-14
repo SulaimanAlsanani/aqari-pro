@@ -847,10 +847,11 @@ async function download(id,name){
   setTimeout(()=>URL.revokeObjectURL(url),4000);
  }catch(err){notify(err.message,true)}
 }
-async function showReceivablesAging(epoch=refreshEpoch){
+async function showReceivablesAging(epoch=refreshEpoch,propertyId=null){
  const view=$('view');
  view.replaceChildren(el('p','جاري حساب أعمار المتأخرات...','muted'));
- const report=await api('/reports/receivables');
+ const query=propertyId===null?'':'?property_id='+encodeURIComponent(propertyId);
+ const report=await api('/reports/receivables'+query);
  if(epoch!==refreshEpoch||active!=='receivables')return;
  view.replaceChildren();
  const panel=el('section',null,'panel');
@@ -858,6 +859,27 @@ async function showReceivablesAging(epoch=refreshEpoch){
   el('h3','أعمار الذمم المدينة — الإيجارات'),
   el('p','حتى '+report.as_of+' — يحتسب التقرير الأقساط غير المسددة للعقود النشطة فقط، دون سندات القبض الملغاة. الأرقام مبالغ حالية وليست كشفًا تاريخيًا.','muted')
  );
+ const filter=el('div',null,'toolbar');
+ const filterField=el('div',null,'field');
+ const filterLabel=el('label','تصفية حسب العقار');
+ const filterInput=el('input');filterInput.type='number';filterInput.min='1';filterInput.step='1';
+ filterInput.id='aging-property-id';filterInput.value=propertyId===null?'':String(propertyId);
+ filterLabel.htmlFor=filterInput.id;
+ const picker=el('button','بحث عن عقار','secondary');picker.type='button';
+ picker.addEventListener('click',()=>showLookupPicker('properties',filterInput,'العقار'));
+ filterField.append(filterLabel,filterInput,picker);
+ const buttons=el('div',null,'actions'),apply=el('button','عرض العقار','primary');
+ apply.type='button';apply.id='aging-apply';
+ apply.addEventListener('click',()=>{
+  if(!/^[1-9][0-9]*$/.test(filterInput.value)){
+   notify('اختر عقارًا صحيحًا أولًا',true);return;
+  }
+  showReceivablesAging(++refreshEpoch,Number(filterInput.value)).catch(error=>notify(error.message,true));
+ });
+ const all=el('button','كل العقارات','secondary');all.type='button';
+ all.addEventListener('click',()=>showReceivablesAging(++refreshEpoch).catch(error=>notify(error.message,true)));
+ buttons.append(apply,all);filter.append(filterField,buttons);panel.append(filter);
+ panel.append(el('p',report.property_id===null?'جميع عقارات المالك':'العقار #'+report.property_id,'muted'));
  const metrics=el('div',null,'metrics');
  for(const [title,value] of [
   ['إجمالي المتبقي',report.totals.outstanding],
