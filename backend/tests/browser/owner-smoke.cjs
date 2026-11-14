@@ -193,6 +193,26 @@ async function main() {
       assert.equal(await page.locator('#notice.error').count(), 0,
         'scoped maintenance ticket submitted without error');
 
+      // This synthetic lease ended in 2025, so its unit must be vacant in
+      // the current occupancy snapshot even though the lease is still active.
+      await page.locator('#nav button').filter({ hasText: 'الإشغال والشواغر' }).click();
+      await page.locator('#view h3').first().getByText('الإشغال والشواغر').waitFor({timeout:15000});
+      assert.equal(await page.locator('#view .metrics .metric').count(),6,
+        'occupancy report includes six current-state indicators');
+      const occupancyRow=page.locator('#view table').first().locator('tbody tr')
+        .filter({ hasText: 'عقار اختبار المتصفح ' + viewport.width });
+      await occupancyRow.waitFor({timeout:15000});
+      assert.equal((await occupancyRow.locator('td').nth(2).innerText()).trim(),'1');
+      assert.equal((await occupancyRow.locator('td').nth(3).innerText()).trim(),'0');
+      assert.equal((await occupancyRow.locator('td').nth(4).innerText()).trim(),'1');
+      await page.locator('#occupancy-property-id').fill(propertyId);
+      await page.locator('#occupancy-apply').click();
+      await page.getByText('العقار #' + propertyId, {exact:true})
+        .waitFor({timeout:15000});
+      assert.equal(await page.locator('#view .metrics .metric').count(),6);
+      assert.equal(await page.locator('#notice.error').count(),0,
+        'occupancy drilldown must not show a server or browser error');
+
       await page.locator('#nav button').filter({ hasText: 'أعمار المتأخرات' }).click();
       await page.getByText('أعمار الذمم المدينة — الإيجارات').waitFor({ timeout: 15000 });
       assert.equal(await page.locator('#view .metrics .metric').count(), 7,
