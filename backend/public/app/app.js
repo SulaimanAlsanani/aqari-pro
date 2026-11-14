@@ -7,7 +7,7 @@ let reconciliationEpoch=0; // Prevent older reconciliation pages replacing newer
 const $=id=>document.getElementById(id);
 const sections=[
  ['overview','لوحة أملاكي'],['alerts','التنبيهات'],['properties','العقارات'],['units','الوحدات'],['tenants','المستأجرون'],
- ['leases','العقود'],['dues','الأقساط'],['payments','المقبوضات'],['expenses','المصروفات'],
+ ['leases','العقود'],['dues','الأقساط'],['receivables','أعمار المتأخرات'],['payments','المقبوضات'],['expenses','المصروفات'],
  ['tickets','الصيانة'],['vendors','الموردون'],['documents','المرفقات'],['reports','التقارير المالية'],['deposit-report','أرصدة التأمينات'],['reconciliation','مطابقة الحسابات'],['audit','سجل العمليات'],['account','حسابي']
 ];
 const fields={
@@ -847,6 +847,55 @@ async function download(id,name){
   setTimeout(()=>URL.revokeObjectURL(url),4000);
  }catch(err){notify(err.message,true)}
 }
+async function showReceivablesAging(epoch=refreshEpoch){
+ const view=$('view');
+ view.replaceChildren(el('p','جاري حساب أعمار المتأخرات...','muted'));
+ const report=await api('/reports/receivables');
+ if(epoch!==refreshEpoch||active!=='receivables')return;
+ view.replaceChildren();
+ const panel=el('section',null,'panel');
+ panel.append(
+  el('h3','أعمار الذمم المدينة — الإيجارات'),
+  el('p','حتى '+report.as_of+' — يحتسب التقرير الأقساط غير المسددة للعقود النشطة فقط، دون سندات القبض الملغاة. الأرقام مبالغ حالية وليست كشفًا تاريخيًا.','muted')
+ );
+ const metrics=el('div',null,'metrics');
+ for(const [title,value] of [
+  ['إجمالي المتبقي',report.totals.outstanding],
+  ['إجمالي المتأخر',report.totals.overdue],
+  ['غير متأخر بعد',report.totals.not_overdue],
+  ['1–30 يومًا',report.totals.days_1_30],
+  ['31–60 يومًا',report.totals.days_31_60],
+  ['61–90 يومًا',report.totals.days_61_90],
+  ['أكثر من 90 يومًا',report.totals.days_over_90]
+ ]){
+  const card=el('div',null,'metric');
+  card.append(el('span',title+' (ر.س)','muted'),el('strong',value));
+  metrics.append(card);
+ }
+ panel.append(metrics);
+ panel.append(el('p','الأقساط غير المسددة: '+report.counts.outstanding_installments+
+  ' | الأقساط المتأخرة: '+report.counts.overdue_installments,'muted'));
+ panel.append(el('h3','أقدم الأقساط المتأخرة'));
+ if(report.oldest_overdue.length===0){
+  panel.append(el('p','لا توجد أقساط متأخرة للعقود النشطة.','muted'));
+ }else{
+  const wrap=el('div',null,'table-wrap'),table=el('table'),head=el('tr');
+  for(const name of ['العقار','الوحدة','المستأجر','رقم العقد','تاريخ الاستحقاق','أيام التأخير','المتبقي (ر.س)'])
+   head.append(el('th',name));
+  const thead=el('thead');thead.append(head);table.append(thead);
+  const body=el('tbody');
+  for(const row of report.oldest_overdue){
+   const tr=el('tr');
+   for(const value of [row.property,row.unit,row.tenant,row.lease_id,row.due_on,row.days_overdue,row.outstanding])
+    tr.append(el('td',value));
+   body.append(tr);
+  }
+  table.append(body);wrap.append(table);panel.append(wrap);
+  if(report.has_more_overdue)
+   panel.append(el('p','يعرض الجدول أقدم 20 قسطًا فقط؛ المؤشرات تشمل جميع الأقساط المتأخرة.','muted'));
+ }
+ view.append(panel);
+}
 async function showDepositReport(epoch=refreshEpoch){
  const view=$('view');
  view.replaceChildren(el('p','جاري تحميل تقرير التأمينات...','muted'));
@@ -1126,6 +1175,7 @@ async function refresh(page=1){
   }
   if(section==='alerts'){await showAlerts(epoch);return}
   if(section==='reports'){await showCashflow();return}
+  if(section==='receivables'){await showReceivablesAging(epoch);return}
   if(section==='deposit-report'){await showDepositReport(epoch);return}
   if(section==='reconciliation'){await showReconciliation(1,epoch);return}
   if(section==='account'){showAccount();return}
