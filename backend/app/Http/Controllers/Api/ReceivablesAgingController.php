@@ -1,7 +1,7 @@
 <?php
 namespace App\Http\Controllers\Api;
 
-use App\Models\Due;
+use App\Models\{Due,Property};
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 
@@ -16,6 +16,13 @@ final class ReceivablesAgingController extends Controller
     public function index(Request $request)
     {
         $ownerId=$request->user()->id;
+        $input=$request->validate([
+            'property_id'=>['sometimes','required','integer','min:1'],
+        ]);
+        $propertyId=$input['property_id']??null;
+        if ($propertyId!==null) {
+            abort_unless(Property::where('user_id',$ownerId)->whereKey($propertyId)->exists(),404);
+        }
         $today=today();
         $todayDate=$today->toDateString();
         $totals=[
@@ -33,7 +40,10 @@ final class ReceivablesAgingController extends Controller
         // lazyById prevents loading every owner's due/lease into memory.
         // The primary owner restriction applies inside the SQL query.
         $query=Due::query()
-            ->whereHas('lease.unit.property',fn($q)=>$q->where('user_id',$ownerId))
+            ->whereHas('lease.unit.property',function($q)use($ownerId,$propertyId) {
+                $q->where('user_id',$ownerId);
+                if ($propertyId!==null) $q->whereKey($propertyId);
+            })
             ->whereHas('lease',fn($q)=>$q->where('status','active'))
             ->with(['lease.unit.property:id,name','lease.tenant:id,name'])
             ->withSum([
@@ -85,6 +95,7 @@ final class ReceivablesAgingController extends Controller
 
         return response()->json([
             'as_of'=>$todayDate,
+            'property_id'=>$propertyId,
             'basis'=>'active_leases_current_state',
             'totals'=>$totals,
             'counts'=>$counts,
