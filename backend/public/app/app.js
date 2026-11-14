@@ -1226,7 +1226,7 @@ async function showAlerts(epoch=refreshEpoch){
  if(epoch!==refreshEpoch||active!=='alerts')return;
  view.replaceChildren();
  const metrics=el('div',null,'metrics');
- for(const [label,value] of [['أقساط متأخرة',data.overdue_count],['أقساط خلال 30 يومًا',data.upcoming_count],['عقود تنتهي خلال 30 يومًا',data.expiring_leases.length]]){
+ for(const [label,value] of [['أقساط متأخرة',data.overdue_count],['أقساط خلال 30 يومًا',data.upcoming_count],['عقود تنتهي خلال 30 يومًا',data.expiring_leases_count]]){
   const item=el('div',null,'metric');item.append(el('span',label,'muted'),el('strong',value));metrics.append(item);
  }
  view.append(metrics);
@@ -1242,12 +1242,14 @@ async function showAlerts(epoch=refreshEpoch){
  }
  table.append(body);wrap.append(table);panel.append(wrap);
  if(!data.dues.length)panel.append(el('p','لا توجد استحقاقات غير مسددة ضمن نطاق التنبيهات.','muted'));
+ if(data.has_more_dues)panel.append(el('p','يعرض الجدول أول 200 استحقاق غير مسدد؛ العدد أعلاه يشمل جميع الاستحقاقات.','muted'));
  view.append(panel);
  const expiring=el('div',null,'panel');expiring.append(el('h3','العقود التي تنتهي خلال 30 يومًا'));
  if(!data.expiring_leases.length)expiring.append(el('p','لا توجد عقود تنتهي خلال الفترة.','muted'));
  for(const lease of data.expiring_leases){
   expiring.append(el('p','العقد رقم '+lease.id+' — ينتهي في '+lease.ends_on,'muted'));
  }
+ if(data.has_more_expiring)expiring.append(el('p','يعرض القسم أقرب 100 عقد للانتهاء؛ العدد أعلاه يشمل جميع العقود.','muted'));
  view.append(expiring);
 }
 async function showReconciliation(page=1,epoch=refreshEpoch){
