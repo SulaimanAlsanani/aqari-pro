@@ -202,6 +202,17 @@ async function main() {
         .waitFor({ timeout: 15000 });
       assert.equal(await page.locator('#view .metrics .metric').count(), 7,
         'the property-scoped report retains its seven accounting metrics');
+
+      // Download all current unpaid dues in CSV, scoped to the chosen property.
+      const exportResponse = page.waitForResponse(response =>
+        response.url().includes('/api/exports/receivables-aging?property_id=' + propertyId)
+        && response.request().method() === 'GET', {timeout:15000});
+      const downloadPromise = page.waitForEvent('download', {timeout:15000});
+      await page.locator('#aging-export').click();
+      const downloaded = await downloadPromise;
+      assert.match(downloaded.suggestedFilename(), /^aqari-receivables-aging-[0-9-]+\.csv$/);
+      assert.equal((await exportResponse).status(),200);
+
       assert.equal(await page.locator('#notice.error').count(), 0,
         'aging report loads without a server or browser error');
 
