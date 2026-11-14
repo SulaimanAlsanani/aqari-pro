@@ -29,6 +29,7 @@ use App\Http\Controllers\Api\HandoverDamageController;
 use App\Http\Controllers\Api\DamageDisputeController;
 use App\Http\Controllers\Api\StagingE2eController;
 use App\Http\Controllers\Api\OwnerLookupController;
+use App\Http\Controllers\Api\ReceivablesAgingController;
 
 Route::post('/login',[AuthController::class,'login'])->middleware('throttle:owner-login');
 Route::post('/password/forgot',[PasswordResetController::class,'requestLink'])->middleware('throttle:3,1');
@@ -64,6 +65,7 @@ Route::middleware('auth:sanctum')->group(function () {
  Route::post('/leases/{lease}/damages/{damage}/dispute/resolve',[DamageDisputeController::class,'resolve']);
  Route::post('/leases/{lease}/deposit',[DepositController::class,'store']);
  Route::get('/reports/cashflow',[FinancialReportController::class,'cashflow']);
+ Route::get('/reports/receivables',[ReceivablesAgingController::class,'index'])->middleware('throttle:20,1');
  Route::get('/reports/deposits',[DepositReportController::class,'index']);
  Route::get('/exports/{resource}',[DataExportController::class,'download'])->middleware('throttle:10,1');
  Route::get('/units',[RecordsController::class,'units']);
