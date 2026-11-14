@@ -207,7 +207,10 @@ async function main() {
       const exportResponse = page.waitForResponse(response =>
         response.url().includes('/api/exports/receivables-aging?property_id=' + propertyId)
         && response.request().method() === 'GET', {timeout:15000});
-      const downloadPromise = page.waitForEvent('download', {timeout:15000});
+      // Attach a rejection handler immediately: otherwise a missed download
+      // event can crash Node before the HTTP failure is reported.
+      const downloadPromise = page.waitForEvent('download', {timeout:20000})
+        .catch(() => null);
       await page.locator('#aging-export').click();
       const csvResponse = await exportResponse;
       assert.equal(csvResponse.status(),200,
@@ -215,6 +218,7 @@ async function main() {
       assert.equal(await page.locator('#notice.error').count(),0,
         'the export UI must not show an API error');
       const downloaded = await downloadPromise;
+      assert.ok(downloaded, 'CSV HTTP succeeded but the browser did not start a download');
       assert.match(downloaded.suggestedFilename(), /^aqari-receivables-aging-[0-9-]+\.csv$/);
 
       assert.equal(await page.locator('#notice.error').count(), 0,
