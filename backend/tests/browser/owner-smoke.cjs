@@ -1,6 +1,7 @@
 'use strict';
 const { chromium } = require('playwright');
 const assert = require('node:assert/strict');
+const { readFile } = require('node:fs/promises');
 
 const BASE = process.env.BROWSER_BASE_URL || 'http://127.0.0.1:8082';
 const EMAIL = 'browser.owner@example.test';
@@ -196,6 +197,7 @@ async function main() {
       await page.getByText('أعمار الذمم المدينة — الإيجارات').waitFor({ timeout: 15000 });
       assert.equal(await page.locator('#view .metrics .metric').count(), 7,
         'aging report includes all current and overdue money buckets');
+      await page.getByText('المتأخرات بحسب العقار').waitFor({timeout:15000});
       await page.locator('#aging-property-id').fill(propertyId);
       await page.locator('#aging-apply').click();
       await page.getByText('العقار #' + propertyId, { exact: true })
@@ -220,6 +222,10 @@ async function main() {
       const downloaded = await downloadPromise;
       assert.ok(downloaded, 'CSV HTTP succeeded but the browser did not start a download');
       assert.match(downloaded.suggestedFilename(), /^aqari-receivables-aging-[0-9-]+\.csv$/);
+      const csvContents = await readFile(await downloaded.path(), 'utf8');
+      assert.ok(csvContents.startsWith('\uFEFF'), 'CSV must include UTF-8 BOM for Arabic Excel');
+      assert.ok(csvContents.includes('تاريخ التقرير'), 'CSV must contain Arabic accounting headers');
+      assert.ok(csvContents.includes('المتبقي'), 'CSV must include outstanding balance column');
 
       assert.equal(await page.locator('#notice.error').count(), 0,
         'aging report loads without a server or browser error');
