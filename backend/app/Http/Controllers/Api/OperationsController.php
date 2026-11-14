@@ -3,6 +3,7 @@ namespace App\Http\Controllers\Api;
 use App\Models\{Property,Unit,Expense,MaintenanceTicket,Due,Lease,Payment,Vendor};
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use App\Support\ReceivablesLedger;
 
 class OperationsController extends Controller{
  private function ownedProperty(Request $request,Property $property):Property{
@@ -48,11 +49,12 @@ class OperationsController extends Controller{
    ->orderBy('due_on')->orderBy('id')->paginate(30);
   $today=now()->toDateString();
   $page->getCollection()->transform(function(Due $due)use($today){
-   $paid=bcadd((string)($due->allocations_sum_amount??'0'),'0',2);
-   $balance=bcsub((string)$due->amount,$paid,2);
+   $paid=ReceivablesLedger::paid($due);
+   // Fail closed on corrupt overallocations, as in aging and CSV exports.
+   $balance=ReceivablesLedger::balance($due);
    $due->setAttribute('paid_amount',$paid);
    $due->setAttribute('balance_amount',$balance);
-   $due->setAttribute('payment_status',bccomp($balance,'0.00',2)<=0?'paid':($due->due_on->toDateString()<$today?'overdue':'pending'));
+   $due->setAttribute('payment_status',bccomp($balance,'0.00',2)===0?'paid':($due->due_on->toDateString()<$today?'overdue':'pending'));
    return $due;
   });
   return $page;
