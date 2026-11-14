@@ -19,7 +19,7 @@ final class ReceivablesAgingController extends Controller
         $input=$request->validate([
             'property_id'=>['sometimes','required','integer','min:1'],
         ]);
-        $propertyId=$input['property_id']??null;
+        $propertyId=isset($input['property_id'])?(int)$input['property_id']:null;
         if ($propertyId!==null) {
             abort_unless(Property::where('user_id',$ownerId)->whereKey($propertyId)->exists(),404);
         }
