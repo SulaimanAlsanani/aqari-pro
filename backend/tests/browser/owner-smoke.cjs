@@ -213,7 +213,12 @@ async function main() {
       assert.equal(await page.locator('#notice.error').count(),0,
         'occupancy drilldown must not show a server or browser error');
 
+      const agingResponse=page.waitForResponse(response=>
+        response.url().includes('/api/reports/receivables')
+        && response.request().method()==='GET',{timeout:15000});
       await page.locator('#nav button').filter({ hasText: 'أعمار المتأخرات' }).click();
+      assert.equal((await agingResponse).status(),200,
+        'owner aging screen must not hit rate limits after occupancy navigation');
       await page.getByText('أعمار الذمم المدينة — الإيجارات').waitFor({ timeout: 15000 });
       assert.equal(await page.locator('#view .metrics .metric').count(), 7,
         'aging report includes all current and overdue money buckets');
