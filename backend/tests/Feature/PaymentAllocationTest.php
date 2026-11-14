@@ -38,6 +38,8 @@ class PaymentAllocationTest extends TestCase {
  }
  public function test_corrupt_overallocated_due_is_rejected_instead_of_misreported_as_paid():void{
   [$owner,$lease]=$this->setupLease();
+  // Aging includes active leases only; due list includes scheduled drafts.
+  $this->actingAs($owner)->postJson('/api/leases/'.$lease->id.'/activate')->assertOk();
   $due=$lease->dues()->orderBy('sequence')->firstOrFail();
   $payment=$lease->payments()->create([
    'amount'=>'1100.00','paid_on'=>'2026-02-01','method'=>'cash'
