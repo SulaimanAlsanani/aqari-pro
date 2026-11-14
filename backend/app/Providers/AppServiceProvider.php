@@ -29,6 +29,16 @@ class AppServiceProvider extends ServiceProvider {
     'owner-receivables-csv:'.($ownerId!==null?'owner:'.$ownerId:'ip:'.$request->ip())
    );
   });
+  // Limit report reads per authenticated owner AND endpoint. Numeric
+  // throttle middleware shares a counter across unrelated report routes,
+  // causing 429 on the second screen during normal navigation.
+  RateLimiter::for('owner-report-read',function(Request $request) {
+   $ownerId=$request->user()?->getAuthIdentifier();
+   return Limit::perMinute(30)->by(
+    'owner-report-read:'.$request->path().':'.
+    ($ownerId!==null?'owner:'.$ownerId:'ip:'.$request->ip())
+   );
+  });
   ResetPassword::createUrlUsing(function($user,string $token):string {
    return rtrim(config('app.url'),'/').'/app/index.html?reset_token='.rawurlencode($token).'&email='.rawurlencode($user->getEmailForPasswordReset());
   });
