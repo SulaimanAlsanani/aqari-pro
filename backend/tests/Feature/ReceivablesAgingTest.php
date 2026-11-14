@@ -70,6 +70,14 @@ final class ReceivablesAgingTest extends TestCase
             ->assertJsonPath('counts.overdue_installments',2)
             ->assertJsonPath('counts.outstanding_installments',3)
             ->assertJsonPath('has_more_overdue',false)
+            ->assertJsonPath('properties_with_balance',1)
+            ->assertJsonPath('has_more_properties',false)
+            ->assertJsonCount(1,'by_property')
+            ->assertJsonPath('by_property.0.name','Owner Tower')
+            ->assertJsonPath('by_property.0.outstanding','750.00')
+            ->assertJsonPath('by_property.0.overdue','450.00')
+            ->assertJsonPath('by_property.0.not_overdue','300.00')
+            ->assertJsonPath('by_property.0.overdue_installments',2)
             ->assertJsonCount(2,'oldest_overdue');
 
         self::assertSame($lease->id,$response->json('oldest_overdue.0.lease_id'));
@@ -170,6 +178,79 @@ final class ReceivablesAgingTest extends TestCase
         $this->getJson('/api/reports/receivables?property_id='.$foreignId)->assertNotFound();
         $this->getJson('/api/reports/receivables?property_id=invalid')
             ->assertUnprocessable()->assertJsonValidationErrors('property_id');
+    }
+
+    public function test_property_breakdown_ranks_largest_overdue_first_and_is_owner_scoped(): void
+    {
+        $this->travelTo(Carbon::parse('2027-06-15'));
+        $owner=$this->owner('aging-ranked-owner@example.test');
+        $foreignOwner=$this->owner('aging-ranked-foreign@example.test');
+
+        $small=$this->lease($owner,'Small Overdue');
+        $large=$this->lease($owner,'Large Overdue');
+        $future=$this->lease($owner,'Future Only');
+        $foreign=$this->lease($foreignOwner,'Secret Large');
+
+        $small->dues()->create([
+            'sequence'=>1,'due_on'=>'2027-06-01','amount'=>'10.00'
+        ]);
+        $large->dues()->create([
+            'sequence'=>1,'due_on'=>'2027-01-01','amount'=>'80.00'
+        ]);
+        $large->dues()->create([
+            'sequence'=>2,'due_on'=>'2027-07-01','amount'=>'20.00'
+        ]);
+        $future->dues()->create([
+            'sequence'=>1,'due_on'=>'2027-07-01','amount'=>'1000.00'
+        ]);
+        $foreign->dues()->create([
+            'sequence'=>1,'due_on'=>'2027-01-01','amount'=>'9999.00'
+        ]);
+
+        $this->actingAs($owner,'sanctum');
+        $response=$this->getJson('/api/reports/receivables')->assertOk()
+            ->assertJsonPath('totals.outstanding','1110.00')
+            ->assertJsonPath('totals.overdue','90.00')
+            ->assertJsonPath('properties_with_balance',3)
+            ->assertJsonPath('has_more_properties',false)
+            ->assertJsonCount(3,'by_property');
+
+        $rows=$response->json('by_property');
+        self::assertSame(['Large Overdue','Small Overdue','Future Only'],array_column($rows,'name'));
+        self::assertSame(['80.00','10.00','0.00'],array_column($rows,'overdue'));
+        self::assertSame(['100.00','10.00','1000.00'],array_column($rows,'outstanding'));
+        self::assertSame([1,1,0],array_column($rows,'overdue_installments'));
+
+        $sum='0.00';
+        foreach ($rows as $row) $sum=bcadd($sum,$row['outstanding'],2);
+        self::assertSame($response->json('totals.outstanding'),$sum);
+
+        $this->getJson('/api/reports/receivables?property_id='.$large->unit->property_id)
+            ->assertOk()
+            ->assertJsonPath('totals.outstanding','100.00')
+            ->assertJsonCount(1,'by_property')
+            ->assertJsonPath('by_property.0.name','Large Overdue');
+    }
+
+    public function test_property_breakdown_returns_only_top_twenty_and_keeps_all_aggregate_totals(): void
+    {
+        $this->travelTo(Carbon::parse('2027-06-15'));
+        $owner=$this->owner('aging-ranked-many@example.test');
+        for($i=0;$i<22;$i++){
+            $lease=$this->lease($owner,'Tower '.str_pad((string)$i,2,'0',STR_PAD_LEFT));
+            $lease->dues()->create([
+                'sequence'=>1,'due_on'=>'2027-01-01',
+                'amount'=>sprintf('%d.00',$i+1)
+            ]);
+        }
+        $this->actingAs($owner,'sanctum');
+        $response=$this->getJson('/api/reports/receivables')->assertOk()
+            ->assertJsonPath('properties_with_balance',22)
+            ->assertJsonPath('has_more_properties',true)
+            ->assertJsonPath('totals.outstanding','253.00')
+            ->assertJsonCount(20,'by_property');
+        self::assertSame('Tower 21',$response->json('by_property.0.name'));
+        self::assertSame('Tower 02',$response->json('by_property.19.name'));
     }
 
     public function test_report_refuses_guest_and_cross_owner_ledger_data(): void
