@@ -66,13 +66,13 @@ final class ReceivablesExportTest extends TestCase
         self::assertStringNotContainsString('9999.00',$csv);
 
         $rows=array_map('str_getcsv',array_slice(explode("\n",trim($csv)),1));
-        // Header and exactly two unpaid owner installments.
-        self::assertCount(3,$rows);
-        self::assertSame((string)$first->id,$rows[1][1]);
-        self::assertSame((string)$second->id,$rows[2][1]);
-        self::assertSame('2027-06-15',$rows[1][0]);
-        self::assertSame('200.00',$rows[1][9]);
-        self::assertSame('300.00',$rows[2][9]);
+        // The CSV header was sliced off, so exactly two unpaid rows remain.
+        self::assertCount(2,$rows);
+        self::assertSame((string)$first->id,$rows[0][1]);
+        self::assertSame((string)$second->id,$rows[1][1]);
+        self::assertSame('2027-06-15',$rows[0][0]);
+        self::assertSame('200.00',$rows[0][9]);
+        self::assertSame('300.00',$rows[1][9]);
     }
 
     public function test_receipt_void_restores_exported_balance_and_settled_dues_are_omitted(): void
