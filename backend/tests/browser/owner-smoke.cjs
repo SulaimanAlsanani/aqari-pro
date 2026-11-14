@@ -192,6 +192,13 @@ async function main() {
       assert.equal(await page.locator('#notice.error').count(), 0,
         'scoped maintenance ticket submitted without error');
 
+      await page.locator('#nav button').filter({ hasText: 'أعمار المتأخرات' }).click();
+      await page.getByText('أعمار الذمم المدينة — الإيجارات').waitFor({ timeout: 15000 });
+      assert.equal(await page.locator('#view .metrics .metric').count(), 7,
+        'aging report includes all current and overdue money buckets');
+      assert.equal(await page.locator('#notice.error').count(), 0,
+        'aging report loads without a server or browser error');
+
       await page.locator('#nav button').filter({ hasText: 'أرصدة التأمينات' }).click();
       await page.getByText('أرصدة تأمينات المستأجرين').waitFor({ timeout: 15000 });
       await page.locator('#nav button').filter({ hasText: 'مطابقة الحسابات' }).click();
