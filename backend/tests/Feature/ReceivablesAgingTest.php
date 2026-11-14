@@ -142,6 +142,36 @@ final class ReceivablesAgingTest extends TestCase
         self::assertSame('2027-01-20',$result->json('oldest_overdue.19.due_on'));
     }
 
+    public function test_property_filter_limits_totals_and_rejects_foreign_property(): void
+    {
+        $this->travelTo(Carbon::parse('2027-06-15'));
+        $owner=$this->owner('aging-filter@example.test');
+        $other=$this->owner('aging-filter-other@example.test');
+        $one=$this->lease($owner,'Building One');
+        $two=$this->lease($owner,'Building Two');
+        $secret=$this->lease($other,'Private Building');
+        $one->dues()->create(['sequence'=>1,'due_on'=>'2027-01-01','amount'=>'100.00']);
+        $two->dues()->create(['sequence'=>1,'due_on'=>'2027-01-01','amount'=>'200.00']);
+        $secret->dues()->create(['sequence'=>1,'due_on'=>'2027-01-01','amount'=>'999.00']);
+
+        $oneId=$one->unit->property_id;
+        $twoId=$two->unit->property_id;
+        $foreignId=$secret->unit->property_id;
+        $this->actingAs($owner,'sanctum');
+
+        $this->getJson('/api/reports/receivables')->assertOk()
+            ->assertJsonPath('totals.overdue','300.00');
+        $this->getJson('/api/reports/receivables?property_id='.$oneId)->assertOk()
+            ->assertJsonPath('property_id',$oneId)
+            ->assertJsonPath('totals.overdue','100.00')
+            ->assertJsonCount(1,'oldest_overdue');
+        $this->getJson('/api/reports/receivables?property_id='.$twoId)->assertOk()
+            ->assertJsonPath('totals.overdue','200.00');
+        $this->getJson('/api/reports/receivables?property_id='.$foreignId)->assertNotFound();
+        $this->getJson('/api/reports/receivables?property_id=invalid')
+            ->assertUnprocessable()->assertJsonValidationErrors('property_id');
+    }
+
     public function test_report_refuses_guest_and_cross_owner_ledger_data(): void
     {
         $this->getJson('/api/reports/receivables')->assertUnauthorized();
