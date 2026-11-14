@@ -39,8 +39,19 @@ final class OwnerLookupController extends Controller
             $query->where('property_id',$input['property_id']);
         // Completed and cancelled contracts must not be offered as
         // targets for a new rent receipt.
-        if ($resource==='leases' && isset($input['receivable']))
-            $query->whereNotIn('status',['cancelled','completed']);
+        if ($resource==='leases' && isset($input['receivable'])) {
+            $query->whereNotIn('status',['cancelled','completed'])
+                // Only offer a contract if at least one due has a positive
+                // unpaid balance. Ignore allocations from voided receipts.
+                // Correlated SQL remains owner-scoped through the base query.
+                ->whereRaw(
+                    'EXISTS (SELECT 1 FROM dues d WHERE d.lease_id = leases.id '.
+                    'AND d.amount > COALESCE((SELECT SUM(pa.amount) '.
+                    'FROM payment_allocations pa '.
+                    'INNER JOIN payments p ON p.id = pa.payment_id '.
+                    'WHERE pa.due_id = d.id AND p.voided_at IS NULL), 0))'
+                );
+        }
 
         if ($term!=='') {
             $query->where(function($q)use($resource,$term,$search) {
