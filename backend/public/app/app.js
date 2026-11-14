@@ -901,6 +901,30 @@ async function showReceivablesAging(epoch=refreshEpoch,propertyId=null){
  panel.append(metrics);
  panel.append(el('p','الأقساط غير المسددة: '+report.counts.outstanding_installments+
   ' | الأقساط المتأخرة: '+report.counts.overdue_installments,'muted'));
+ panel.append(el('h3','المتأخرات بحسب العقار'));
+ if(!report.by_property.length){
+  panel.append(el('p','لا توجد أرصدة إيجارية معلقة للعقارات المعروضة.','muted'));
+ }else{
+  const propertyWrap=el('div',null,'table-wrap'),propertyTable=el('table');
+  const propertyHead=el('tr');
+  for(const name of ['العقار','المتأخر (ر.س)','غير المستحق بعد (ر.س)','إجمالي المتبقي (ر.س)','الأقساط المتأخرة','تفاصيل'])
+   propertyHead.append(el('th',name));
+  const propertyThead=el('thead');propertyThead.append(propertyHead);propertyTable.append(propertyThead);
+  const propertyBody=el('tbody');
+  for(const row of report.by_property){
+   const tr=el('tr');
+   for(const value of [row.name,row.overdue,row.not_overdue,row.outstanding,row.overdue_installments])
+    tr.append(el('td',value));
+   const cell=el('td'),open=el('button','عرض العقار','secondary');
+   open.type='button';
+   open.addEventListener('click',()=>showReceivablesAging(++refreshEpoch,row.property_id)
+    .catch(error=>notify(error.message,true)));
+   cell.append(open);tr.append(cell);propertyBody.append(tr);
+  }
+  propertyTable.append(propertyBody);propertyWrap.append(propertyTable);panel.append(propertyWrap);
+  if(report.has_more_properties)
+   panel.append(el('p','يُعرض أعلى 20 عقارًا بحسب المتأخرات، وتغطي المؤشرات جميع العقارات. استخدم البحث لعرض عقار محدد.','muted'));
+ }
  panel.append(el('h3','أقدم الأقساط المتأخرة'));
  if(report.oldest_overdue.length===0){
   panel.append(el('p','لا توجد أقساط متأخرة للعقود النشطة.','muted'));
