@@ -126,6 +126,28 @@ final class ReceivablesExportTest extends TestCase
             ->assertUnprocessable()->assertJsonValidationErrors('property_id');
     }
 
+    public function test_export_includes_all_rows_beyond_twenty_item_dashboard_preview(): void
+    {
+        $this->travelTo(Carbon::parse('2027-06-15'));
+        $owner=$this->owner('csv-aging-many@example.test');
+        $lease=$this->lease($owner,'Many Tower','Resident');
+        for ($i=0;$i<25;$i++) {
+            $lease->dues()->create([
+                'sequence'=>$i+1,
+                'due_on'=>Carbon::parse('2027-01-01')->addDays($i)->toDateString(),
+                'amount'=>'1.00'
+            ]);
+        }
+        $this->actingAs($owner,'sanctum');
+        $this->getJson('/api/reports/receivables')->assertOk()
+            ->assertJsonCount(20,'oldest_overdue')
+            ->assertJsonPath('has_more_overdue',true);
+        $csv=$this->get('/api/exports/receivables-aging')
+            ->assertOk()->streamedContent();
+        // CSV has one header line and all 25 outstanding installments.
+        self::assertCount(26,explode("\n",trim($csv)));
+    }
+
     public function test_corrupt_overallocation_rejects_request_before_stream_starts(): void
     {
         $this->travelTo(Carbon::parse('2027-06-15'));
