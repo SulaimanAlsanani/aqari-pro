@@ -96,6 +96,9 @@ final class OwnerLookupTest extends TestCase
                 'tenant_id'=>$tenant->id,'starts_on'=>'2027-01-01','ends_on'=>'2027-12-31',
                 'total_amount'=>'1200.00','deposit'=>'0.00','status'=>$status
             ]);
+            $lease->dues()->create([
+                'sequence'=>1,'due_on'=>'2027-01-01','amount'=>'1200.00'
+            ]);
             $ids[$status]=$lease->id;
         }
         $this->actingAs($owner,'sanctum');
@@ -103,6 +106,48 @@ final class OwnerLookupTest extends TestCase
         $result=$this->getJson('/api/lookups/leases?receivable=1')->assertOk()
             ->assertJsonCount(2,'data')->json('data');
         self::assertSame([$ids['draft'],$ids['active']],array_column($result,'id'));
+    }
+
+    public function test_receipt_picker_excludes_paid_lease_and_restores_voided_receipt_balance(): void
+    {
+        $owner=$this->makeOwner('picker-balance@example.test');
+        $property=$owner->properties()->create([
+            'name'=>'Balance Tower','city'=>'Riyadh','type'=>'residential'
+        ]);
+        $unit=$property->units()->create(['code'=>'P-9','type'=>'apartment']);
+        $tenant=$owner->tenants()->create([
+            'name'=>'Payer','phone'=>'0500000000'
+        ]);
+        $lease=$unit->leases()->create([
+            'tenant_id'=>$tenant->id,'starts_on'=>'2027-01-01',
+            'ends_on'=>'2027-12-31','total_amount'=>'1200.00',
+            'deposit'=>'0.00','status'=>'active'
+        ]);
+        foreach (['2027-01-01','2027-07-01'] as $index=>$date) {
+            $lease->dues()->create([
+                'sequence'=>$index+1,'due_on'=>$date,'amount'=>'600.00'
+            ]);
+        }
+        $this->actingAs($owner,'sanctum');
+        $picker='/api/lookups/leases?receivable=1';
+        $this->getJson($picker)->assertOk()->assertJsonCount(1,'data');
+
+        $this->postJson('/api/leases/'.$lease->id.'/payments',[
+            'amount'=>'600.00','paid_on'=>'2027-01-01','method'=>'cash'
+        ])->assertCreated();
+        $this->getJson($picker)->assertOk()->assertJsonCount(1,'data');
+
+        $last=$this->postJson('/api/leases/'.$lease->id.'/payments',[
+            'amount'=>'600.00','paid_on'=>'2027-07-01','method'=>'cash'
+        ])->assertCreated()->json('id');
+        $this->getJson($picker)->assertOk()->assertJsonCount(0,'data');
+
+        $this->postJson('/api/payments/'.$last.'/void',[
+            'reason'=>'Synthetic receipt entered in error'
+        ])->assertOk();
+        $this->getJson($picker)->assertOk()
+            ->assertJsonCount(1,'data')
+            ->assertJsonPath('data.0.id',$lease->id);
     }
 
     public function test_search_supports_city_tenant_phone_and_vendor_service(): void
