@@ -30,6 +30,7 @@ final class ReceivablesAgingController extends Controller
         ];
         $counts=['outstanding_installments'=>0,'overdue_installments'=>0];
         $oldest=[];
+        $propertyTotals=[];
 
         // lazyById prevents loading every owner's due/lease into memory.
         // The primary owner restriction applies inside the SQL query.
@@ -41,13 +42,30 @@ final class ReceivablesAgingController extends Controller
 
             $counts['outstanding_installments']++;
             $totals['outstanding']=bcadd($totals['outstanding'],$balance,2);
+
+            $property=$due->lease->unit->property;
+            $propertyKey=(int)$property->id;
+            if (!isset($propertyTotals[$propertyKey])) {
+                $propertyTotals[$propertyKey]=[
+                    'property_id'=>$propertyKey,'name'=>$property->name,
+                    'outstanding'=>'0.00','not_overdue'=>'0.00',
+                    'overdue'=>'0.00','overdue_installments'=>0
+                ];
+            }
+            $propertyRow=&$propertyTotals[$propertyKey];
+            $propertyRow['outstanding']=bcadd($propertyRow['outstanding'],$balance,2);
             if (!$due->due_on->lt($today)) {
+                $propertyRow['not_overdue']=bcadd($propertyRow['not_overdue'],$balance,2);
+                unset($propertyRow);
                 $totals['not_overdue']=bcadd($totals['not_overdue'],$balance,2);
                 continue;
             }
 
             $counts['overdue_installments']++;
             $totals['overdue']=bcadd($totals['overdue'],$balance,2);
+            $propertyRow['overdue_installments']++;
+            $propertyRow['overdue']=bcadd($propertyRow['overdue'],$balance,2);
+            unset($propertyRow);
             $days=(int)$due->due_on->diffInDays($today);
             $bucket=$days<=30?'days_1_30':($days<=60?'days_31_60':
                 ($days<=90?'days_61_90':'days_over_90'));
@@ -70,12 +88,23 @@ final class ReceivablesAgingController extends Controller
             if (count($oldest)>20) array_pop($oldest);
         }
 
+        $byProperty=array_values($propertyTotals);
+        usort($byProperty,static function(array $a,array $b): int {
+            $overdue=bccomp($b['overdue'],$a['overdue'],2);
+            if ($overdue!==0) return $overdue;
+            $outstanding=bccomp($b['outstanding'],$a['outstanding'],2);
+            return $outstanding!==0?$outstanding:$a['property_id']<=>$b['property_id'];
+        });
+
         return response()->json([
             'as_of'=>$todayDate,
             'property_id'=>$propertyId,
             'basis'=>'active_leases_current_state',
             'totals'=>$totals,
             'counts'=>$counts,
+            'properties_with_balance'=>count($byProperty),
+            'by_property'=>array_slice($byProperty,0,20),
+            'has_more_properties'=>count($byProperty)>20,
             'oldest_overdue'=>$oldest,
             'has_more_overdue'=>$counts['overdue_installments']>count($oldest),
         ]);
