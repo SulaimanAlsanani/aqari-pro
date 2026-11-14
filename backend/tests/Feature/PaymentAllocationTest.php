@@ -36,6 +36,31 @@ class PaymentAllocationTest extends TestCase {
   $this->assertSame('500.00',$data[0]['balance_amount']);
   $this->assertSame('overdue',$data[0]['payment_status']);
  }
+ public function test_corrupt_overallocated_due_is_rejected_instead_of_misreported_as_paid():void{
+  [$owner,$lease]=$this->setupLease();
+  $due=$lease->dues()->orderBy('sequence')->firstOrFail();
+  $payment=$lease->payments()->create([
+   'amount'=>'1100.00','paid_on'=>'2026-02-01','method'=>'cash'
+  ]);
+  $payment->allocations()->create(['due_id'=>$due->id,'amount'=>'1100.00']);
+  $this->actingAs($owner)->getJson('/api/dues')->assertStatus(409);
+  $this->actingAs($owner)->getJson('/api/reports/receivables')->assertStatus(409);
+ }
+
+ public function test_voided_receipt_allocation_does_not_reduce_due_list_balance():void{
+  [$owner,$lease]=$this->setupLease();
+  $due=$lease->dues()->orderBy('sequence')->firstOrFail();
+  $payment=$lease->payments()->create([
+   'amount'=>'600.00','paid_on'=>'2026-02-01','method'=>'cash'
+  ]);
+  $payment->allocations()->create(['due_id'=>$due->id,'amount'=>'600.00']);
+  $payment->forceFill(['voided_at'=>now()])->save();
+
+  $response=$this->actingAs($owner)->getJson('/api/dues')->assertOk();
+  $this->assertSame('0.00',$response->json('data.0.paid_amount'));
+  $this->assertSame('1000.00',$response->json('data.0.balance_amount'));
+ }
+
  public function test_overpayment_fails_without_creating_partial_ledger():void{
   [$owner,$lease]=$this->setupLease();
   $this->actingAs($owner)->postJson('/api/leases/'.$lease->id.'/payments',[
