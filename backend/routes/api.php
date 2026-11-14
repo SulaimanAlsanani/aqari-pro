@@ -31,6 +31,7 @@ use App\Http\Controllers\Api\StagingE2eController;
 use App\Http\Controllers\Api\OwnerLookupController;
 use App\Http\Controllers\Api\ReceivablesAgingController;
 use App\Http\Controllers\Api\ReceivablesExportController;
+use App\Http\Controllers\Api\OccupancyReportController;
 
 Route::post('/login',[AuthController::class,'login'])->middleware('throttle:owner-login');
 Route::post('/password/forgot',[PasswordResetController::class,'requestLink'])->middleware('throttle:3,1');
@@ -67,6 +68,7 @@ Route::middleware('auth:sanctum')->group(function () {
  Route::post('/leases/{lease}/deposit',[DepositController::class,'store']);
  Route::get('/reports/cashflow',[FinancialReportController::class,'cashflow']);
  Route::get('/reports/receivables',[ReceivablesAgingController::class,'index'])->middleware('throttle:20,1');
+ Route::get('/reports/occupancy',[OccupancyReportController::class,'index'])->middleware('throttle:20,1');
  Route::get('/reports/deposits',[DepositReportController::class,'index']);
  Route::get('/exports/receivables-aging',[ReceivablesExportController::class,'download'])->middleware('throttle:owner-receivables-csv');
  Route::get('/exports/{resource}',[DataExportController::class,'download'])->middleware('throttle:10,1');
