@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use App\Support\RentInstallmentSchedule;
 use App\Support\LeaseDueDates;
+use App\Support\ReceivablesLedger;
 use InvalidArgumentException;
 
 class PortfolioController extends Controller {
@@ -93,12 +94,15 @@ class PortfolioController extends Controller {
    }
    if($locked->status==='cancelled'||$locked->status==='completed')throw ValidationException::withMessages(['status'=>'لا يمكن التحصيل لعقد ملغى أو مكتمل']);
    $dues=$locked->dues()->withSum(['allocations'=>fn($q)=>$q->whereHas('payment',fn($p)=>$p->whereNull('voided_at'))],'amount')->orderBy('due_on')->orderBy('sequence')->get();
+   // Examine every due *before* allocating more cash. An overallocated
+   // installment must block further receipts rather than being skipped.
+   foreach($dues as $due) ReceivablesLedger::balance($due);
    $remaining=bcadd((string)$data['amount'],'0',2);
    $allocations=[];
    foreach($dues as $due){
     if(bccomp($remaining,'0.00',2)<=0)break;
-    $balance=bcsub((string)$due->amount,(string)($due->allocations_sum_amount??0),2);
-    if(bccomp($balance,'0.00',2)<=0)continue;
+    $balance=ReceivablesLedger::balance($due);
+    if(bccomp($balance,'0.00',2)===0)continue;
     $take=bccomp($remaining,$balance,2)>0?$balance:$remaining;
     $allocations[]=['due_id'=>$due->id,'amount'=>$take];
     $remaining=bcsub($remaining,$take,2);
