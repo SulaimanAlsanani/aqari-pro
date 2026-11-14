@@ -196,6 +196,12 @@ async function main() {
       await page.getByText('أعمار الذمم المدينة — الإيجارات').waitFor({ timeout: 15000 });
       assert.equal(await page.locator('#view .metrics .metric').count(), 7,
         'aging report includes all current and overdue money buckets');
+      await page.locator('#aging-property-id').fill(propertyId);
+      await page.locator('#aging-apply').click();
+      await page.getByText('العقار #' + propertyId, { exact: true })
+        .waitFor({ timeout: 15000 });
+      assert.equal(await page.locator('#view .metrics .metric').count(), 7,
+        'the property-scoped report retains its seven accounting metrics');
       assert.equal(await page.locator('#notice.error').count(), 0,
         'aging report loads without a server or browser error');
 
