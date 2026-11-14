@@ -166,6 +166,29 @@ final class ReceivablesExportTest extends TestCase
         $this->getJson('/api/exports/receivables-aging')->assertStatus(409);
     }
 
+    public function test_lookup_traffic_does_not_exhaust_separate_csv_download_quota(): void
+    {
+        $owner=$this->owner('csv-limiter-isolation@example.test');
+        $this->actingAs($owner,'sanctum');
+
+        // Lookup and CSV endpoints must have distinct throttling keys.
+        for ($i=0;$i<9;$i++) {
+            $this->getJson('/api/lookups/properties?q=sample'.$i)->assertOk();
+        }
+        $this->get('/api/exports/receivables-aging')->assertOk();
+    }
+
+    public function test_csv_download_quota_still_blocks_sixth_request(): void
+    {
+        $owner=$this->owner('csv-limiter-enforce@example.test');
+        $this->actingAs($owner,'sanctum');
+
+        for ($i=0;$i<5;$i++) {
+            $this->get('/api/exports/receivables-aging')->assertOk();
+        }
+        $this->get('/api/exports/receivables-aging')->assertStatus(429);
+    }
+
     public function test_anonymous_export_is_forbidden(): void
     {
         $this->getJson('/api/exports/receivables-aging')->assertUnauthorized();
