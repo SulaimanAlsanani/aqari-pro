@@ -144,7 +144,7 @@ async function main() {
       await leasePicker.locator('input[type=search]').fill(leaseId);
       await leasePicker.getByRole('button', { name: new RegExp('عقد #' + leaseId + ' ') }).click();
       assert.equal(await page.locator('#field-lease_id').inputValue(), leaseId);
-      await page.locator('#field-amount').fill('1200');
+      await page.locator('#field-amount').fill('600');
       await page.locator('#field-paid_on').fill('2025-12-31');
       await page.locator('#field-method').selectOption('bank_transfer');
       await page.locator('#view form button[type=submit]').click();
@@ -154,7 +154,7 @@ async function main() {
       for (let idx = 0; idx < await paymentRows.count(); idx++) {
         const cells = paymentRows.nth(idx).locator('td');
         if ((await cells.nth(1).innerText()).trim() !== leaseId) continue;
-        assert.equal((await cells.nth(2).innerText()).trim(), '1200.00');
+        assert.equal((await cells.nth(2).innerText()).trim(), '600.00');
         matchedPayment = true;
         break;
       }
@@ -198,6 +198,13 @@ async function main() {
       assert.equal(await page.locator('#view .metrics .metric').count(), 7,
         'aging report includes all current and overdue money buckets');
       await page.getByText('المتأخرات بحسب العقار').waitFor({timeout:15000});
+      // The synthetic lease is only half paid: the owner must see 600.00
+      // remaining, and the property breakdown must reconcile to that amount.
+      const agingProperty = page.locator('#view table').first().locator('tbody tr')
+        .filter({ hasText: 'عقار اختبار المتصفح ' + viewport.width });
+      await agingProperty.waitFor({timeout:15000});
+      assert.equal((await agingProperty.locator('td').nth(1).innerText()).trim(), '600.00');
+      assert.equal((await agingProperty.locator('td').nth(3).innerText()).trim(), '600.00');
       await page.locator('#aging-property-id').fill(propertyId);
       await page.locator('#aging-apply').click();
       await page.getByText('العقار #' + propertyId, { exact: true })
@@ -226,6 +233,10 @@ async function main() {
       assert.ok(csvContents.startsWith('\uFEFF'), 'CSV must include UTF-8 BOM for Arabic Excel');
       assert.ok(csvContents.includes('تاريخ التقرير'), 'CSV must contain Arabic accounting headers');
       assert.ok(csvContents.includes('المتبقي'), 'CSV must include outstanding balance column');
+      assert.ok(csvContents.includes('100.00'), 'CSV must contain actual uncollected due balances');
+      // One Arabic header and six unpaid monthly installments (600/12).
+      assert.equal(csvContents.trim().split(/\r?\n/).length, 7,
+        'download must include all six remaining installments rather than just a dashboard preview');
 
       assert.equal(await page.locator('#notice.error').count(), 0,
         'aging report loads without a server or browser error');
