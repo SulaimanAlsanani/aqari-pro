@@ -136,6 +136,26 @@ final class OccupancyReportTest extends TestCase
             ->assertJsonCount(0,'expiring_30_days');
     }
 
+    public function test_navigation_between_reports_does_not_share_throttle_counter(): void
+    {
+        $owner=$this->owner('occ-limits@example.test');
+        $this->actingAs($owner,'sanctum');
+        // These requests total 24 within one minute. With numeric middleware
+        // both screens share a 20-request bucket and one screen receives 429.
+        for($i=0;$i<12;$i++) {
+            $this->getJson('/api/reports/occupancy')->assertOk();
+            $this->getJson('/api/reports/receivables')->assertOk();
+        }
+    }
+
+    public function test_repeated_occupancy_requests_still_have_a_bounded_quota(): void
+    {
+        $owner=$this->owner('occ-limits-enforce@example.test');
+        $this->actingAs($owner,'sanctum');
+        for($i=0;$i<30;$i++)$this->getJson('/api/reports/occupancy')->assertOk();
+        $this->getJson('/api/reports/occupancy')->assertStatus(429);
+    }
+
     public function test_guest_is_refused(): void
     {
         $this->getJson('/api/reports/occupancy')->assertUnauthorized();
