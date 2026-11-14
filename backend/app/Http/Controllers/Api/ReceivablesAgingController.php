@@ -1,7 +1,7 @@
 <?php
 namespace App\Http\Controllers\Api;
 
-use App\Models\{Due,Property};
+use App\Support\ReceivablesLedger;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 
@@ -16,13 +16,7 @@ final class ReceivablesAgingController extends Controller
     public function index(Request $request)
     {
         $ownerId=$request->user()->id;
-        $input=$request->validate([
-            'property_id'=>['sometimes','required','integer','min:1'],
-        ]);
-        $propertyId=isset($input['property_id'])?(int)$input['property_id']:null;
-        if ($propertyId!==null) {
-            abort_unless(Property::where('user_id',$ownerId)->whereKey($propertyId)->exists(),404);
-        }
+        $propertyId=ReceivablesLedger::propertyFilter($request,$ownerId);
         $today=today();
         $todayDate=$today->toDateString();
         $totals=[
@@ -39,27 +33,10 @@ final class ReceivablesAgingController extends Controller
 
         // lazyById prevents loading every owner's due/lease into memory.
         // The primary owner restriction applies inside the SQL query.
-        $query=Due::query()
-            ->whereHas('lease.unit.property',function($q)use($ownerId,$propertyId) {
-                $q->where('user_id',$ownerId);
-                if ($propertyId!==null) $q->whereKey($propertyId);
-            })
-            ->whereHas('lease',fn($q)=>$q->where('status','active'))
-            ->with(['lease.unit.property:id,name','lease.tenant:id,name'])
-            ->withSum([
-                'allocations'=>fn($q)=>$q->whereHas(
-                    'payment',fn($p)=>$p->whereNull('voided_at')
-                )
-            ],'amount');
+        $query=ReceivablesLedger::query($ownerId,$propertyId);
 
         foreach ($query->lazyById(200) as $due) {
-            $paid=bcadd((string)($due->allocations_sum_amount??'0'),'0',2);
-            $balance=bcsub((string)$due->amount,$paid,2);
-            if (bccomp($balance,'0.00',2)<0) {
-                // Do not silently turn an overallocated installment into
-                // a valid dashboard number: this requires ledger review.
-                abort(409,'يوجد قسط بمبلغ مسدد يتجاوز قيمته، يلزم فحص المطابقة.');
-            }
+            $balance=ReceivablesLedger::balance($due);
             if (bccomp($balance,'0.00',2)===0) continue;
 
             $counts['outstanding_installments']++;
