@@ -204,3 +204,11 @@ The owner portal now offers **اختيار من السجلات** alongside the e
 All lookup queries are scoped to the authenticated owner **before** text matching. The maintenance unit picker supplies `property_id`, so it shows units from the selected property only; changing that property clears any previously selected unit ID. The receipt picker uses `receivable=1` to exclude cancelled and completed leases, matching the payment API's constraints. The server still validates every submitted ID and its owning account independently of the picker.
 
 `OwnerLookupTest` covers ownership boundaries, lookups by related names, phone/city/service search, pagination cap, invalid query inputs and dependent property/receipt filters. `tests/browser/owner-smoke.cjs` tests the picker on mobile and desktop while creating synthetic owner records and maintenance tickets. These checks run as part of the existing Laravel API GitHub Actions workflow.
+
+## Owner receivables aging dashboard
+
+The owner portal includes **أعمار المتأخرات** backed by authenticated, rate-limited `GET /api/reports/receivables`. It provides an **as-of-today, current-state snapshot**, not a historical snapshot. Only the current owner's **active** lease installments are included; draft, cancelled and completed leases are excluded. A receipt's allocations reduce an installment balance only when the receipt has **not** been voided.
+
+The API returns money as exact two-decimal strings using BCMath, with totals for all outstanding rent, not-yet-overdue rent, overdue rent and overdue buckets **1–30, 31–60, 61–90 and over 90 days**. It provides installment counts and details for the **oldest 20 overdue installments**, while the aggregate totals include all matching installments. It queries dues in bounded batches and checks for overallocated installments instead of silently reporting inaccurate balances.
+
+`ReceivablesAgingTest` covers owner isolation, partially paid receipts, void reversals, exclusion of draft leases, all-paid balances and the 20-item detail cap. The existing browser smoke test exercises the Arabic dashboard on desktop and mobile. This new report is **read-only**; it does not generate tenant reminders, charge penalties or modify account balances. Real staging acceptance remains required before a commercial launch.
