@@ -784,10 +784,10 @@ async function showRecordDocuments(entity,id){
   view.append(pane);
  }catch(error){view.replaceChildren(el('p',error.message,'muted'));notify(error.message,true)}
 }
-async function exportCsv(resource,button){
+async function exportCsv(resource,button,query=''){
  button.disabled=true;
  try{
-  const response=await fetch('/api/exports/'+encodeURIComponent(resource),{
+  const response=await fetch('/api/exports/'+encodeURIComponent(resource)+query,{
    headers:{Authorization:'Bearer '+accessToken,Accept:'text/csv'},credentials:'omit'
   });
   if(!response.ok)throw Error('تعذر تصدير سجلات هذا القسم');
@@ -879,6 +879,10 @@ async function showReceivablesAging(epoch=refreshEpoch,propertyId=null){
  const all=el('button','كل العقارات','secondary');all.type='button';
  all.addEventListener('click',()=>showReceivablesAging(++refreshEpoch).catch(error=>notify(error.message,true)));
  buttons.append(apply,all);filter.append(filterField,buttons);panel.append(filter);
+ const csv=el('button','تصدير جميع الذمم CSV','secondary');csv.type='button';csv.id='aging-export';
+ csv.addEventListener('click',()=>exportCsv('receivables-aging',csv,
+  report.property_id===null?'':'?property_id='+encodeURIComponent(report.property_id)));
+ panel.append(csv);
  panel.append(el('p',report.property_id===null?'جميع عقارات المالك':'العقار #'+report.property_id,'muted'));
  const metrics=el('div',null,'metrics');
  for(const [title,value] of [
