@@ -20,6 +20,15 @@ class AppServiceProvider extends ServiceProvider {
     Limit::perMinute(20)->by('owner-login-ip:'.$request->ip()),
    ];
   });
+  // Keep expensive financial CSV downloads separate from lookup/login/
+  // document throttles. The default numeric throttle key is user-wide and
+  // could block an owner's first export after using other portal features.
+  RateLimiter::for('owner-receivables-csv',function(Request $request) {
+   $ownerId=$request->user()?->getAuthIdentifier();
+   return Limit::perMinute(5)->by(
+    'owner-receivables-csv:'.($ownerId!==null?'owner:'.$ownerId:'ip:'.$request->ip())
+   );
+  });
   ResetPassword::createUrlUsing(function($user,string $token):string {
    return rtrim(config('app.url'),'/').'/app/index.html?reset_token='.rawurlencode($token).'&email='.rawurlencode($user->getEmailForPasswordReset());
   });
