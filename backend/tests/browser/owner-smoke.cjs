@@ -209,9 +209,13 @@ async function main() {
         && response.request().method() === 'GET', {timeout:15000});
       const downloadPromise = page.waitForEvent('download', {timeout:15000});
       await page.locator('#aging-export').click();
+      const csvResponse = await exportResponse;
+      assert.equal(csvResponse.status(),200,
+        'owner CSV export endpoint must return a valid downloadable response');
+      assert.equal(await page.locator('#notice.error').count(),0,
+        'the export UI must not show an API error');
       const downloaded = await downloadPromise;
       assert.match(downloaded.suggestedFilename(), /^aqari-receivables-aging-[0-9-]+\.csv$/);
-      assert.equal((await exportResponse).status(),200);
 
       assert.equal(await page.locator('#notice.error').count(), 0,
         'aging report loads without a server or browser error');
