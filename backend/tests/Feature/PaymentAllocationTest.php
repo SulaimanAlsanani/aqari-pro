@@ -49,6 +49,39 @@ class PaymentAllocationTest extends TestCase {
   $this->actingAs($owner)->getJson('/api/reports/receivables')->assertStatus(409);
  }
 
+ public function test_new_receipt_rejects_corrupt_prior_overallocation_without_writing_rows():void{
+  [$owner,$lease]=$this->setupLease();
+  $due=$lease->dues()->orderBy('sequence')->firstOrFail();
+  $prior=$lease->payments()->create([
+   'amount'=>'1100.00','paid_on'=>'2026-02-01','method'=>'cash'
+  ]);
+  $prior->allocations()->create(['due_id'=>$due->id,'amount'=>'1100.00']);
+
+  $this->actingAs($owner)->postJson('/api/leases/'.$lease->id.'/payments',[
+   'amount'=>'50.00','paid_on'=>'2026-02-02','method'=>'cash'
+  ])->assertStatus(409);
+
+  $this->assertDatabaseCount('payments',1);
+  $this->assertDatabaseCount('payment_allocations',1);
+ }
+
+ public function test_voided_corrupt_receipt_does_not_prevent_new_valid_payment():void{
+  [$owner,$lease]=$this->setupLease();
+  $due=$lease->dues()->orderBy('sequence')->firstOrFail();
+  $prior=$lease->payments()->create([
+   'amount'=>'1100.00','paid_on'=>'2026-02-01','method'=>'cash'
+  ]);
+  $prior->allocations()->create(['due_id'=>$due->id,'amount'=>'1100.00']);
+  $prior->forceFill(['voided_at'=>now()])->save();
+
+  $this->actingAs($owner)->postJson('/api/leases/'.$lease->id.'/payments',[
+   'amount'=>'50.00','paid_on'=>'2026-02-02','method'=>'cash'
+  ])->assertCreated();
+
+  $this->assertDatabaseCount('payments',2);
+  $this->assertDatabaseCount('payment_allocations',2);
+ }
+
  public function test_voided_receipt_allocation_does_not_reduce_due_list_balance():void{
   [$owner,$lease]=$this->setupLease();
   $due=$lease->dues()->orderBy('sequence')->firstOrFail();
