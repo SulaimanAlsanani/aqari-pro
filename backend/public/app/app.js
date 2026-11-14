@@ -7,7 +7,7 @@ let reconciliationEpoch=0; // Prevent older reconciliation pages replacing newer
 const $=id=>document.getElementById(id);
 const sections=[
  ['overview','لوحة أملاكي'],['alerts','التنبيهات'],['properties','العقارات'],['units','الوحدات'],['tenants','المستأجرون'],
- ['leases','العقود'],['dues','الأقساط'],['receivables','أعمار المتأخرات'],['payments','المقبوضات'],['expenses','المصروفات'],
+ ['leases','العقود'],['dues','الأقساط'],['occupancy','الإشغال والشواغر'],['receivables','أعمار المتأخرات'],['payments','المقبوضات'],['expenses','المصروفات'],
  ['tickets','الصيانة'],['vendors','الموردون'],['documents','المرفقات'],['reports','التقارير المالية'],['deposit-report','أرصدة التأمينات'],['reconciliation','مطابقة الحسابات'],['audit','سجل العمليات'],['account','حسابي']
 ];
 const fields={
@@ -847,6 +847,75 @@ async function download(id,name){
   setTimeout(()=>URL.revokeObjectURL(url),4000);
  }catch(err){notify(err.message,true)}
 }
+async function showOccupancy(epoch=refreshEpoch,propertyId=null){
+ const view=$('view');view.replaceChildren(el('p','جاري احتساب إشغال الوحدات...','muted'));
+ const query=propertyId===null?'':'?property_id='+encodeURIComponent(propertyId);
+ const report=await api('/reports/occupancy'+query);
+ if(epoch!==refreshEpoch||active!=='occupancy')return;
+ view.replaceChildren();
+ const panel=el('section',null,'panel');
+ panel.append(el('h3','الإشغال والشواغر'),
+  el('p','حتى '+report.as_of+' — الوحدة مشغولة إذا كان لها عقد نشط يغطي تاريخ اليوم؛ لا تُحتسب العقود المستقبلية أو المسودات أو المنتهية.','muted'));
+ const filters=el('div',null,'toolbar'),field=el('div',null,'field');
+ const label=el('label','تصفية حسب العقار'),input=el('input');
+ input.type='number';input.min='1';input.step='1';input.id='occupancy-property-id';
+ input.value=propertyId===null?'':String(propertyId);label.htmlFor=input.id;
+ const pick=el('button','بحث عن عقار','secondary');pick.type='button';
+ pick.addEventListener('click',()=>showLookupPicker('properties',input,'العقار'));
+ field.append(label,input,pick);
+ const buttons=el('div',null,'actions'),apply=el('button','عرض العقار','primary');
+ apply.type='button';apply.id='occupancy-apply';
+ apply.addEventListener('click',()=>{
+  if(!/^[1-9][0-9]*$/.test(input.value)){notify('اختر عقارًا صحيحًا أولًا',true);return}
+  showOccupancy(++refreshEpoch,Number(input.value)).catch(error=>notify(error.message,true));
+ });
+ const all=el('button','كل العقارات','secondary');all.type='button';
+ all.addEventListener('click',()=>showOccupancy(++refreshEpoch).catch(error=>notify(error.message,true)));
+ buttons.append(apply,all);filters.append(field,buttons);panel.append(filters);
+ panel.append(el('p',report.property_id===null?'جميع عقارات المالك':'العقار #'+report.property_id,'muted'));
+ const metrics=el('div',null,'metrics');
+ for(const [name,value] of [
+  ['العقارات',report.totals.properties],['إجمالي الوحدات',report.totals.units],
+  ['الوحدات المشغولة',report.totals.occupied],['الوحدات الشاغرة',report.totals.vacant],
+  ['نسبة الإشغال',report.totals.occupancy_percent+'%'],
+  ['عقود تنتهي خلال 30 يومًا',report.expiring_30_days_count]
+ ]){
+  const item=el('div',null,'metric');item.append(el('span',name,'muted'),el('strong',value));metrics.append(item);
+ }
+ panel.append(metrics,el('h3','الشواغر بحسب العقار'));
+ if(report.by_property.length){
+  const wrap=el('div',null,'table-wrap'),table=el('table'),thead=el('thead'),head=el('tr');
+  for(const name of ['العقار','المدينة','الوحدات','مشغولة','شاغرة','نسبة الإشغال','التفاصيل'])head.append(el('th',name));
+  thead.append(head);table.append(thead);
+  const body=el('tbody');
+  for(const row of report.by_property){
+   const tr=el('tr');
+   for(const value of [row.name,row.city,row.units,row.occupied,row.vacant,row.occupancy_percent+'%'])
+    tr.append(el('td',value));
+   const cell=el('td'),open=el('button','عرض العقار','secondary');open.type='button';
+   open.addEventListener('click',()=>showOccupancy(++refreshEpoch,row.property_id).catch(error=>notify(error.message,true)));
+   cell.append(open);tr.append(cell);body.append(tr);
+  }
+  table.append(body);wrap.append(table);panel.append(wrap);
+  if(report.has_more_properties)panel.append(el('p','يعرض الجدول أعلى 20 عقارًا بحسب الشواغر؛ إجمالي المؤشرات يشمل جميع العقارات.','muted'));
+ }else panel.append(el('p','لا توجد عقارات ضمن هذا التقرير.','muted'));
+ panel.append(el('h3','العقود التي تنتهي خلال 30 يومًا'));
+ if(!report.expiring_30_days.length)panel.append(el('p','لا توجد عقود نشطة تنتهي خلال 30 يومًا.','muted'));
+ else{
+  const wrap=el('div',null,'table-wrap'),table=el('table'),thead=el('thead'),head=el('tr');
+  for(const name of ['العقار','الوحدة','المستأجر','رقم العقد','نهاية العقد','الأيام المتبقية'])head.append(el('th',name));
+  thead.append(head);table.append(thead);
+  const body=el('tbody');
+  for(const row of report.expiring_30_days){
+   const tr=el('tr');
+   for(const value of [row.property,row.unit,row.tenant,row.lease_id,row.ends_on,row.days_until_end])tr.append(el('td',value));
+   body.append(tr);
+  }
+  table.append(body);wrap.append(table);panel.append(wrap);
+  if(report.has_more_expiring)panel.append(el('p','يعرض الجدول أقرب 20 عقدًا للانتهاء؛ العدد أعلى الجدول يشمل الجميع.','muted'));
+ }
+ view.append(panel);
+}
 async function showReceivablesAging(epoch=refreshEpoch,propertyId=null){
  const view=$('view');
  view.replaceChildren(el('p','جاري حساب أعمار المتأخرات...','muted'));
@@ -1225,6 +1294,7 @@ async function refresh(page=1){
   }
   if(section==='alerts'){await showAlerts(epoch);return}
   if(section==='reports'){await showCashflow();return}
+  if(section==='occupancy'){await showOccupancy(epoch);return}
   if(section==='receivables'){await showReceivablesAging(epoch);return}
   if(section==='deposit-report'){await showDepositReport(epoch);return}
   if(section==='reconciliation'){await showReconciliation(1,epoch);return}
