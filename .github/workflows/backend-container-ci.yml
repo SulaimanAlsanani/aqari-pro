@@ -57,6 +57,28 @@ jobs:
             echo "Staging preflight must reject missing domain and secrets" >&2
             exit 1
           fi
+          # Fail-closed checks must reject mismatched environments before
+          # Docker or any remote host is contacted.
+          for invalid in production local testing; do
+            if APP_ENV="$invalid" APP_DEBUG=false DB_CONNECTION=mysql DOCUMENT_SCAN_ENABLED=true \
+                bash backend/scripts/staging-preflight.sh >/dev/null 2>&1; then
+              echo "Staging preflight accepted APP_ENV=$invalid" >&2; exit 1
+            fi
+          done
+          for invalid in true 1 ""; do
+            if APP_ENV=staging APP_DEBUG="$invalid" DB_CONNECTION=mysql DOCUMENT_SCAN_ENABLED=true \
+                bash backend/scripts/staging-preflight.sh >/dev/null 2>&1; then
+              echo "Staging preflight accepted APP_DEBUG=$invalid" >&2; exit 1
+            fi
+          done
+          if APP_ENV=staging APP_DEBUG=false DB_CONNECTION=sqlite DOCUMENT_SCAN_ENABLED=true \
+              bash backend/scripts/staging-preflight.sh >/dev/null 2>&1; then
+            echo "Staging preflight accepted SQLite" >&2; exit 1
+          fi
+          if APP_ENV=staging APP_DEBUG=false DB_CONNECTION=mysql DOCUMENT_SCAN_ENABLED=false \
+              bash backend/scripts/staging-preflight.sh >/dev/null 2>&1; then
+            echo "Staging preflight accepted disabled upload scanning" >&2; exit 1
+          fi
           if AQARI_EXPECTED_SHA=not-a-sha AQARI_STAGING_URL=https://staging.example.invalid AQARI_STAGING_APPROVED=staging-only bash backend/scripts/staging-verify.sh; then
             echo "Staging verification incorrectly accepted an invalid SHA" >&2
             exit 1
