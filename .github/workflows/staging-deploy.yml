@@ -79,12 +79,16 @@ jobs:
           set +a
           # Never deploy on the production hostname.
           case "${AQARI_STAGING_DOMAIN:-}" in
-            staging.*|stg.*) ;;
+            staging.*) ;;
             *) echo "FAIL: use a dedicated staging.* or stg.* hostname" >&2; exit 1 ;;
           esac
           export COMPOSE_FILE=compose.yaml:compose.staging.yaml
           bash scripts/staging-preflight.sh
           docker compose up -d --build
+          # Verify live Laravel configuration and the connected staging MySQL
+          # identity BEFORE any database migration or signature update.
+          # This is read-only and must fail closed on a production connection.
+          docker compose exec -T app php artisan staging:assert-isolation --no-ansi
           docker compose exec -T app php artisan migrate --force
           AQARI_CLAMAV_REFRESH_APPROVED=signature-update bash scripts/refresh-clamav.sh
           # Wait for public ACME certificate issuance/HTTPS route.
