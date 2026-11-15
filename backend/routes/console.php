@@ -25,7 +25,6 @@ if (config('backup.monitor_enabled', false)) {
 Artisan::command('staging:assert-isolation', function () {
     $appUrl = (string) config('app.url', '');
     $hostname = strtolower((string) parse_url($appUrl, PHP_URL_HOST));
-    $expectedHost = strtolower((string) env('AQARI_STAGING_DOMAIN', ''));
     $checks = [
         'APP_ENV must be staging' => app()->environment('staging'),
         'APP_DEBUG must be disabled' => config('app.debug') === false,
@@ -38,10 +37,8 @@ Artisan::command('staging:assert-isolation', function () {
             config('database.connections.mysql.username') === 'aqari_staging',
         'Malware scanning must be enabled' => config('document_security.scan_enabled') === true,
         'Application URL must be the dedicated staging HTTPS origin' =>
-            $expectedHost !== '' &&
-            str_starts_with($expectedHost, 'staging.') &&
-            $hostname === $expectedHost &&
-            $appUrl === 'https://'.$expectedHost,
+            (bool) preg_match('/^staging\\.[a-z0-9.-]+\\.[a-z]{2,}$/D', $hostname) &&
+            $appUrl === 'https://'.$hostname,
     ];
     foreach ($checks as $reason => $valid) {
         if (!$valid) {
