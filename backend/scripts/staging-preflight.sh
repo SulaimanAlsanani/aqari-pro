@@ -50,6 +50,31 @@ for name in DB_PASSWORD MYSQL_ROOT_PASSWORD MAIL_PASSWORD; do
   esac
 done
 
+# Validate the *effective* merged Compose configuration, not only .env.
+# Base compose.yaml intentionally has production defaults; Staging must override them.
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "FAIL: python3 is required to validate merged staging configuration" >&2; exit 1
+fi
 docker compose -f compose.yaml -f compose.staging.yaml config --quiet
-echo "PASS: staging origin, ACME email, SMTP and compose structure validated"
+docker compose -f compose.yaml -f compose.staging.yaml config --format json | python3 -c '
+import json, sys
+config = json.load(sys.stdin)
+services = config.get("services", {})
+app = services.get("app", {}).get("environment", {})
+db = services.get("db", {}).get("environment", {})
+expected_app = {
+    "APP_ENV": "staging", "APP_DEBUG": "false",
+    "DB_CONNECTION": "mysql", "DB_HOST": "db",
+    "DB_DATABASE": "aqari_staging", "DB_USERNAME": "aqari_staging",
+    "DOCUMENT_SCAN_ENABLED": "true"
+}
+expected_db = {"MYSQL_DATABASE": "aqari_staging", "MYSQL_USER": "aqari_staging"}
+for key, expected in expected_app.items():
+    if str(app.get(key, "")).lower() != expected:
+        sys.exit("FAIL: rendered staging app config mismatch: " + key)
+for key, expected in expected_db.items():
+    if str(db.get(key, "")) != expected:
+        sys.exit("FAIL: rendered staging MySQL config mismatch: " + key)
+'
+echo "PASS: staging origin, isolated Compose DB, non-debug app, upload scanning, SMTP and structure validated"
 echo "PENDING: DNS routing, open ports 80/443, ACME certificate issuance and real SMTP delivery"
