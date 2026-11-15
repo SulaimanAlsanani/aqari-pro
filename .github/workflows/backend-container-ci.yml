@@ -98,6 +98,41 @@ jobs:
             docker compose -f compose.yaml -f compose.staging.yaml config --format json | \
             python3 -c 'import json,sys; d=json.load(sys.stdin); g=d["services"]["gateway"]; assert {80,443}.issubset({int(p["target"]) for p in g["ports"]}); assert len(g["ports"])>=3; assert all(p.get("host_ip")=="127.0.0.1" for p in d["services"]["app"]["ports"]); assert any(x.get("target")=="/data" and x.get("type")=="volume" for x in g.get("volumes",[])); assert "caddy_data" in d["volumes"]'
           docker compose config --format json | python3 -c 'import json,sys; d=json.load(sys.stdin); v=d["services"]["app"].get("volumes",[]); assert any(x.get("target")=="/var/lib/clamav" and x.get("type")=="volume" for x in v), "ClamAV signatures must use a persistent named Docker volume"; assert "clamav_signatures" in d.get("volumes",{}), "ClamAV named volume missing"'
+      - name: Test isolated staging preflight against a fully populated synthetic environment
+        working-directory: backend
+        env:
+          APP_ENV: staging
+          APP_DEBUG: "false"
+          DB_CONNECTION: mysql
+          DOCUMENT_SCAN_ENABLED: "true"
+          AQARI_STAGING_DOMAIN: staging.ci.example.org
+          APP_URL: https://staging.ci.example.org
+          AQARI_ACME_EMAIL: ops@example.org
+          APP_KEY: "base64:MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTI="
+          DB_PASSWORD: ci-preflight-nonproduction-db-secret
+          MYSQL_ROOT_PASSWORD: ci-preflight-nonproduction-root-secret
+          MAIL_PASSWORD: ci-preflight-nonproduction-mail-secret
+        run: |
+          bash scripts/staging-preflight.sh
+          for invalid in production local testing; do
+            if APP_ENV="$invalid" bash scripts/staging-preflight.sh >/dev/null 2>&1; then
+              echo "FAIL: accepted APP_ENV=$invalid" >&2; exit 1
+            fi
+          done
+          for invalid in true 1 ""; do
+            if APP_DEBUG="$invalid" bash scripts/staging-preflight.sh >/dev/null 2>&1; then
+              echo "FAIL: accepted APP_DEBUG=$invalid" >&2; exit 1
+            fi
+          done
+          if DB_CONNECTION=sqlite bash scripts/staging-preflight.sh >/dev/null 2>&1; then
+            echo "FAIL: accepted SQLite" >&2; exit 1
+          fi
+          if DOCUMENT_SCAN_ENABLED=false bash scripts/staging-preflight.sh >/dev/null 2>&1; then
+            echo "FAIL: accepted disabled ClamAV scans" >&2; exit 1
+          fi
+          if APP_URL=https://production.example.org bash scripts/staging-preflight.sh >/dev/null 2>&1; then
+            echo "FAIL: accepted mismatched public origin" >&2; exit 1
+          fi
       - name: Validate staging Caddy HTTPS configuration with real Caddy parser
         working-directory: backend
         run: |
