@@ -147,6 +147,12 @@ jobs:
           docker compose up -d
           docker compose exec -T app clamscan --version
           docker compose exec -T app php artisan migrate --force
+          # The base Compose image is deliberately production-configured;
+          # it must never pass the isolated Staging runtime gate.
+          if docker compose exec -T app php artisan staging:assert-isolation --no-ansi; then
+            echo "FAIL: staging runtime gate accepted production configuration" >&2
+            exit 1
+          fi
           ready=0
           for i in $(seq 1 30); do
             if curl --fail --silent http://127.0.0.1:8080/up >/dev/null; then ready=1; break; fi
