@@ -5,6 +5,21 @@ set -euo pipefail
 domain="${AQARI_STAGING_DOMAIN:-}"
 url="${APP_URL:-}"
 email="${AQARI_ACME_EMAIL:-}"
+# Require an isolated, non-debug deployment before validating Compose or secrets.
+# Keep these checks ahead of Docker access to fail closed on accidental reuse
+# of local or production environment files.
+if [[ "${APP_ENV:-}" != "staging" ]]; then
+  echo "FAIL: APP_ENV must be staging" >&2; exit 1
+fi
+if [[ "${APP_DEBUG:-}" != "false" ]]; then
+  echo "FAIL: APP_DEBUG must be false on staging" >&2; exit 1
+fi
+if [[ "${DB_CONNECTION:-}" != "mysql" ]]; then
+  echo "FAIL: DB_CONNECTION must be mysql on staging" >&2; exit 1
+fi
+if [[ "${DOCUMENT_SCAN_ENABLED:-}" != "true" ]]; then
+  echo "FAIL: DOCUMENT_SCAN_ENABLED must be true on staging" >&2; exit 1
+fi
 if [[ ! "$domain" =~ ^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$ ]] ||
    [[ "$domain" != *.* ]] ||
    [[ "$domain" == *.invalid || "$domain" == *.test || "$domain" == *.example ]] ||
