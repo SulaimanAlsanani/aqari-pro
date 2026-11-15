@@ -2,6 +2,19 @@
 # Run: docker compose -f compose.yaml -f compose.staging.yaml up -d --build
 # DNS A/AAAA record must point to this host; ports 80/443 must be reachable.
 services:
+  app:
+    environment:
+      APP_ENV: staging
+      APP_DEBUG: "false"
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_DATABASE: aqari_staging
+      DB_USERNAME: aqari_staging
+      DOCUMENT_SCAN_ENABLED: "true"
+  db:
+    environment:
+      MYSQL_DATABASE: aqari_staging
+      MYSQL_USER: aqari_staging
   gateway:
     image: caddy:2.9-alpine
     restart: unless-stopped
