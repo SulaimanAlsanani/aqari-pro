@@ -59,6 +59,10 @@ for path in artisan composer.lock routes/api.php scripts/staging-verify.sh; do
   fi
 done
 
+# Verify Laravel's runtime config and the actual connected MySQL identity.
+# Fail closed if the running app points at a production or shared database.
+docker compose exec -T app php artisan staging:assert-isolation --no-ansi
+
 # migrate:status exits successfully even if there are migrations still pending.
 migration_status="$(docker compose exec -T app php artisan migrate:status --no-ansi)"
 if printf '%s\n' "$migration_status" | grep -qiE '(^|[[:space:]|])Pending([[:space:]|]|$)'; then
