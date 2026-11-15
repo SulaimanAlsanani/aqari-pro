@@ -79,4 +79,46 @@ final class OccupancyReportSecurityTest extends TestCase
         $this->getJson('/api/reports/occupancy?property_id=-1')
             ->assertUnprocessable();
     }
+    public function test_report_limits_property_details_without_losing_global_totals(): void
+    {
+        $owner = $this->owner('many@example.test');
+        $foreign = $this->owner('foreign@example.test');
+
+        for ($index = 1; $index <= 23; $index++) {
+            $owner->properties()->create([
+                'name' => 'Property '.$index,
+                'city' => 'Riyadh',
+                'district' => 'Test district',
+                'type' => 'residential',
+                'address' => 'Test address',
+            ]);
+        }
+
+        $foreign->properties()->create([
+            'name' => 'Secret Foreign Property',
+            'city' => 'Jeddah',
+            'district' => 'Test district',
+            'type' => 'residential',
+            'address' => 'Private address',
+        ]);
+
+        Sanctum::actingAs($owner);
+
+        $this->getJson('/api/reports/occupancy')
+            ->assertOk()
+            ->assertJsonPath('totals.properties', 23)
+            ->assertJsonPath('totals.units', 0)
+            ->assertJsonPath('has_more_properties', true)
+            ->assertJsonCount(20, 'by_property')
+            ->assertDontSee('Secret Foreign Property');
+    }
+
+    public function test_report_rejects_nonexistent_property_filter_without_exposing_data(): void
+    {
+        Sanctum::actingAs($this->owner('missing@example.test'));
+
+        $this->getJson('/api/reports/occupancy?property_id=99999999')
+            ->assertNotFound();
+    }
+
 }
