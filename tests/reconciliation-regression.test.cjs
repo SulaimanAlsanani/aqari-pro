@@ -55,3 +55,14 @@ test('overpayment and orphan payment generate review issues', () => {
   assert.ok(result.issues.some(issue=>issue.type==='overpayment'));
   assert.ok(result.issues.some(issue=>issue.type==='orphan_payment'));
 });
+
+test('duplicate receipt IDs are flagged without inflating cash flow', () => {
+  const data = sample();
+  data.payments.push({ id:3000, dueId:1000, amount:400 });
+  const result = recon.calculate(data);
+  assert.equal(result.received,1100);
+  assert.equal(result.net,700);
+  assert.equal(result.uncollected,400);
+  assert.equal(result.balanced,false);
+  assert.ok(result.issues.some(issue=>issue.type==='duplicate_payment_id'));
+});
