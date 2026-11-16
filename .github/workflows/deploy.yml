@@ -44,13 +44,14 @@ jobs:
           set -euo pipefail
           mkdir -p dist
           cp index.html .nojekyll ./*.js dist/
+          printf '%s\\n' "$GITHUB_SHA" > dist/release.txt
           test -s dist/index.html
           node --check dist/app.js
           node --check dist/attachments.js
           python3 - <<'PY'
           from pathlib import Path
           root = Path('dist')
-          allowed = {'index.html', '.nojekyll'}
+          allowed = {'index.html', '.nojekyll', 'release.txt'}
           assets = list(root.iterdir())
           assert assets, 'empty public artifact'
           for asset in assets:
@@ -82,7 +83,7 @@ jobs:
             https://sulaimanalsanani.github.io/aqari-pro/|https://sulaimanalsanani.github.io/aqari-pro) ;;
             *) echo "FAIL: unexpected Pages deployment origin" >&2; exit 1 ;;
           esac
-          for asset in index.html app.js attachments.js; do
+          for asset in index.html app.js attachments.js release.txt; do
             success=0
             for attempt in $(seq 1 12); do
               if curl --fail --silent --show-error --location --max-time 15 \
@@ -99,9 +100,13 @@ jobs:
               exit 1
             fi
           done
-          if ! grep -q 'عقاري برو' /tmp/aqari-pages-asset; then
-            # The last asset may be JavaScript; validate the actual HTML separately.
-            curl --fail --silent --show-error --location --max-time 15 \
-              "${PAGE_URL%/}/index.html" | grep -q 'عقاري برو'
+          curl --fail --silent --show-error --location --max-time 15 \
+            "${PAGE_URL%/}/index.html" -o /tmp/aqari-pages-index
+          grep -q 'عقاري برو' /tmp/aqari-pages-index
+          deployed_sha="$(curl --fail --silent --show-error --location --max-time 15 \
+            "${PAGE_URL%/}/release.txt" | tr -d '\\r\\n')"
+          if [ "$deployed_sha" != "$GITHUB_SHA" ]; then
+            echo "FAIL: deployed Pages SHA does not match current commit" >&2
+            exit 1
           fi
-          echo "PASS: public demo and static assets served over HTTPS"
+          echo "PASS: Pages serves commit $GITHUB_SHA and public demo assets over HTTPS"
