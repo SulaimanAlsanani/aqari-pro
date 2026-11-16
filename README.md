@@ -45,6 +45,13 @@ docker compose --env-file backend/deploy/local/.env.local -f backend/deploy/loca
 
 يتضمن مسار نشر GitHub Pages الملفات العامة المصرح بها فقط، ولا ينسخ مجلد Backend إلى حزمة الموقع المنشورة.
 
+## حالة النشر العام — 16 نوفمبر 2026
+
+- موقع GitHub Pages ينشر **الواجهة التجريبية الثابتة** من فرع `main` فقط.
+- تحديثات Backend التجريبية في `feature/production-foundation` لم تُدمج مع `main` ولم تُنشر كخدمة إنتاجية.
+- أي تغيير على `main` يشغّل سير عمل `.github/workflows/deploy.yml` الذي يختبر المصدر وينشر الملفات العامة المحددة فقط.
+- لا تُدخل بيانات عقارية حقيقية في نسخة GitHub Pages؛ فهي عرض تجريبي بتخزين محلي للمتصفح.
+
 ## تشغيل الواجهة
 يُنشر الموقع من GitHub Pages عبر GitHub Actions على:
 https://sulaimanalsanani.github.io/aqari-pro/
