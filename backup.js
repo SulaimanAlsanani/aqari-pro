@@ -70,5 +70,38 @@ function parse(text){
  let data;try{data=JSON.parse(text)}catch(e){throw Error('تعذر قراءة ملف JSON')}
  return validate(data);
 }
-root.AqariBackup=Object.freeze({parse,validate,MAX_BYTES});
+const MAX_PACKAGE_BYTES=32*1024*1024;
+const MAX_ATTACH_BYTES=20*1024*1024;
+const attachmentCollections=new Set(['owners','properties','units','tenants','contracts','dues','payments','expenses','tickets','vendors','documents','inspections','tasks']);
+function parsePackage(text){
+ if(typeof text!=='string'||new TextEncoder().encode(text).length>MAX_PACKAGE_BYTES)throw Error('النسخة الكاملة أكبر من 32 ميجابايت');
+ let raw;try{raw=JSON.parse(text)}catch(e){throw Error('تعذر قراءة ملف JSON')}
+ if(raw?.format!=='aqari-pro-backup-v2'){
+  // Original records-only backups remain supported.
+  return {records:validate(raw),attachments:[],legacy:true};
+ }
+ const records=validate(raw.records);
+ if(!Array.isArray(raw.attachments)||raw.attachments.length>5000)throw Error('قائمة المرفقات غير صالحة');
+ let bytes=0;
+ const seen=new Set();
+ const ids=new Map(collections.map(name=>[name,new Set(records[name].map(item=>key(item.id)))]));
+ const files=raw.attachments.map(file=>{
+  if(!file||typeof file!=='object'||Array.isArray(file))throw Error('مرفق غير صالح');
+  if(typeof file.id!=='string'||file.id.length<1||file.id.length>128||seen.has(file.id))throw Error('معرّف مرفق مكرر أو غير صالح');
+  seen.add(file.id);
+  const match=typeof file.record==='string'&&/^([A-Za-z]+):([1-9]\d*)$/.exec(file.record);
+  if(!match||!attachmentCollections.has(match[1])||!ids.get(match[1])?.has(match[2]))throw Error('المرفق غير مرتبط بسجل صالح');
+  if(typeof file.name!=='string'||file.name.length<1||file.name.length>255||/[\/\\\x00-\x1f]/.test(file.name))throw Error('اسم المرفق غير صالح');
+  if(typeof file.type!=='string'||file.type.length>128||typeof file.created!=='string'||!Number.isFinite(Date.parse(file.created)))throw Error('بيانات المرفق غير صالحة');
+  if(!Number.isInteger(file.size)||file.size<1||file.size>10*1024*1024||typeof file.data!=='string'||!/^([A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(file.data))throw Error('محتوى المرفق غير صالح');
+  const padding=file.data.endsWith('==')?2:file.data.endsWith('=')?1:0;
+  if(file.data.length/4*3-padding!==file.size)throw Error('حجم المرفق لا يطابق محتواه');
+  bytes+=file.size;
+  if(bytes>MAX_ATTACH_BYTES)throw Error('إجمالي المرفقات يتجاوز 20 ميجابايت');
+  return {...file};
+ });
+ return {records,attachments:files,legacy:false};
+}
+root.AqariBackup=Object.freeze({parse,validate,parsePackage,MAX_BYTES,MAX_PACKAGE_BYTES});
+
 })(typeof window!=='undefined'?window:globalThis);
