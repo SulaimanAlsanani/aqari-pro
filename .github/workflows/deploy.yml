@@ -28,6 +28,7 @@ jobs:
           node --check receipts.js
           node --check reconciliation.js
           node --check maintenance.js
+          node --check backup.js
           node --check app.js
           node --check attachments.js
           node --check backend/frontend/api-session.js
