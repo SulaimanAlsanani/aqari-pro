@@ -39,10 +39,28 @@ jobs:
       - name: Validate PHP backend source syntax
         run: |
           find backend -type f -name '*.php' -print0 | xargs -0 -n1 php -l
-      - name: Stage public frontend only
+      - name: Stage and audit public frontend only
         run: |
+          set -euo pipefail
           mkdir -p dist
-          cp index.html .nojekyll *.js dist/
+          cp index.html .nojekyll ./*.js dist/
+          test -s dist/index.html
+          node --check dist/app.js
+          node --check dist/attachments.js
+          python3 - <<'PY'
+          from pathlib import Path
+          root = Path('dist')
+          allowed = {'index.html', '.nojekyll'}
+          assets = list(root.iterdir())
+          assert assets, 'empty public artifact'
+          for asset in assets:
+              assert asset.is_file(), f'unexpected directory in public artifact: {asset.name}'
+              assert asset.name in allowed or asset.suffix == '.js', f'unexpected public asset: {asset.name}'
+          assert (root / 'index.html').stat().st_size > 0
+          assert (root / 'app.js').stat().st_size > 0
+          assert not any(p.name in {'.env', 'composer.json', 'artisan'} for p in assets)
+          print('PASS: public Pages artifact has only allowlisted demo assets')
+          PY
       - name: Configure Pages
         uses: actions/configure-pages@v5
         with:
@@ -51,8 +69,39 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist
-      - name: Allow Pages artifact indexing
-        run: sleep 20
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4
+      - name: Verify deployed public demo over HTTPS
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          set -euo pipefail
+          test -n "$PAGE_URL"
+          case "$PAGE_URL" in
+            https://sulaimanalsanani.github.io/aqari-pro/|https://sulaimanalsanani.github.io/aqari-pro) ;;
+            *) echo "FAIL: unexpected Pages deployment origin" >&2; exit 1 ;;
+          esac
+          for asset in index.html app.js attachments.js; do
+            success=0
+            for attempt in $(seq 1 12); do
+              if curl --fail --silent --show-error --location --max-time 15 \
+                   --retry 0 "${PAGE_URL%/}/$asset" -o /tmp/aqari-pages-asset; then
+                if test -s /tmp/aqari-pages-asset; then
+                  success=1
+                  break
+                fi
+              fi
+              sleep 10
+            done
+            if [ "$success" -ne 1 ]; then
+              echo "FAIL: public demo asset not served: $asset" >&2
+              exit 1
+            fi
+          done
+          if ! grep -q 'عقاري برو' /tmp/aqari-pages-asset; then
+            # The last asset may be JavaScript; validate the actual HTML separately.
+            curl --fail --silent --show-error --location --max-time 15 \
+              "${PAGE_URL%/}/index.html" | grep -q 'عقاري برو'
+          fi
+          echo "PASS: public demo and static assets served over HTTPS"
