@@ -34,5 +34,19 @@ function build(tenantId,data,propertyId){
  for(const payment of payments)paidCents+=cents(payment.amount);
  return {tenantId,rows,payments:payments.slice().sort((a,b)=>a.date.localeCompare(b.date)),totalDue:dueCents/100,totalPaid:paidCents/100,outstanding:Math.max(0,dueCents-paidCents)/100};
 }
-root.AqariStatements=Object.freeze({build});
+// RFC 4180-style CSV escaping, with spreadsheet-formula injection protection.
+// Do not interpret user-controlled text as a formula when opened in Excel.
+function csvCell(value){
+ const raw=String(value??'');
+ const safe=/^[\\s]*[=+@-]/.test(raw) ? "'"+raw : raw;
+ return /[",\\r\\n]/.test(safe) ? '"'+safe.replace(/"/g,'""')+'"' : safe;
+}
+function exportCsv(statement){
+ const rows=[
+  ['رقم الاستحقاق','العقد','التاريخ','المستحق','المدفوع','المتبقي'],
+  ...statement.rows.map(x=>[x.dueId,x.contractId,x.date,x.amount,x.paid,x.outstanding])
+ ];
+ return '\\ufeff'+rows.map(row=>row.map(csvCell).join(',')).join('\\r\\n');
+}
+root.AqariStatements=Object.freeze({build,exportCsv});
 })(typeof window!=='undefined'?window:globalThis);
