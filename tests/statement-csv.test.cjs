@@ -40,3 +40,16 @@ test('CSV export includes UTF-8 BOM, CRLF, quoted text and safe spreadsheet cell
   assert.ok(csv.includes("'-1+2"), 'negative-leading formula escaped');
   assert.equal(csv.trimEnd().split('\r\n').length, 3);
 });
+
+test('property performance CSV safely quotes property names', () => {
+  const csv=statements.exportRows([
+    ['العقار','المقبوضات','صافي التدفق'],
+    ['=HYPERLINK("evil")',1200,800],
+    ['عقار, رقم "2"',400,-50]
+  ]);
+  assert.equal(csv.codePointAt(0),0xfeff);
+  assert.ok(csv.includes('"\'=HYPERLINK(""evil"")"'));
+  assert.ok(csv.includes('"عقار, رقم ""2"""'));
+  assert.ok(csv.includes('400,-50'));
+  assert.equal(csv.trimEnd().split('\r\n').length,3);
+});
