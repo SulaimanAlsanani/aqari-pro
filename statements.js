@@ -41,12 +41,15 @@ function csvCell(value){
  const safe=/^[\s]*[=+@-]/.test(raw) ? "'"+raw : raw;
  return /[",\r\n]/.test(safe) ? '"'+safe.replace(/"/g,'""')+'"' : safe;
 }
+function exportRows(rows){
+ return '\ufeff'+rows.map(row=>row.map(csvCell).join(',')).join('\r\n');
+}
 function exportCsv(statement){
  const rows=[
   ['رقم الاستحقاق','العقد','التاريخ','المستحق','المدفوع','المتبقي'],
   ...statement.rows.map(x=>[x.dueId,x.contractId,x.date,x.amount,x.paid,x.outstanding])
  ];
- return '\ufeff'+rows.map(row=>row.map(csvCell).join(',')).join('\r\n');
+ return exportRows(rows);
 }
-root.AqariStatements=Object.freeze({build,exportCsv});
+root.AqariStatements=Object.freeze({build,exportCsv,exportRows});
 })(typeof window!=='undefined'?window:globalThis);
