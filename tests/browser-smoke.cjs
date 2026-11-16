@@ -99,6 +99,55 @@ const assert = require('node:assert/strict');
       assert.ok(leaseResult.exists, 'new lease persisted');
       assert.equal(leaseResult.count, 12, '12 installment dues generated');
 
+      // Test real receipt workflow against the new lease's first installment.
+      // The browser context is disposable; no shared or production data is touched.
+      const due = await page.evaluate(unitId => {
+        const db = JSON.parse(localStorage.getItem('aqari-pro-gh-v1'));
+        const lease = db.contracts.find(x => String(x.unitId) === String(unitId));
+        return db.dues.find(x => String(x.contractId) === String(lease.id));
+      }, newUnit.id);
+      assert.ok(due, 'installment exists for receipt workflow');
+      assert.equal(Number(due.amount), 1000);
+      await page.locator('#nav [data-page="dues"]').click();
+      await page.locator('#propertyFilter').selectOption(String(createdProperty.id));
+      const recordSelector = '#content [data-attach-entity="dues"][data-attach-id="' + due.id + '"]';
+      const dialogs = [];
+      page.on('dialog', async dialog => {
+        dialogs.push(dialog.message());
+        await dialog.dismiss();
+      });
+      const paymentCount = () => page.evaluate(dueId => {
+        const db = JSON.parse(localStorage.getItem('aqari-pro-gh-v1'));
+        const payments = db.payments.filter(x => String(x.dueId) === String(dueId));
+        return { count: payments.length, amount: payments.reduce((total, p) => total + Number(p.amount), 0) };
+      }, due.id);
+      async function attemptPayment(amount, reference) {
+        await page.locator(recordSelector + ' [data-do="pay"]').click();
+        await page.locator('#editForm [name="amount"]').fill(String(amount));
+        await page.locator('#editForm [name="date"]').fill('2027-01-02');
+        await page.locator('#editForm [name="method"]').fill('تحويل بنكي');
+        await page.locator('#editForm [name="reference"]').fill(reference);
+        await page.locator('#editForm button[type="submit"]').click();
+      }
+      await attemptPayment(400, 'CI-PARTIAL-' + scenario.name);
+      assert.deepEqual(await paymentCount(), { count: 1, amount: 400 }, 'partial receipt saved once');
+      assert.equal(await page.locator('#editForm').count(), 0);
+      await attemptPayment(700, 'CI-EXCESS-' + scenario.name);
+      assert.equal(await page.locator('#editForm').count(), 1, 'overpayment form remains open');
+      assert.ok(dialogs.some(x => x.includes('يتجاوز الرصيد')), 'overpayment rejected with a warning');
+      assert.deepEqual(await paymentCount(), { count: 1, amount: 400 }, 'overpayment cannot mutate receipts');
+      await page.locator('#modal [data-do="close"]').click();
+      await attemptPayment(100, 'CI-PARTIAL-' + scenario.name);
+      assert.ok(dialogs.some(x => x.includes('مرجع الدفع مستخدم')), 'duplicate reference rejected');
+      assert.deepEqual(await paymentCount(), { count: 1, amount: 400 }, 'duplicate reference cannot mutate receipts');
+      await page.locator('#modal [data-do="close"]').click();
+      await attemptPayment(600, 'CI-FINAL-' + scenario.name);
+      assert.deepEqual(await paymentCount(), { count: 2, amount: 1000 }, 'installment fully settled without overpayment');
+      assert.equal(await page.locator(recordSelector + ' [data-do="pay"]').count(), 0, 'paid installment no longer offers receipt action');
+      await page.locator('#nav [data-page="payments"]').click();
+      assert.ok(await page.locator('#content [data-attach-entity="payments"]').count() >= 2);
+      console.log('PASS: ' + scenario.name + ' partial, duplicate reference, excess, final payment');
+
       await page.reload({ waitUntil: 'load' });
       const afterReload = await page.evaluate(({ propertyName, unitCode }) => {
         const db = JSON.parse(localStorage.getItem('aqari-pro-gh-v1'));
