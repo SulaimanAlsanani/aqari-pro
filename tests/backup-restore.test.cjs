@@ -38,3 +38,23 @@ test('rejects incompatible multi-owner and invalid financial values',()=>{
 test('rejects oversized backup',()=>{
  assert.throws(()=>backup.parse(' '.repeat(backup.MAX_BYTES+1)),/8 ميجابايت/);
 });
+
+test('rejects forged money strings, fractions and payments above the installment',()=>{
+ const invalid=valid();
+ invalid.dues[0].amount='1e3';
+ assert.throws(()=>backup.validate(invalid),/قيمة مالية غير صالحة/);
+ const precise=valid();
+ precise.payments[0].amount='1.234';
+ assert.throws(()=>backup.validate(precise),/قيمة مالية غير صالحة/);
+ const overpaid=valid();
+ overpaid.payments.push({id:9,dueId:6,amount:700});
+ assert.throws(()=>backup.validate(overpaid),/المقبوضات تتجاوز/);
+});
+test('rejects stale optional unit and vendor relationships',()=>{
+ const invalid=valid();
+ invalid.expenses[0].unitId=9999;
+ assert.throws(()=>backup.validate(invalid),/مرجع وحدة غير صالح/);
+ const orphanVendor=valid();
+ orphanVendor.expenses[0].vendorId=9999;
+ assert.throws(()=>backup.validate(orphanVendor),/مرجع مورد غير صالح/);
+});
