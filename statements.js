@@ -37,6 +37,8 @@ function build(tenantId,data,propertyId){
 // RFC 4180-style CSV escaping, with spreadsheet-formula injection protection.
 // Do not interpret user-controlled text as a formula when opened in Excel.
 function csvCell(value){
+ // Native finite numbers are data, not spreadsheet formulas (including negatives).
+ if(typeof value==='number'&&Number.isFinite(value))return String(value);
  const raw=String(value??'');
  const safe=/^[\s]*[=+@-]/.test(raw) ? "'"+raw : raw;
  return /[",\r\n]/.test(safe) ? '"'+safe.replace(/"/g,'""')+'"' : safe;
