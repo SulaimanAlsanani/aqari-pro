@@ -214,5 +214,48 @@ document.addEventListener('change',event=>{
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&selected)close()});
 const content=document.getElementById('content');
 if(content){new MutationObserver(addButtons).observe(content,{childList:true});addButtons()}
-window.AqariAttachments={clearAll:()=>transaction('readwrite',store=>{store.clear()})};
+const BACKUP_LIMIT=20*1024*1024;
+async function snapshot(){
+ const db=await openDb();
+ const files=await new Promise((resolve,reject)=>{
+  const request=db.transaction(STORE,'readonly').objectStore(STORE).getAll();
+  request.onsuccess=()=>resolve(request.result);
+  request.onerror=()=>reject(request.error||new Error('تعذر نسخ المرفقات'));
+ });
+ let size=0;
+ const result=[];
+ for(const file of files){
+  size+=file.size;
+  if(size>BACKUP_LIMIT)throw Error('حجم المرفقات يتجاوز 20 ميجابايت؛ نزّل الملفات الكبيرة منفردة');
+  if(!file.blob)throw Error('مرفق بلا محتوى: '+file.name);
+  const bytes=new Uint8Array(await file.blob.arrayBuffer());
+  let binary='';
+  for(let offset=0;offset<bytes.length;offset+=0x8000)binary+=String.fromCharCode(...bytes.subarray(offset,offset+0x8000));
+  result.push({id:file.id,record:file.record,name:file.name,type:file.type||'',size:file.size,created:file.created,data:btoa(binary)});
+ }
+ return result;
+}
+async function replaceAll(attachments){
+ const decoded=[];
+ for(const item of attachments){
+  let binary;
+  try{binary=atob(item.data)}catch(e){throw Error('بيانات مرفق تالفة: '+item.name)}
+  if(binary.length!==item.size||item.size<1||item.size>MAX_FILE)throw Error('حجم مرفق غير صالح: '+item.name);
+  const bytes=new Uint8Array(binary.length);
+  for(let i=0;i<bytes.length;i++)bytes[i]=binary.charCodeAt(i);
+  const blob=new Blob([bytes],{type:item.type});
+  decoded.push({id:item.id,record:item.record,name:item.name,type:item.type||'',size:item.size,created:item.created,blob});
+ }
+ // A single IndexedDB transaction either replaces the entire set or preserves it.
+ await transaction('readwrite',store=>{
+  store.clear();
+  for(const item of decoded)store.put(item);
+ });
+ close();
+ document.querySelectorAll('#content .record[data-attach-entity]').forEach(renderSummary);
+}
+window.AqariAttachments={
+ clearAll:()=>replaceAll([]),
+ snapshot,replaceAll,BACKUP_LIMIT
+};
 })();
