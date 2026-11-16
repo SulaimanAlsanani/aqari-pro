@@ -148,6 +148,37 @@ const assert = require('node:assert/strict');
       assert.ok(await page.locator('#content [data-attach-entity="payments"]').count() >= 2);
       console.log('PASS: ' + scenario.name + ' partial, duplicate reference, excess, final payment');
 
+      // The same receipts must appear in a property-filtered tenant statement.
+      await page.locator('#nav [data-page="statements"]').click();
+      await page.locator('#propertyFilter').selectOption(String(createdProperty.id));
+      const tenantId = await page.evaluate(unitId => {
+        const db = JSON.parse(localStorage.getItem('aqari-pro-gh-v1'));
+        return db.contracts.find(x => String(x.unitId) === String(unitId)).tenantId;
+      }, newUnit.id);
+      await page.locator('#tenantStatementSelection').selectOption(String(tenantId));
+      const summary = await page.evaluate(({ tenantId, propertyId }) => {
+        const db = JSON.parse(localStorage.getItem('aqari-pro-gh-v1'));
+        const result = window.AqariStatements.build(tenantId, db, propertyId);
+        return {
+          totalDue: result.totalDue,
+          totalPaid: result.totalPaid,
+          outstanding: result.outstanding,
+          firstDuePaid: result.rows.find(x => x.date === '2027-01-01')?.paid
+        };
+      }, { tenantId, propertyId: String(createdProperty.id) });
+      assert.deepEqual(summary, {
+        totalDue: 12000, totalPaid: 1000, outstanding: 11000, firstDuePaid: 1000
+      }, 'tenant statement reconciles to created lease receipts');
+      const downloadEvent = page.waitForEvent('download');
+      await page.locator('#content [data-do="statementCsv"]').click();
+      const statementFile = await downloadEvent;
+      assert.ok(statementFile.suggestedFilename().endsWith('.csv'));
+      const csvPath = await statementFile.path();
+      const csvText = require('node:fs').readFileSync(csvPath, 'utf8');
+      assert.equal(csvText.codePointAt(0), 0xfeff);
+      assert.ok(csvText.includes('2027-01-01,1000,1000,0'));
+      assert.equal(csvText.trimEnd().split('\\r\\n').length, 13);
+
       await page.reload({ waitUntil: 'load' });
       const afterReload = await page.evaluate(({ propertyName, unitCode }) => {
         const db = JSON.parse(localStorage.getItem('aqari-pro-gh-v1'));
