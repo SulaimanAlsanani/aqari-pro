@@ -74,6 +74,31 @@ const assert = require('node:assert/strict');
         assert.equal(persisted.properties, before.properties + 1);
         assert.equal(persisted.units, before.units + 1);
       }
+      // Create a lease only for the newly added unit, then verify due schedule.
+      await page.locator('#nav [data-page="contracts"]').click();
+      await page.locator('#content [data-do="add"][data-kind="contracts"]').click();
+      const newUnit = await page.evaluate(({ propertyName, unitCode }) => {
+        const db = JSON.parse(localStorage.getItem('aqari-pro-gh-v1'));
+        const property = db.properties.find(x => x.name === propertyName);
+        return db.units.find(x => x.code === unitCode && String(x.propertyId) === String(property.id));
+      }, { propertyName, unitCode });
+      assert.ok(newUnit, 'new unit exists before contract creation');
+      await page.locator('#editForm [name="unitId"]').selectOption(String(newUnit.id));
+      await page.locator('#editForm [name="start"]').fill('2027-01-01');
+      await page.locator('#editForm [name="end"]').fill('2027-12-31');
+      await page.locator('#editForm [name="total"]').fill('12000');
+      await page.locator('#editForm [name="installments"]').fill('12');
+      await page.locator('#editForm [name="deposit"]').fill('1000');
+      await page.locator('#editForm button[type="submit"]').click();
+      assert.equal(await page.locator('#editForm').count(), 0, 'lease form closed on valid save');
+      const leaseResult = await page.evaluate(unitId => {
+        const db = JSON.parse(localStorage.getItem('aqari-pro-gh-v1'));
+        const lease = db.contracts.find(x => String(x.unitId) === String(unitId));
+        return { exists: !!lease, count: db.dues.filter(d => String(d.contractId) === String(lease?.id)).length };
+      }, newUnit.id);
+      assert.ok(leaseResult.exists, 'new lease persisted');
+      assert.equal(leaseResult.count, 12, '12 installment dues generated');
+
       await page.reload({ waitUntil: 'load' });
       const afterReload = await page.evaluate(({ propertyName, unitCode }) => {
         const db = JSON.parse(localStorage.getItem('aqari-pro-gh-v1'));
