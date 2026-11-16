@@ -36,6 +36,21 @@ jobs:
           node --check backend/frontend/attachment-staging.js
       - name: Test financial regression cases
         run: node --test tests/*.test.cjs
+      - name: Install browser smoke dependencies
+        run: |
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Test desktop and mobile interactions in Chromium
+        run: |
+          set -euo pipefail
+          python3 -m http.server 8765 --bind 127.0.0.1 >/tmp/aqari-browser-http.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 20); do
+            if curl --fail --silent http://127.0.0.1:8765/index.html >/dev/null; then break; fi
+            sleep 1
+          done
+          AQARI_BROWSER_URL=http://127.0.0.1:8765/ node tests/browser-smoke.cjs
       - name: Validate PHP backend source syntax
         run: |
           find backend -type f -name '*.php' -print0 | xargs -0 -n1 php -l
