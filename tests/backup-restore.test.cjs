@@ -58,3 +58,33 @@ test('rejects stale optional unit and vendor relationships',()=>{
  orphanVendor.expenses[0].vendorId=9999;
  assert.throws(()=>backup.validate(orphanVendor),/مرجع مورد غير صالح/);
 });
+
+test('full backup package validates attachment content and known parent records',()=>{
+ const data=valid();
+ const file={
+  id:'att-1',record:'properties:2',name:'test.txt',type:'text/plain',
+  size:4,created:'2026-11-16T10:00:00.000Z',data:Buffer.from('test').toString('base64')
+ };
+ const packageText=JSON.stringify({format:'aqari-pro-backup-v2',records:data,attachments:[file]});
+ const parsed=backup.parsePackage(packageText);
+ assert.deepEqual(parsed.records,data);
+ assert.deepEqual(parsed.attachments,[file]);
+ assert.equal(parsed.legacy,false);
+ const legacy=backup.parsePackage(JSON.stringify(data));
+ assert.equal(legacy.legacy,true);
+ assert.deepEqual(legacy.attachments,[]);
+});
+test('full backup rejects corrupted attachments, duplicate IDs and orphan file references',()=>{
+ const source={
+  format:'aqari-pro-backup-v2',records:valid(),attachments:[{
+   id:'att-1',record:'properties:2',name:'safe.txt',type:'text/plain',
+   size:4,created:'2026-11-16T10:00:00.000Z',data:Buffer.from('test').toString('base64')
+  }]
+ };
+ const damaged=structuredClone(source);damaged.attachments[0].size=5;
+ assert.throws(()=>backup.parsePackage(JSON.stringify(damaged)),/حجم المرفق/);
+ const orphan=structuredClone(source);orphan.attachments[0].record='properties:999';
+ assert.throws(()=>backup.parsePackage(JSON.stringify(orphan)),/المرفق غير مرتبط/);
+ const duplicates=structuredClone(source);duplicates.attachments.push({...duplicates.attachments[0]});
+ assert.throws(()=>backup.parsePackage(JSON.stringify(duplicates)),/معرّف مرفق مكرر/);
+});
