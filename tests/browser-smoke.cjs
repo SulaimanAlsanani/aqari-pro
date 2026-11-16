@@ -115,7 +115,7 @@ const assert = require('node:assert/strict');
       let acceptBackupRestore = false;
       page.on('dialog', async dialog => {
         dialogs.push(dialog.message());
-        if (acceptBackupRestore && dialog.type() === 'confirm' && dialog.message().includes('سيتم استبدال جميع سجلات')) {
+        if (acceptBackupRestore && dialog.type() === 'confirm' && dialog.message().includes('سيتم استبدال')) {
           acceptBackupRestore = false;
           await dialog.accept();
         } else {
@@ -252,7 +252,7 @@ const assert = require('node:assert/strict');
       });
       await invalidDialog;
       assert.equal(await page.evaluate(() => localStorage.getItem('aqari-pro-gh-v1')),storageKey);
-      const restoreDialog=page.waitForEvent('dialog', d=>d.message().includes('سيتم استبدال جميع سجلات'));
+      const restoreDialog=page.waitForEvent('dialog', d=>d.message().includes('سيتم استبدال'));
       await page.locator('#restoreBackupFile').setInputFiles({
         name:'valid.json',mimeType:'application/json',buffer:Buffer.from(storageKey)
       });
@@ -265,9 +265,21 @@ const assert = require('node:assert/strict');
       testProperty.name='Recovered '+propertyName;
       const restoredJson=JSON.stringify(restoreData);
       acceptBackupRestore=true;
-      const successDialog=page.waitForEvent('dialog',d=>d.message().includes('تمت استعادة السجلات محليًا'));
+      const successDialog=page.waitForEvent('dialog',d=>d.message().includes('تمت استعادة السجلات والمرفقات'));
+      // Export a portable v2 backup containing records and their attachment snapshot.
+      const fullDownload=page.waitForEvent('download');
+      await page.locator('#content [data-do="backupFull"]').click();
+      const fullFile=await fullDownload;
+      assert.equal(fullFile.suggestedFilename(),'aqari-full-backup.json');
+      const complete=JSON.parse(require('node:fs').readFileSync(await fullFile.path(),'utf8'));
+      assert.equal(complete.format,'aqari-pro-backup-v2');
+      assert.ok(Array.isArray(complete.attachments));
+      assert.deepEqual(complete.records,JSON.parse(storageKey));
+      // Restore the complete format with a changed property name.
+      complete.records.properties.find(p=>p.name===propertyName).name='Recovered '+propertyName;
+      const packageText=JSON.stringify(complete);
       await page.locator('#restoreBackupFile').setInputFiles({
-        name:'restore.json',mimeType:'application/json',buffer:Buffer.from(restoredJson)
+        name:'restore.json',mimeType:'application/json',buffer:Buffer.from(packageText)
       });
       await successDialog;
       await page.waitForFunction(name=>{
