@@ -44,7 +44,7 @@ jobs:
           set -euo pipefail
           mkdir -p dist
           cp index.html .nojekyll ./*.js dist/
-          printf '%s\\n' "$GITHUB_SHA" > dist/release.txt
+          printf '%s\n' "$GITHUB_SHA" > dist/release.txt
           test -s dist/index.html
           node --check dist/app.js
           node --check dist/attachments.js
