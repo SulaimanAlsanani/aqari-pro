@@ -152,9 +152,21 @@ const assert = require('node:assert/strict');
       const afterReload = await page.evaluate(({ propertyName, unitCode }) => {
         const db = JSON.parse(localStorage.getItem('aqari-pro-gh-v1'));
         const property = db.properties.find(x => x.name === propertyName);
-        return !!property && db.units.some(x => x.code === unitCode && String(x.propertyId) === String(property.id));
+        const unit = db.units.find(x => x.code === unitCode && String(x.propertyId) === String(property?.id));
+        const lease = db.contracts.find(x => String(x.unitId) === String(unit?.id));
+        const dues = db.dues.filter(x => String(x.contractId) === String(lease?.id));
+        const firstDue = dues.find(x => x.date === '2027-01-01');
+        const paid = db.payments.filter(x => String(x.dueId) === String(firstDue?.id));
+        return {
+          property: !!property, unit: !!unit, lease: !!lease,
+          dues: dues.length, receipts: paid.length,
+          collected: paid.reduce((sum, p) => sum + Number(p.amount), 0)
+        };
       }, { propertyName, unitCode });
-      assert.ok(afterReload, 'property and unit must survive reload');
+      assert.deepEqual(afterReload, {
+        property: true, unit: true, lease: true,
+        dues: 12, receipts: 2, collected: 1000
+      }, 'property, unit, contract and receipts must survive reload');
       if (scenario.name === 'mobile') {
         const width = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
         assert.ok(width <= 2, 'mobile document overflowed viewport by ' + width + 'px');
