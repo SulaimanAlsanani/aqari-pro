@@ -26,7 +26,7 @@ async function transaction(mode,action){
  return new Promise((resolve,reject)=>{
   const tx=db.transaction(STORE,mode), store=tx.objectStore(STORE);
   let result;
-  try{result=action(store,tx)}catch(err){reject(err);return}
+  try{result=action(store,tx)}catch(err){try{tx.abort()}catch(ignore){}reject(err);return}
   tx.oncomplete=()=>resolve(result);
   tx.onerror=()=>reject(tx.error||new Error('فشلت عملية حفظ المرفق'));
   tx.onabort=()=>reject(tx.error||new Error('تم إلغاء العملية'));
