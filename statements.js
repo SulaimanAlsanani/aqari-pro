@@ -38,15 +38,15 @@ function build(tenantId,data,propertyId){
 // Do not interpret user-controlled text as a formula when opened in Excel.
 function csvCell(value){
  const raw=String(value??'');
- const safe=/^[\\s]*[=+@-]/.test(raw) ? "'"+raw : raw;
- return /[",\\r\\n]/.test(safe) ? '"'+safe.replace(/"/g,'""')+'"' : safe;
+ const safe=/^[\s]*[=+@-]/.test(raw) ? "'"+raw : raw;
+ return /[",\r\n]/.test(safe) ? '"'+safe.replace(/"/g,'""')+'"' : safe;
 }
 function exportCsv(statement){
  const rows=[
   ['رقم الاستحقاق','العقد','التاريخ','المستحق','المدفوع','المتبقي'],
   ...statement.rows.map(x=>[x.dueId,x.contractId,x.date,x.amount,x.paid,x.outstanding])
  ];
- return '\\ufeff'+rows.map(row=>row.map(csvCell).join(',')).join('\\r\\n');
+ return '\ufeff'+rows.map(row=>row.map(csvCell).join(',')).join('\r\n');
 }
 root.AqariStatements=Object.freeze({build,exportCsv});
 })(typeof window!=='undefined'?window:globalThis);
