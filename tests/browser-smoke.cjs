@@ -240,15 +240,17 @@ const assert = require('node:assert/strict');
       const storageKey = await page.evaluate(() => window.localStorage.getItem('aqari-pro-gh-v1'));
       // Invalid imports and cancelled restore confirmation cannot overwrite data.
       await page.locator('#nav [data-page="settings"]').click();
+      const invalidDialog=page.waitForEvent('dialog', d=>d.message().includes('تم رفض النسخة الاحتياطية'));
       await page.locator('#restoreBackupFile').setInputFiles({
         name:'broken.json',mimeType:'application/json',buffer:Buffer.from('{not-json')
       });
-      await page.waitForFunction(() => document.querySelector('#restoreBackupFile')?.value === '');
+      await invalidDialog;
       assert.equal(await page.evaluate(() => localStorage.getItem('aqari-pro-gh-v1')),storageKey);
+      const restoreDialog=page.waitForEvent('dialog', d=>d.message().includes('سيتم استبدال جميع سجلات'));
       await page.locator('#restoreBackupFile').setInputFiles({
         name:'valid.json',mimeType:'application/json',buffer:Buffer.from(storageKey)
       });
-      await page.waitForFunction(() => document.querySelector('#restoreBackupFile')?.value === '');
+      await restoreDialog;
       assert.equal(await page.evaluate(() => localStorage.getItem('aqari-pro-gh-v1')),storageKey);
       // Navigation and opening/closing blank forms must not overwrite existing storage.
       await page.reload({ waitUntil: 'load' });
