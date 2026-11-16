@@ -238,6 +238,18 @@ const assert = require('node:assert/strict');
       }
       assert.deepEqual(errors, [], scenario.name + ' uncaught page errors');
       const storageKey = await page.evaluate(() => window.localStorage.getItem('aqari-pro-gh-v1'));
+      // Invalid imports and cancelled restore confirmation cannot overwrite data.
+      await page.locator('#nav [data-page="settings"]').click();
+      await page.locator('#restoreBackupFile').setInputFiles({
+        name:'broken.json',mimeType:'application/json',buffer:Buffer.from('{not-json')
+      });
+      await page.waitForFunction(() => document.querySelector('#restoreBackupFile')?.value === '');
+      assert.equal(await page.evaluate(() => localStorage.getItem('aqari-pro-gh-v1')),storageKey);
+      await page.locator('#restoreBackupFile').setInputFiles({
+        name:'valid.json',mimeType:'application/json',buffer:Buffer.from(storageKey)
+      });
+      await page.waitForFunction(() => document.querySelector('#restoreBackupFile')?.value === '');
+      assert.equal(await page.evaluate(() => localStorage.getItem('aqari-pro-gh-v1')),storageKey);
       // Navigation and opening/closing blank forms must not overwrite existing storage.
       await page.reload({ waitUntil: 'load' });
       assert.equal(await page.evaluate(() => window.localStorage.getItem('aqari-pro-gh-v1')), storageKey);
