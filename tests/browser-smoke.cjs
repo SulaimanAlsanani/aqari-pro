@@ -179,6 +179,40 @@ const assert = require('node:assert/strict');
       assert.ok(csvText.includes('2027-01-01,1000,1000,0'));
       assert.equal(csvText.trimEnd().split('\r\n').length, 13);
 
+      // Create a real expense and reconcile the property-specific report end to end.
+      await page.locator('#nav [data-page="expenses"]').click();
+      await page.locator('#content [data-do="add"][data-kind="expenses"]').click();
+      await page.locator('#editForm [name="propertyId"]').selectOption(String(createdProperty.id));
+      await page.locator('#editForm [name="category"]').fill('صيانة');
+      await page.locator('#editForm [name="description"]').fill('مصروف اختبار آلي');
+      await page.locator('#editForm [name="amount"]').fill('250');
+      await page.locator('#editForm [name="date"]').fill('2027-01-02');
+      await page.locator('#editForm button[type="submit"]').click();
+      assert.equal(await page.locator('#editForm').count(), 0, 'expense form saved');
+      await page.locator('#nav [data-page="reports"]').click();
+      await page.locator('#propertyFilter').selectOption(String(createdProperty.id));
+      const propertyReport = await page.evaluate(propertyId => {
+        const db = JSON.parse(localStorage.getItem('aqari-pro-gh-v1'));
+        const x = window.AqariReconciliation.calculate(db, propertyId);
+        return { due:x.due, received:x.received, uncollected:x.uncollected, expenses:x.expenses, net:x.net, balanced:x.balanced };
+      }, String(createdProperty.id));
+      assert.deepEqual(propertyReport, {
+        due:12000, received:1000, uncollected:11000,
+        expenses:250, net:750, balanced:true
+      }, 'property report reconciles dues, receipts, expense and cash flow');
+      const reportContent = await page.locator('#content').innerText();
+      for (const amount of ['12,000', '11,000', '1,000', '250', '750']) {
+        assert.ok(reportContent.includes(amount), 'report visibly includes ' + amount);
+      }
+      const performanceDownload = page.waitForEvent('download');
+      await page.locator('#content [data-do="propertyPerformanceCsv"]').click();
+      const performanceFile = await performanceDownload;
+      assert.equal(performanceFile.suggestedFilename(), 'aqari-property-performance.csv');
+      const performanceCsv = require('node:fs').readFileSync(await performanceFile.path(), 'utf8');
+      assert.equal(performanceCsv.codePointAt(0), 0xfeff);
+      assert.ok(performanceCsv.includes('12000,1000,11000,250,750'));
+      assert.equal(performanceCsv.trimEnd().split('\r\n').length,2);
+
       await page.reload({ waitUntil: 'load' });
       const afterReload = await page.evaluate(({ propertyName, unitCode }) => {
         const db = JSON.parse(localStorage.getItem('aqari-pro-gh-v1'));
