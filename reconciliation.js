@@ -18,8 +18,12 @@ function calculate(data,propertyId='all'){
   if(!unit||!propertyKeys.has(String(unit.propertyId))){issues.push({type:'orphan_due',id:due.id,message:'استحقاق بلا عقد أو عقار صالح'});continue}
   if(!scoped(unit.propertyId))continue;
   const key=String(due.id);
-  if(dueById.has(key))issues.push({type:'duplicate_due_id',id:due.id,message:'رقم استحقاق مكرر'});
-  else dueById.set(key,due);
+  if(dueById.has(key)){
+   // Never count the same due identifier twice in financial totals.
+   issues.push({type:'duplicate_due_id',id:due.id,message:'رقم استحقاق مكرر'});
+   continue;
+  }
+  dueById.set(key,due);
   targetDues.push(due);
  }
  const paymentsByDue=new Map(),paymentIds=new Set();
