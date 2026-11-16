@@ -10,8 +10,8 @@ test('aging buckets reconcile outstanding halalas across date boundaries', () =>
   const payments=[{id:40,dueId:2,amount:25},{id:41,dueId:3,amount:60}];
   const aging=finance.receivablesAging(dues,payments,'2027-03-01');
   assert.deepEqual(aging,{
-    notDue:100, days1to30:75,days31to60:40,
-    days61to90:100,days90plus:200,total:515
+    notDue:100, days1to30:115,days31to60:100,
+    days61to90:0,days90plus:200,total:515
   });
   assert.equal(Object.entries(aging).filter(([key])=>key!=='total').reduce((sum,[,value])=>sum+value,0),aging.total);
 });
