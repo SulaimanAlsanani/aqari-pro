@@ -243,6 +243,25 @@ const assert = require('node:assert/strict');
         assert.ok(width <= 2, 'mobile document overflowed viewport by ' + width + 'px');
       }
       assert.deepEqual(errors, [], scenario.name + ' uncaught page errors');
+      // Save an actual browser attachment and round-trip it through full JSON backup.
+      await page.locator('#nav [data-page="properties"]').click();
+      const attachedProperty='#content [data-attach-entity="properties"][data-attach-id="' + createdProperty.id + '"]';
+      await page.locator(attachedProperty + ' [data-attachment-open]').click();
+      await page.locator('#attachmentInput').setInputFiles({
+        name:'ci-attachment.txt',mimeType:'text/plain',buffer:Buffer.from('AQARI-CI-ATTACHMENT')
+      });
+      await page.waitForFunction(async propertyId=>{
+        const db=await new Promise((resolve,reject)=>{
+          const req=indexedDB.open('aqari-pro-local-attachments',1);
+          req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);
+        });
+        const count=await new Promise((resolve,reject)=>{
+          const req=db.transaction('files','readonly').objectStore('files').index('record').count('properties:'+propertyId);
+          req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);
+        });
+        return count===1;
+      },createdProperty.id);
+      await page.locator('#nav [data-page="settings"]').click();
       const storageKey = await page.evaluate(() => window.localStorage.getItem('aqari-pro-gh-v1'));
       // Invalid imports and cancelled restore confirmation cannot overwrite data.
       await page.locator('#nav [data-page="settings"]').click();
@@ -274,6 +293,8 @@ const assert = require('node:assert/strict');
       const complete=JSON.parse(require('node:fs').readFileSync(await fullFile.path(),'utf8'));
       assert.equal(complete.format,'aqari-pro-backup-v2');
       assert.ok(Array.isArray(complete.attachments));
+      assert.equal(complete.attachments.length,1);
+      assert.equal(Buffer.from(complete.attachments[0].data,'base64').toString('utf8'),'AQARI-CI-ATTACHMENT');
       assert.deepEqual(complete.records,JSON.parse(storageKey));
       // Restore the complete format with a changed property name.
       complete.records.properties.find(p=>p.name===propertyName).name='Recovered '+propertyName;
@@ -290,7 +311,19 @@ const assert = require('node:assert/strict');
       // Confirmed restore survives a reload without altering financial record counts.
       await page.reload({waitUntil:'load'});
       assert.equal(await page.evaluate(() => localStorage.getItem('aqari-pro-gh-v1')),restoredJson);
-      console.log('PASS: '+scenario.name+' validated backup restore and cancelled/invalid import safety');
+      const restoredAttachment=await page.evaluate(async()=>{
+        const db=await new Promise((resolve,reject)=>{
+          const req=indexedDB.open('aqari-pro-local-attachments',1);
+          req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);
+        });
+        const attachments=await new Promise((resolve,reject)=>{
+          const req=db.transaction('files','readonly').objectStore('files').getAll();
+          req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);
+        });
+        return {count:attachments.length,content:attachments[0]&&await attachments[0].blob.text()};
+      });
+      assert.deepEqual(restoredAttachment,{count:1,content:'AQARI-CI-ATTACHMENT'});
+      console.log('PASS: '+scenario.name+' full backup restored attachment binary');
       // Navigation and opening/closing blank forms must not overwrite existing storage.
       await page.reload({ waitUntil: 'load' });
       assert.equal(await page.evaluate(() => window.localStorage.getItem('aqari-pro-gh-v1')), restoredJson);
