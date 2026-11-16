@@ -38,7 +38,7 @@ function validate(data){
  check(copy.inspections,'propertyId',properties,'inspections');
  const halalas=value=>{
   const str=String(value??'').trim();
-  if(!/^(?:0|[1-9]\\d*)(?:\\.\\d{1,2})?$/.test(str))return null;
+  if(!/^(?:0|[1-9]\d*)(?:\.\d{1,2})?$/.test(str))return null;
   const [whole,frac='']=str.split('.');
   const result=Number(whole)*100+Number(frac.padEnd(2,'0'));
   return Number.isSafeInteger(result)?result:null;
