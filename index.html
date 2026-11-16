@@ -60,4 +60,34 @@ pre{background:#143a2c}
 .attached-file-actions .btn{padding:5px 9px;font-size:11px}
 .attachment-notice{position:fixed;bottom:20px;left:20px;z-index:20;background:#e9f6ee;color:#08613c;border:1px solid #b8ddc6;border-radius:10px;padding:12px 18px;max-width:min(440px,90vw);font-weight:700;box-shadow:0 9px 30px #112e1d20}
 .attachment-notice-error{background:#fff2f0;border-color:#edc6bf;color:#a42c26}
-</style></head><body><aside><h1>⌂ عقاري برو</h1><div class="hint">إدارة عقاراتك وإيجاراتك في مكان واحد</div><div class="navlist" id="nav"></div><div class="tip">نسخة تجريبية محلية. تكامل إيجار وضع محاكاة فقط، ولا تتم معالجة مدفوعات فعلية.</div></aside><div class="app"><div class="top"><div><h2 id="title">لوحة القيادة</h2><small>عقاراتي · عقود الإيجار · التحصيل · الصيانة</small></div><span class="badge orange">تكامل إيجار: محاكاة</span></div><main id="content"></main></div><div id="modal"></div><script src="finance.js"></script><script src="contracts.js"></script><script src="followups.js"></script><script src="statements.js"></script><script src="receipts.js"></script><script src="reconciliation.js"></script><script src="maintenance.js"></script><script src="app.js"></script><script src="attachments.js"></script></body></html>
+
+/* Mobile ergonomics and keyboard accessibility — visual-only; no state changes. */
+.skip-link{position:fixed;inset-inline-start:12px;top:-70px;z-index:100;background:#fff;color:#103f30;padding:10px 14px;border:2px solid #b9944e;border-radius:8px;font-weight:800}
+.skip-link:focus{top:12px}
+#content:focus{outline:none}
+.tablewrap{max-width:100%;overflow-x:auto;overscroll-behavior-inline:contain;-webkit-overflow-scrolling:touch}
+.panel,.record,.metric,.top,.toolbar,.row,.actions{min-width:0}
+.metric .num,.record,.panel{overflow-wrap:anywhere}
+@media(max-width:740px){
+  aside{max-height:none;overflow:visible;padding:12px;border-left:0}
+  aside h1{margin:2px 5px 6px}
+  .navlist{max-width:100%;padding:4px 0 8px;scrollbar-width:thin;overscroll-behavior-inline:contain}
+  .navbtn{min-height:44px;flex:0 0 auto}
+  .top{flex-wrap:wrap;align-items:flex-start;gap:8px}
+  .top .badge{max-width:100%;white-space:normal}
+  .metrics{gap:9px}
+  .panel{padding:14px}
+  .modal{padding:16px;max-height:calc(100dvh - 26px)}
+  .field input,.field select,.field textarea,.filters input,.filters select{font-size:16px}
+  .actions .btn,.toolbar .btn{min-height:40px}
+}
+@media(max-width:400px){
+  .metrics{grid-template-columns:1fr}
+  .top h2{font-size:18px}
+  .filters>*{max-width:100%;flex:1 1 100%}
+  .attachment-notice{bottom:10px;left:10px;right:10px;max-width:none}
+}
+@media(prefers-reduced-motion:reduce){
+  .navbtn,.btn{transition:none}
+}
+</style></head><body><a class="skip-link" href="#content">انتقل إلى المحتوى الرئيسي</a><aside aria-label="القائمة الجانبية"><h1>⌂ عقاري برو</h1><div class="hint">إدارة عقاراتك وإيجاراتك في مكان واحد</div><nav class="navlist" id="nav" aria-label="أقسام النظام"></nav><div class="tip">نسخة تجريبية محلية. تكامل إيجار وضع محاكاة فقط، ولا تتم معالجة مدفوعات فعلية.</div></aside><div class="app"><div class="top"><div><h2 id="title">لوحة القيادة</h2><small>عقاراتي · عقود الإيجار · التحصيل · الصيانة</small></div><span class="badge orange">تكامل إيجار: محاكاة</span></div><main id="content" tabindex="-1"></main></div><div id="modal"></div><script src="finance.js"></script><script src="contracts.js"></script><script src="followups.js"></script><script src="statements.js"></script><script src="receipts.js"></script><script src="reconciliation.js"></script><script src="maintenance.js"></script><script src="app.js"></script><script src="attachments.js"></script></body></html>
