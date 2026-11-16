@@ -177,7 +177,7 @@ const assert = require('node:assert/strict');
       const csvText = require('node:fs').readFileSync(csvPath, 'utf8');
       assert.equal(csvText.codePointAt(0), 0xfeff);
       assert.ok(csvText.includes('2027-01-01,1000,1000,0'));
-      assert.equal(csvText.trimEnd().split('\\r\\n').length, 13);
+      assert.equal(csvText.trimEnd().split('\r\n').length, 13);
 
       await page.reload({ waitUntil: 'load' });
       const afterReload = await page.evaluate(({ propertyName, unitCode }) => {
