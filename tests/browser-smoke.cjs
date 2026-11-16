@@ -112,9 +112,15 @@ const assert = require('node:assert/strict');
       await page.locator('#propertyFilter').selectOption(String(createdProperty.id));
       const recordSelector = '#content [data-attach-entity="dues"][data-attach-id="' + due.id + '"]';
       const dialogs = [];
+      let acceptBackupRestore = false;
       page.on('dialog', async dialog => {
         dialogs.push(dialog.message());
-        await dialog.dismiss();
+        if (acceptBackupRestore && dialog.type() === 'confirm' && dialog.message().includes('سيتم استبدال جميع سجلات')) {
+          acceptBackupRestore = false;
+          await dialog.accept();
+        } else {
+          await dialog.dismiss();
+        }
       });
       const paymentCount = () => page.evaluate(dueId => {
         const db = JSON.parse(localStorage.getItem('aqari-pro-gh-v1'));
@@ -252,9 +258,30 @@ const assert = require('node:assert/strict');
       });
       await restoreDialog;
       assert.equal(await page.evaluate(() => localStorage.getItem('aqari-pro-gh-v1')),storageKey);
+      // Confirm a valid restore using a modified copy of isolated test data.
+      const restoreData=JSON.parse(storageKey);
+      const testProperty=restoreData.properties.find(p=>p.name===propertyName);
+      assert.ok(testProperty);
+      testProperty.name='Recovered '+propertyName;
+      const restoredJson=JSON.stringify(restoreData);
+      acceptBackupRestore=true;
+      const successDialog=page.waitForEvent('dialog',d=>d.message().includes('تمت استعادة السجلات محليًا'));
+      await page.locator('#restoreBackupFile').setInputFiles({
+        name:'restore.json',mimeType:'application/json',buffer:Buffer.from(restoredJson)
+      });
+      await successDialog;
+      await page.waitForFunction(name=>{
+        const raw=localStorage.getItem('aqari-pro-gh-v1');
+        return raw && JSON.parse(raw).properties.some(p=>p.name===name);
+      },'Recovered '+propertyName);
+      assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('aqari-pro-gh-v1')).payments.length),restoreData.payments.length);
+      // Confirmed restore survives a reload without altering financial record counts.
+      await page.reload({waitUntil:'load'});
+      assert.equal(await page.evaluate(() => localStorage.getItem('aqari-pro-gh-v1')),restoredJson);
+      console.log('PASS: '+scenario.name+' validated backup restore and cancelled/invalid import safety');
       // Navigation and opening/closing blank forms must not overwrite existing storage.
       await page.reload({ waitUntil: 'load' });
-      assert.equal(await page.evaluate(() => window.localStorage.getItem('aqari-pro-gh-v1')), storageKey);
+      assert.equal(await page.evaluate(() => window.localStorage.getItem('aqari-pro-gh-v1')), restoredJson);
       console.log('PASS: ' + scenario.name + ' navigation, dialog dismissal, local storage stability');
       await context.close();
     }
