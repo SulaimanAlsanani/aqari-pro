@@ -283,8 +283,6 @@ const assert = require('node:assert/strict');
       assert.ok(testProperty);
       testProperty.name='Recovered '+propertyName;
       const restoredJson=JSON.stringify(restoreData);
-      acceptBackupRestore=true;
-      const successDialog=page.waitForEvent('dialog',d=>d.message().includes('تمت استعادة السجلات والمرفقات'));
       // Export a portable v2 backup containing records and their attachment snapshot.
       const fullDownload=page.waitForEvent('download');
       await page.locator('#content [data-do="backupFull"]').click();
@@ -299,6 +297,36 @@ const assert = require('node:assert/strict');
       // Restore the complete format with a changed property name.
       complete.records.properties.find(p=>p.name===propertyName).name='Recovered '+propertyName;
       const packageText=JSON.stringify(complete);
+      // Simulate a write failure after IndexedDB clear has been queued.
+      // Transaction abort must retain the previous file, and app must roll back records.
+      await page.evaluate(() => {
+        window.__ciOriginalStorePut=IDBObjectStore.prototype.put;
+        IDBObjectStore.prototype.put=function(){throw new Error('CI simulated storage quota failure')};
+      });
+      acceptBackupRestore=true;
+      const failedRestoreDialog=page.waitForEvent('dialog',d=>d.message().includes('فشلت استعادة المرفقات'));
+      await page.locator('#restoreBackupFile').setInputFiles({
+        name:'failed-restore.json',mimeType:'application/json',buffer:Buffer.from(packageText)
+      });
+      await failedRestoreDialog;
+      assert.equal(await page.evaluate(() => localStorage.getItem('aqari-pro-gh-v1')),storageKey,'failed restore rolls back localStorage');
+      const retained=await page.evaluate(async()=>{
+        const req=indexedDB.open('aqari-pro-local-attachments',1);
+        const db=await new Promise((resolve,reject)=>{req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)});
+        const files=await new Promise((resolve,reject)=>{
+          const tx=db.transaction('files','readonly');
+          const read=tx.objectStore('files').getAll();
+          read.onsuccess=()=>resolve(read.result);read.onerror=()=>reject(read.error);
+        });
+        return {count:files.length,content:files[0]&&await files[0].blob.text()};
+      });
+      assert.deepEqual(retained,{count:1,content:'AQARI-CI-ATTACHMENT'},'failed write retains original attachment bytes');
+      await page.evaluate(()=>{
+        IDBObjectStore.prototype.put=window.__ciOriginalStorePut;
+        delete window.__ciOriginalStorePut;
+      });
+      acceptBackupRestore=true;
+      const successDialog=page.waitForEvent('dialog',d=>d.message().includes('تمت استعادة السجلات والمرفقات'));
       await page.locator('#restoreBackupFile').setInputFiles({
         name:'restore.json',mimeType:'application/json',buffer:Buffer.from(packageText)
       });
