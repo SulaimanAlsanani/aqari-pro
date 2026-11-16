@@ -36,7 +36,8 @@ function remaining(due,paidAmounts){
  return Math.max(0,total-paid)/100;
 }
 function receivablesAging(dues,payments,asOf){
- if(!/^\d{4}-\d{2}-\d{2}$/.test(asOf)||Number.isNaN(Date.parse(asOf+'T00:00:00Z')))throw Error('Invalid reporting date');
+ const validDate=value=>/^\d{4}-\d{2}-\d{2}$/.test(value)&&Number.isFinite(Date.parse(value+'T00:00:00Z'))&&new Date(value+'T00:00:00Z').toISOString().slice(0,10)===value;
+ if(!validDate(asOf))throw Error('Invalid reporting date');
  const day=Date.parse(asOf+'T00:00:00Z')/86400000;
  const paymentsByDue=new Map();
  for(const p of payments){
@@ -46,10 +47,14 @@ function receivablesAging(dues,payments,asOf){
   paymentsByDue.set(key,(paymentsByDue.get(key)||0)+amount);
  }
  const result={notDue:0,days1to30:0,days31to60:0,days61to90:0,days90plus:0,total:0};
+ const seenDueIds=new Set();
  for(const due of dues){
+  const dueKey=String(due.id);
+  if(seenDueIds.has(dueKey))continue; // reconciliation separately flags duplicate IDs
+  seenDueIds.add(dueKey);
   const amount=toHalalas(due.amount);
   const dueDay=Date.parse(due.date+'T00:00:00Z')/86400000;
-  if(amount===null||!Number.isFinite(dueDay))throw Error('Invalid due record');
+  if(amount===null||!validDate(due.date)||!Number.isFinite(dueDay))throw Error('Invalid due record');
   const outstanding=Math.max(0,amount-(paymentsByDue.get(String(due.id))||0));
   const age=day-dueDay;
   const band=age<=0?'notDue':age<=30?'days1to30':age<=60?'days31to60':age<=90?'days61to90':'days90plus';
