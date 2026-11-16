@@ -35,8 +35,12 @@ function calculate(data,propertyId='all'){
    continue;
   }
   const key=String(payment.id),amount=cents(payment.amount);
-  if(paymentIds.has(key))issues.push({type:'duplicate_payment_id',id:payment.id,message:'رقم سند مكرر'});
-  else paymentIds.add(key);
+  if(paymentIds.has(key)){
+   // A duplicated receipt ID is an audit issue, not additional collected cash.
+   issues.push({type:'duplicate_payment_id',id:payment.id,message:'رقم سند مكرر'});
+   continue;
+  }
+  paymentIds.add(key);
   if(amount===null){invalid++;issues.push({type:'invalid_payment',id:payment.id,message:'مبلغ سند غير صالح'});continue}
   paymentsByDue.set(String(payment.dueId),(paymentsByDue.get(String(payment.dueId))||0)+amount);
   paid+=amount;
